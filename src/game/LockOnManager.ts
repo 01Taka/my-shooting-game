@@ -157,14 +157,32 @@ export class LockOnManager {
   }
 
   /**
-   * 指離し（Release）時の手ブレ補正（タイムバッファ方式）
-   * 指が画面から離れる最後のブレ（急激な微動）を無視し、
-   * 離す直前（約60〜80ms前）に安定して狙っていたターゲットを最終確定させる
+   * 新しいエイム操作の開始時に履歴をリセット
    */
-  confirmReleaseTarget(releaseTime: number): void {
+  startAimSession(): void {
+    this.targetHistory = [];
+  }
+
+  /**
+   * 指離し（Release）時の手ブレ補正（タイムバッファ方式）
+   * - 160ms未満のフリック操作: 一番最初にロックオンした敵（最初のターゲット）を採用
+   * - 160ms以上のドラッグ操作: 指が離れる直前（約70ms前）に安定して狙っていたターゲットを採用
+   */
+  confirmReleaseTarget(releaseTime: number, touchDuration?: number): void {
     if (this.targetHistory.length === 0) return;
 
-    // 指が浮き上がる約70ms前のターゲットを探す
+    // 【フリック対応】操作時間が160ms未満の場合は、操作中に一番最初にロックオンした敵を採用
+    if (typeof touchDuration === "number" && touchDuration < 160) {
+      for (const entry of this.targetHistory) {
+        if (entry.target.active) {
+          this.lockedTarget = entry.target;
+          this.targetHistory = [];
+          return;
+        }
+      }
+    }
+
+    // 【通常ドラッグ】指が浮き上がる約70ms前の安定したターゲットを探す
     const stableTime = releaseTime - 70;
     let bestEntry: TargetHistoryEntry | null = null;
     let minDiff = Infinity;

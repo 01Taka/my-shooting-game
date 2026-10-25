@@ -461,6 +461,11 @@ export class ControllerScene extends Phaser.Scene {
     stick.hasExceededDeadZone = false;
     this.stickTouchStartTime = this.time.now;
 
+    if (stick === this.lockOnStick) {
+      const gameScene = this.scene.get("GameScene");
+      gameScene?.events.emit("controller-lockon-start");
+    }
+
     const isDynamic = useGameSettings.getState().joystickType === "dynamic";
 
     if (isDynamic) {
@@ -573,16 +578,16 @@ export class ControllerScene extends Phaser.Scene {
    */
   protected releaseStick(stick: StickVisuals) {
     if (stick === this.lockOnStick) {
-      const isLockOnTap =
-        !stick.hasExceededDeadZone && this.time.now - this.stickTouchStartTime < 350;
+      const touchDuration = this.time.now - this.stickTouchStartTime;
+      const isLockOnTap = !stick.hasExceededDeadZone && touchDuration < 350;
 
       const gameScene = this.scene.get("GameScene");
       if (gameScene) {
         if (isLockOnTap) {
           gameScene.events.emit("controller-lockon-tap");
         } else {
-          // 倒して離した場合: 指離し時の手ブレ巻き戻し補正（タイムバッファ）を発火
-          gameScene.events.emit("controller-lockon-release", this.time.now);
+          // 倒して離した場合: 指離し時の手ブレ巻き戻し補正（タイムバッファ）を発火（フリック時間も送信）
+          gameScene.events.emit("controller-lockon-release", this.time.now, touchDuration);
         }
       }
     }

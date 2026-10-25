@@ -223,14 +223,19 @@ export class GameScene extends Phaser.Scene {
       this.playerController.setVirtualInput(input);
     });
 
+    // ロックオンスティック操作開始（フリック用セッション履歴の初期化）
+    this.events.on("controller-lockon-start", () => {
+      this.lockOnManager.startAimSession();
+    });
+
     // ロックオンスティックのタップによる最寄り敵オートロックオン
     this.events.on("controller-lockon-tap", () => {
       this.lockOnManager.lockNearestEnemy(this.player, this.enemyManager.getGroup(), this);
     });
 
-    // ロックオンスティック解放時の指離し手ブレ補正（タイムバッファ方式）
-    this.events.on("controller-lockon-release", (releaseTime: number) => {
-      this.lockOnManager.confirmReleaseTarget(releaseTime);
+    // ロックオンスティック解放時の指離し手ブレ補正（タイムバッファ方式 ＆ 160ms未満フリック判定）
+    this.events.on("controller-lockon-release", (releaseTime: number, touchDuration?: number) => {
+      this.lockOnManager.confirmReleaseTarget(releaseTime, touchDuration);
     });
 
     // シーン破棄時のクリーンアップ（1度だけ実行）
@@ -241,6 +246,7 @@ export class GameScene extends Phaser.Scene {
       this.lockOnManager?.destroy();
       this.playerController?.destroy();
       this.events.off("controller-input");
+      this.events.off("controller-lockon-start");
       this.events.off("controller-lockon-tap");
       this.events.off("controller-lockon-release");
     });
