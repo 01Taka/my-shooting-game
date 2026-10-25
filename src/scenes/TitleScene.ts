@@ -20,15 +20,13 @@ export class TitleScene extends Phaser.Scene {
     return {
       title: "SPACE SHOOTER",
       titleStyle: {
-        fontSize: "44px",
-        fontFamily: "sans-serif",
+        fontSize: "80px",
         fontStyle: "bold",
         color: "#38bdf8",
       },
       subTitle: "- 横画面スマホ対応シューティング -",
       subTitleStyle: {
-        fontSize: "16px",
-        fontFamily: "sans-serif",
+        fontSize: "28px",
         color: "#94a3b8",
       },
     };
@@ -42,13 +40,13 @@ export class TitleScene extends Phaser.Scene {
       {
         label: "ゲームスタート",
         color: 0x0284c7,
-        yOffset: 30,
+        yOffset: 60,
         onClick: () => this.scene.start("GameScene"),
       },
       {
         label: "設定",
         color: 0x475569,
-        yOffset: 100,
+        yOffset: 190,
         onClick: () => EventBus.emit("open-settings"),
       },
     ];
@@ -66,12 +64,16 @@ export class TitleScene extends Phaser.Scene {
     const config = this.getTitleConfig();
 
     // タイトル文字
-    addCrispText(this, width / 2, height / 2 - 120, config.title, config.titleStyle).setOrigin(0.5);
+    addCrispText(this, width / 2, height / 2 - 200, config.title, config.titleStyle).setOrigin(0.5);
 
     // サブタイトル文字
-    addCrispText(this, width / 2, height / 2 - 60, config.subTitle, config.subTitleStyle).setOrigin(
-      0.5,
-    );
+    addCrispText(
+      this,
+      width / 2,
+      height / 2 - 100,
+      config.subTitle,
+      config.subTitleStyle,
+    ).setOrigin(0.5);
 
     // メニューボタン生成
     const buttons = this.getMenuButtons();
@@ -81,18 +83,17 @@ export class TitleScene extends Phaser.Scene {
   }
 
   protected createButton(x: number, y: number, label: string, color: number, onClick: () => void) {
-    const btnWidth = 220;
-    const btnHeight = 48;
+    const btnWidth = 440;
+    const btnHeight = 90;
 
     const container = this.add.container(x, y);
 
     const bg = this.add.graphics();
     bg.fillStyle(color, 1);
-    bg.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 10);
+    bg.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 18);
 
     const text = addCrispText(this, 0, 0, label, {
-      fontSize: "18px",
-      fontFamily: "sans-serif",
+      fontSize: "32px",
       color: "#ffffff",
     }).setOrigin(0.5);
 

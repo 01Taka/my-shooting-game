@@ -12,8 +12,7 @@ export class ResultScene extends Phaser.Scene {
   }
 
   // ==========================================
-  // ゲーム特有のリザルト設定
-  // （派生ゲーム作成時はここをオーバーライドまたは編集）
+  // ゲーム特有のリザルト設定 (1600x900スケール)
   // ==========================================
 
   /**
@@ -36,13 +35,13 @@ export class ResultScene extends Phaser.Scene {
       {
         label: "もう一度遊ぶ",
         color: 0x0284c7,
-        yOffset: 40,
+        yOffset: 80,
         onClick: () => this.cleanupAndStart("GameScene"),
       },
       {
         label: "タイトルへ戻る",
         color: 0x475569,
-        yOffset: 105,
+        yOffset: 200,
         onClick: () => this.cleanupAndStart("TitleScene"),
       },
     ];
@@ -71,8 +70,8 @@ export class ResultScene extends Phaser.Scene {
     if (config.triggerConfetti) {
       try {
         confetti({
-          particleCount: 100,
-          spread: 70,
+          particleCount: 120,
+          spread: 80,
           origin: { y: 0.6 },
         });
       } catch {
@@ -81,16 +80,16 @@ export class ResultScene extends Phaser.Scene {
     }
 
     // メインメッセージ
-    addCrispText(this, width / 2, height / 2 - 90, config.titleText, {
-      fontSize: "36px",
+    addCrispText(this, width / 2, height / 2 - 160, config.titleText, {
+      fontSize: "72px",
       fontFamily: "monospace",
       fontStyle: "bold",
       color: config.titleColor,
     }).setOrigin(0.5);
 
     // スコア表示
-    addCrispText(this, width / 2, height / 2 - 25, config.scoreText, {
-      fontSize: "20px",
+    addCrispText(this, width / 2, height / 2 - 40, config.scoreText, {
+      fontSize: "40px",
       fontFamily: "monospace",
       color: "#ffffff",
     }).setOrigin(0.5);
@@ -111,19 +110,21 @@ export class ResultScene extends Phaser.Scene {
   }
 
   protected createButton(x: number, y: number, label: string, color: number, onClick: () => void) {
+    const btnWidth = 400;
+    const btnHeight = 80;
+
     const btn = this.add.container(x, y);
     const bg = this.add.graphics();
     bg.fillStyle(color, 1);
-    bg.fillRoundedRect(-100, -20, 200, 40, 8);
+    bg.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 16);
 
     const txt = addCrispText(this, 0, 0, label, {
-      fontSize: "15px",
-      fontFamily: "sans-serif",
+      fontSize: "30px",
       color: "#ffffff",
     }).setOrigin(0.5);
 
     btn.add([bg, txt]);
-    btn.setSize(200, 40);
+    btn.setSize(btnWidth, btnHeight);
     btn.setInteractive({ useHandCursor: true });
 
     btn.on("pointerover", () => btn.setScale(1.04));

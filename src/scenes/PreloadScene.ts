@@ -26,28 +26,28 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   /**
-   * 動的テクスチャの生成（外部画像ファイルなしで即座に動作確認可能にする用）
+   * 動的テクスチャの生成（1600x900の高解像度に合わせて2倍サイズで生成）
    */
   protected createDummyAssets() {
-    // プレイヤー用自機グラフィック
+    // プレイヤー用自機グラフィック (64x64)
     const playerGraphics = this.make.graphics({ x: 0, y: 0 });
     playerGraphics.fillStyle(0x38bdf8, 1);
-    playerGraphics.fillTriangle(0, 32, 16, 0, 32, 32);
-    playerGraphics.generateTexture("player", 32, 32);
+    playerGraphics.fillTriangle(0, 64, 32, 0, 64, 64);
+    playerGraphics.generateTexture("player", 64, 64);
     playerGraphics.destroy();
 
-    // 弾グラフィック
+    // 弾グラフィック (16x16)
     const bulletGraphics = this.make.graphics({ x: 0, y: 0 });
     bulletGraphics.fillStyle(0xfacc15, 1);
-    bulletGraphics.fillCircle(4, 4, 4);
-    bulletGraphics.generateTexture("bullet", 8, 8);
+    bulletGraphics.fillCircle(8, 8, 8);
+    bulletGraphics.generateTexture("bullet", 16, 16);
     bulletGraphics.destroy();
 
-    // 敵グラフィック
+    // 敵グラフィック (56x56)
     const enemyGraphics = this.make.graphics({ x: 0, y: 0 });
     enemyGraphics.fillStyle(0xf43f5e, 1);
-    enemyGraphics.fillRoundedRect(0, 0, 28, 28, 6);
-    enemyGraphics.generateTexture("enemy", 28, 28);
+    enemyGraphics.fillRoundedRect(0, 0, 56, 56, 12);
+    enemyGraphics.generateTexture("enemy", 56, 56);
     enemyGraphics.destroy();
   }
 
@@ -59,14 +59,14 @@ export class PreloadScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     // タイトル・ローディングテキスト（高解像度テキスト）
-    const loadingText = addCrispText(this, width / 2, height / 2 - 50, "Now Loading...", {
-      fontSize: "24px",
+    const loadingText = addCrispText(this, width / 2, height / 2 - 80, "Now Loading...", {
+      fontSize: "40px",
       fontFamily: "monospace",
       color: "#ffffff",
     }).setOrigin(0.5);
 
-    const percentText = addCrispText(this, width / 2, height / 2 + 40, "0%", {
-      fontSize: "18px",
+    const percentText = addCrispText(this, width / 2, height / 2 + 70, "0%", {
+      fontSize: "30px",
       fontFamily: "monospace",
       color: "#94a3b8",
     }).setOrigin(0.5);
@@ -74,7 +74,7 @@ export class PreloadScene extends Phaser.Scene {
     // プログレスバーの枠
     const progressBox = this.add.graphics();
     progressBox.fillStyle(0x334155, 0.8);
-    progressBox.fillRoundedRect(width / 2 - 160, height / 2 - 15, 320, 30, 8);
+    progressBox.fillRoundedRect(width / 2 - 300, height / 2 - 20, 600, 40, 12);
 
     // プログレスバー本体
     const progressBar = this.add.graphics();
@@ -83,7 +83,7 @@ export class PreloadScene extends Phaser.Scene {
       percentText.setText(`${Math.floor(value * 100)}%`);
       progressBar.clear();
       progressBar.fillStyle(0x38bdf8, 1);
-      progressBar.fillRoundedRect(width / 2 - 155, height / 2 - 10, 310 * value, 20, 5);
+      progressBar.fillRoundedRect(width / 2 - 294, height / 2 - 14, 588 * value, 28, 8);
     });
 
     this.load.on("complete", () => {

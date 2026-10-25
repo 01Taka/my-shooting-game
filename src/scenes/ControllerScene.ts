@@ -16,8 +16,7 @@ export class ControllerScene extends Phaser.Scene {
   }
 
   // ==========================================
-  // ゲーム特有のバーチャルコントローラー設定
-  // （派生ゲーム作成時はここをオーバーライドまたは編集）
+  // ゲーム特有のバーチャルコントローラー設定 (1600x900スケール)
   // ==========================================
 
   /**
@@ -26,20 +25,20 @@ export class ControllerScene extends Phaser.Scene {
   protected getControllerConfig() {
     return {
       dpad: {
-        centerXOffset: 100,
-        centerYOffset: 100,
-        btnSize: 42,
+        centerXOffset: 180,
+        centerYOffset: 180,
+        btnSize: 76,
         buttons: [
-          { key: "left" as const, label: "◀", offsetX: -50, offsetY: 0 },
-          { key: "right" as const, label: "▶", offsetX: 50, offsetY: 0 },
-          { key: "up" as const, label: "▲", offsetX: 0, offsetY: -50 },
-          { key: "down" as const, label: "▼", offsetX: 0, offsetY: 50 },
+          { key: "left" as const, label: "◀", offsetX: -90, offsetY: 0 },
+          { key: "right" as const, label: "▶", offsetX: 90, offsetY: 0 },
+          { key: "up" as const, label: "▲", offsetX: 0, offsetY: -90 },
+          { key: "down" as const, label: "▼", offsetX: 0, offsetY: 90 },
         ],
       },
       actionButton: {
-        xOffset: 90,
-        yOffset: 90,
-        radius: 40,
+        xOffset: 160,
+        yOffset: 160,
+        radius: 72,
         label: "SHOT",
         color: 0xef4444,
         activeColor: 0xdc2626,
@@ -83,11 +82,11 @@ export class ControllerScene extends Phaser.Scene {
     const shotBg = this.add.graphics();
     shotBg.fillStyle(shotConfig.color, 0.7);
     shotBg.fillCircle(0, 0, shotRadius);
-    shotBg.lineStyle(3, 0xffffff, 0.8);
+    shotBg.lineStyle(5, 0xffffff, 0.8);
     shotBg.strokeCircle(0, 0, shotRadius);
 
     const shotLabel = addCrispText(this, 0, 0, shotConfig.label, {
-      fontSize: "14px",
+      fontSize: "26px",
       fontFamily: "monospace",
       fontStyle: "bold",
       color: "#ffffff",
@@ -110,7 +109,7 @@ export class ControllerScene extends Phaser.Scene {
       shotBg.clear();
       shotBg.fillStyle(shotConfig.color, 0.7);
       shotBg.fillCircle(0, 0, shotRadius);
-      shotBg.lineStyle(3, 0xffffff, 0.8);
+      shotBg.lineStyle(5, 0xffffff, 0.8);
       shotBg.strokeCircle(0, 0, shotRadius);
       this.notifyGameScene();
     };
@@ -130,12 +129,12 @@ export class ControllerScene extends Phaser.Scene {
 
     const bg = this.add.graphics();
     bg.fillStyle(0x334155, 0.65);
-    bg.fillRoundedRect(-size / 2, -size / 2, size, size, 8);
-    bg.lineStyle(2, 0x64748b, 0.8);
-    bg.strokeRoundedRect(-size / 2, -size / 2, size, size, 8);
+    bg.fillRoundedRect(-size / 2, -size / 2, size, size, 14);
+    bg.lineStyle(3, 0x64748b, 0.8);
+    bg.strokeRoundedRect(-size / 2, -size / 2, size, size, 14);
 
     const txt = addCrispText(this, 0, 0, label, {
-      fontSize: "16px",
+      fontSize: "28px",
       color: "#ffffff",
     }).setOrigin(0.5);
 
@@ -147,7 +146,7 @@ export class ControllerScene extends Phaser.Scene {
       this.inputState[key] = true;
       bg.clear();
       bg.fillStyle(0x0284c7, 0.85);
-      bg.fillRoundedRect(-size / 2, -size / 2, size, size, 8);
+      bg.fillRoundedRect(-size / 2, -size / 2, size, size, 14);
       this.notifyGameScene();
     });
 
@@ -155,9 +154,9 @@ export class ControllerScene extends Phaser.Scene {
       this.inputState[key] = false;
       bg.clear();
       bg.fillStyle(0x334155, 0.65);
-      bg.fillRoundedRect(-size / 2, -size / 2, size, size, 8);
-      bg.lineStyle(2, 0x64748b, 0.8);
-      bg.strokeRoundedRect(-size / 2, -size / 2, size, size, 8);
+      bg.fillRoundedRect(-size / 2, -size / 2, size, size, 14);
+      bg.lineStyle(3, 0x64748b, 0.8);
+      bg.strokeRoundedRect(-size / 2, -size / 2, size, size, 14);
       this.notifyGameScene();
     };
 

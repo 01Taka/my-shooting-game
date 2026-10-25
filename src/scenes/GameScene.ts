@@ -28,7 +28,7 @@ export class GameScene extends Phaser.Scene {
 
   // ==========================================
   // ゲーム特有の設定・ルール・パラメータ
-  // （派生ゲーム作成時はここをオーバーライドまたは編集）
+  // （1600x900解像度に合わせてスケール調整）
   // ==========================================
 
   /**
@@ -37,12 +37,12 @@ export class GameScene extends Phaser.Scene {
   protected getGameParameters() {
     return {
       initialHp: 100,
-      playerSpeed: 250,
+      playerSpeed: 500, // 250 -> 500
       fireRateMs: 180,
-      bulletSpeed: -400,
+      bulletSpeed: -800, // -400 -> -800
       enemySpawnIntervalMs: 1000,
-      enemySpeedMin: 100,
-      enemySpeedMax: 180,
+      enemySpeedMin: 200,
+      enemySpeedMax: 360,
       enemyScore: 100,
       enemyDamage: 25,
     };
@@ -52,14 +52,14 @@ export class GameScene extends Phaser.Scene {
    * ゲームオブジェクト（キャラクター、弾、敵グループ等）の初期化
    */
   protected initGameObjects(width: number, height: number) {
-    // プレイヤー作成
-    this.player = this.physics.add.image(width / 2, height - 60, "player");
+    // プレイヤー作成 (64x64)
+    this.player = this.physics.add.image(width / 2, height - 120, "player");
     this.player.setCollideWorldBounds(true);
 
     // 弾グループ
     this.bullets = this.physics.add.group({
       defaultKey: "bullet",
-      maxSize: 30,
+      maxSize: 40,
     });
 
     // 敵グループ
@@ -118,8 +118,8 @@ export class GameScene extends Phaser.Scene {
   protected spawnEnemy() {
     const { width } = this.scale;
     const params = this.getGameParameters();
-    const x = Phaser.Math.Between(40, width - 40);
-    const enemy = this.enemies.create(x, -20, "enemy") as Phaser.Physics.Arcade.Image;
+    const x = Phaser.Math.Between(80, width - 80);
+    const enemy = this.enemies.create(x, -40, "enemy") as Phaser.Physics.Arcade.Image;
     if (enemy) {
       enemy.setVelocityY(Phaser.Math.Between(params.enemySpeedMin, params.enemySpeedMax));
     }
@@ -150,7 +150,7 @@ export class GameScene extends Phaser.Scene {
     if (isShoot && time > this.lastFired) {
       const bullet = this.bullets.get(
         this.player.x,
-        this.player.y - 16,
+        this.player.y - 32,
       ) as Phaser.Physics.Arcade.Image | null;
 
       if (bullet) {
@@ -168,7 +168,7 @@ export class GameScene extends Phaser.Scene {
   protected updateGameObjects() {
     const bullets = this.bullets.getChildren() as Phaser.Physics.Arcade.Image[];
     for (const bullet of bullets) {
-      if (bullet.active && bullet.y < -10) {
+      if (bullet.active && bullet.y < -20) {
         bullet.destroy();
       }
     }
@@ -176,7 +176,7 @@ export class GameScene extends Phaser.Scene {
     const { height } = this.scale;
     const enemies = this.enemies.getChildren() as Phaser.Physics.Arcade.Image[];
     for (const enemy of enemies) {
-      if (enemy.active && enemy.y > height + 20) {
+      if (enemy.active && enemy.y > height + 40) {
         enemy.destroy();
       }
     }

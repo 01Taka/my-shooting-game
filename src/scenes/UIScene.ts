@@ -18,7 +18,6 @@ export class UIScene extends Phaser.Scene {
 
   // ==========================================
   // ゲーム特有のUI設定・メニュー定義
-  // （派生ゲーム作成時はここをオーバーライドまたは編集）
   // ==========================================
 
   /**
@@ -64,7 +63,7 @@ export class UIScene extends Phaser.Scene {
   }
 
   // ==========================================
-  // 共通HUD・ポーズ制御
+  // 共通HUD・ポーズ制御 (1600x900スケール)
   // ==========================================
 
   init(data: { hp?: number; maxHp?: number; score?: number }) {
@@ -78,38 +77,37 @@ export class UIScene extends Phaser.Scene {
     const hudConfig = this.getHUDConfig();
 
     // --- HPバー表示（左上） ---
-    addCrispText(this, 20, 16, hudConfig.hpLabel, {
-      fontSize: "14px",
+    addCrispText(this, 30, 26, hudConfig.hpLabel, {
+      fontSize: "24px",
       fontFamily: "monospace",
       color: "#94a3b8",
     });
 
     const hpBg = this.add.graphics();
     hpBg.fillStyle(0x334155, 0.8);
-    hpBg.fillRoundedRect(50, 16, 120, 16, 4);
+    hpBg.fillRoundedRect(80, 26, 240, 28, 6);
 
     this.hpBarFill = this.add.graphics();
-    this.hpText = addCrispText(this, 178, 16, `${this.hp}/${this.maxHp}`, {
-      fontSize: "12px",
+    this.hpText = addCrispText(this, 335, 26, `${this.hp}/${this.maxHp}`, {
+      fontSize: "20px",
       fontFamily: "monospace",
       color: "#e2e8f0",
     });
     this.updateHpBar(this.hp);
 
     // --- スコア表示（中央上） ---
-    this.scoreText = addCrispText(this, width / 2, 24, `${hudConfig.scorePrefix}00000`, {
-      fontSize: "18px",
+    this.scoreText = addCrispText(this, width / 2, 40, `${hudConfig.scorePrefix}00000`, {
+      fontSize: "32px",
       fontFamily: "monospace",
       fontStyle: "bold",
       color: "#f8fafc",
     }).setOrigin(0.5);
 
     // --- ポーズボタン（右上） ---
-    const pauseBtn = addCrispText(this, width - 20, 24, hudConfig.pauseButtonText, {
-      fontSize: "14px",
-      fontFamily: "sans-serif",
+    const pauseBtn = addCrispText(this, width - 30, 40, hudConfig.pauseButtonText, {
+      fontSize: "22px",
       backgroundColor: "#1e293b",
-      padding: { x: 10, y: 6 },
+      padding: { x: 18, y: 10 },
       color: "#ffffff",
     })
       .setOrigin(1, 0.5)
@@ -146,7 +144,7 @@ export class UIScene extends Phaser.Scene {
     const color = ratio > 0.5 ? 0x22c55e : ratio > 0.25 ? 0xfacc15 : 0xef4444;
 
     this.hpBarFill.fillStyle(color, 1);
-    this.hpBarFill.fillRoundedRect(50, 16, 120 * ratio, 16, 4);
+    this.hpBarFill.fillRoundedRect(80, 26, 240 * ratio, 28, 6);
     this.hpText.setText(`${Math.max(0, currentHp)}/${this.maxHp}`);
   }
 
@@ -186,17 +184,17 @@ export class UIScene extends Phaser.Scene {
       Phaser.Geom.Rectangle.Contains,
     );
 
-    // ダイアログ枠
+    // ダイアログ枠 (540x460)
     const modalBg = this.add.graphics();
     modalBg.fillStyle(0x1e293b, 1);
-    modalBg.fillRoundedRect(width / 2 - 140, height / 2 - 120, 280, 240, 12);
-    modalBg.lineStyle(2, 0x475569, 1);
-    modalBg.strokeRoundedRect(width / 2 - 140, height / 2 - 120, 280, 240, 12);
+    modalBg.fillRoundedRect(width / 2 - 270, height / 2 - 230, 540, 460, 20);
+    modalBg.lineStyle(3, 0x475569, 1);
+    modalBg.strokeRoundedRect(width / 2 - 270, height / 2 - 230, 540, 460, 20);
 
     const menuConfig = this.getPauseMenuConfig();
 
-    const title = addCrispText(this, width / 2, height / 2 - 80, menuConfig.title, {
-      fontSize: "24px",
+    const title = addCrispText(this, width / 2, height / 2 - 150, menuConfig.title, {
+      fontSize: "44px",
       fontFamily: "monospace",
       fontStyle: "bold",
       color: "#ffffff",
@@ -206,7 +204,7 @@ export class UIScene extends Phaser.Scene {
 
     // 設定されたメニューボタンを順次配置
     menuConfig.items.forEach((item, index) => {
-      const yPos = height / 2 - 25 + index * 55;
+      const yPos = height / 2 - 40 + index * 95;
       const btn = this.createMenuButton(width / 2, yPos, item.label, item.color, item.onClick);
       this.pauseMenuContainer.add(btn);
     });
@@ -222,16 +220,15 @@ export class UIScene extends Phaser.Scene {
     const btn = this.add.container(x, y);
     const bg = this.add.graphics();
     bg.fillStyle(color, 1);
-    bg.fillRoundedRect(-100, -18, 200, 36, 6);
+    bg.fillRoundedRect(-180, -32, 360, 64, 12);
 
     const label = addCrispText(this, 0, 0, text, {
-      fontSize: "15px",
-      fontFamily: "sans-serif",
+      fontSize: "26px",
       color: "#ffffff",
     }).setOrigin(0.5);
 
     btn.add([bg, label]);
-    btn.setSize(200, 36);
+    btn.setSize(360, 64);
     btn.setInteractive({ useHandCursor: true });
     btn.on("pointerdown", callback);
 

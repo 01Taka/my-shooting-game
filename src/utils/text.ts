@@ -1,4 +1,4 @@
-import Phaser from "phaser";
+import type Phaser from "phaser";
 
 /**
  * デバイスピクセル比（DPR）に応じた高精細解像度（最低2倍、最大3倍）を取得
@@ -6,7 +6,7 @@ import Phaser from "phaser";
 export const getDeviceResolution = (): number => {
   if (typeof window === "undefined") return 2;
   const dpr = window.devicePixelRatio || 1;
-  return Math.min(Math.max(dpr, 2), 3);
+  return Math.min(Math.max(dpr, 2), 2);
 };
 
 // Windows・Mac・iOS・Androidすべてで最高品質のアンチエイリアスが効くフォントスタック
