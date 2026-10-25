@@ -59,6 +59,8 @@ export class GameScene extends Phaser.Scene {
       enemyDamage: 25,
       lookAheadDistanceY: 240, // 上下方向の先行オフセット距離（画面高が低いため大きく確保）
       lookAheadDistanceX: 60, // 左右方向の先行オフセット距離（上下の1/4：横長画面のため控えめに設定）
+      maxLookSpeedY: 280, // 上下の急激なエイム反転による画面の跳ね上がりを防止する最大追従速度 (px/sec)
+      maxLookSpeedX: 120, // 左右の最大追従速度 (px/sec)
     };
   }
 
@@ -275,8 +277,9 @@ export class GameScene extends Phaser.Scene {
 
   /**
    * カメラのプレイヤー追従 ＆ 視線方向への先行オフセット（Look-ahead）更新
+   * 急激なエイム反転による画面の上下跳ねを防止するため最大追従速度でクランプ
    */
-  protected updateCameraLookAhead() {
+  protected updateCameraLookAhead(delta: number) {
     const params = this.getGameParameters();
 
     // プレイヤーが現在向いている角度（上向き基準画像のため -PI/2 で幾何角へ変換）
@@ -297,12 +300,26 @@ export class GameScene extends Phaser.Scene {
     const targetOffsetX = Math.cos(currentAngle) * lookDistanceX;
     const targetOffsetY = Math.sin(currentAngle) * lookDistanceY;
 
-    // 視線オフセット（相対値）のみを慣性（Lerp 0.06）で滑らかに補間
-    this.currentLookOffsetX = Phaser.Math.Linear(this.currentLookOffsetX, targetOffsetX, 0.06);
-    this.currentLookOffsetY = Phaser.Math.Linear(this.currentLookOffsetY, targetOffsetY, 0.06);
+    // 目標オフセットとの差分
+    const diffX = targetOffsetX - this.currentLookOffsetX;
+    const diffY = targetOffsetY - this.currentLookOffsetY;
 
-    // カメラ注視点は「自機の現在位置 ＋ 補間された視線オフセット」へ即時配置
-    // これにより自機の移動には遅延ゼロで追従し、視線の変化だけが滑らかに追従する
+    // 1フレームあたりの最大変化量（ミリ秒deltaを考慮したフレームレート非依存の上限）
+    const maxDeltaX = (params.maxLookSpeedX * delta) / 1000;
+    const maxDeltaY = (params.maxLookSpeedY * delta) / 1000;
+
+    // 通常のLerp変化量（0.06）
+    let stepX = diffX * 0.06;
+    let stepY = diffY * 0.06;
+
+    // 上下に急激に振っても画面が跳ね上がらないよう最大速度でクランプ
+    stepX = Phaser.Math.Clamp(stepX, -maxDeltaX, maxDeltaX);
+    stepY = Phaser.Math.Clamp(stepY, -maxDeltaY, maxDeltaY);
+
+    this.currentLookOffsetX += stepX;
+    this.currentLookOffsetY += stepY;
+
+    // カメラ注視点は「自機の現在位置 ＋ 速度制限・補間された視線オフセット」へ即時配置
     this.cameraTarget.x = this.player.x + this.currentLookOffsetX;
     this.cameraTarget.y = this.player.y + this.currentLookOffsetY;
   }
@@ -448,11 +465,11 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  update(time: number) {
+  update(time: number, delta: number) {
     if (this.hp <= 0) return;
 
     this.handlePlayerInputAndActions(time);
-    this.updateCameraLookAhead();
+    this.updateCameraLookAhead(delta);
     this.updateGameObjects();
   }
 }

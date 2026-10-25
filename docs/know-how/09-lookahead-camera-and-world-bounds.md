@@ -33,7 +33,7 @@ HPバー（`UIScene`）やバーチャルパッド（`ControllerScene`）を `Ga
 this.cameras.main.setBounds(0, 0, worldSize, worldSize);
 this.cameras.main.startFollow(this.cameraTarget, false, 1, 1);
 
-// 2. update() 内での注視点計算（自機位置と視線オフセットの分離）
+// 2. update(time, delta) 内での注視点計算（自機位置と視線オフセットの分離 ＆ 最大追従速度クランプ）
 const currentAngle = this.player.rotation - Math.PI / 2; // 自機の向いている角度
 
 // 上下方向は画面端までが狭いため大きく先行(240px)、左右は余裕があるため1/4程度(60px)に抑える
@@ -43,12 +43,22 @@ const lookDistanceX = isShooting || isMoving ? 60 : 15;
 const targetOffsetX = Math.cos(currentAngle) * lookDistanceX;
 const targetOffsetY = Math.sin(currentAngle) * lookDistanceY;
 
-// 視線オフセット（相対値）のみを慣性（Lerp 0.06）で滑らかに補間
-this.currentLookOffsetX = Phaser.Math.Linear(this.currentLookOffsetX, targetOffsetX, 0.06);
-this.currentLookOffsetY = Phaser.Math.Linear(this.currentLookOffsetY, targetOffsetY, 0.06);
+// 目標との差分
+const diffX = targetOffsetX - this.currentLookOffsetX;
+const diffY = targetOffsetY - this.currentLookOffsetY;
 
-// カメラ注視点は「プレイヤー現在位置 ＋ 補間された視線オフセット」へ即時配置
-// （これにより自機の移動には遅延ゼロで追従し、視線の変化だけが滑らかに追従する）
+// 1フレームあたりの最大変化量（上下急旋回時のカメラ跳ね上がりを防止）
+const maxDeltaX = (120 * delta) / 1000;
+const maxDeltaY = (280 * delta) / 1000;
+
+let stepX = Phaser.Math.Clamp(diffX * 0.06, -maxDeltaX, maxDeltaX);
+let stepY = Phaser.Math.Clamp(diffY * 0.06, -maxDeltaY, maxDeltaY);
+
+this.currentLookOffsetX += stepX;
+this.currentLookOffsetY += stepY;
+
+// カメラ注視点は「プレイヤー現在位置 ＋ 補間・速度制限された視線オフセット」へ即時配置
+// （自機の移動には遅延ゼロで追従し、上下を急激に振っても画面が穏やかに追従する）
 this.cameraTarget.x = this.player.x + this.currentLookOffsetX;
 this.cameraTarget.y = this.player.y + this.currentLookOffsetY;
 ```
