@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 
+import { type JoystickType, useGameSettings } from "../stores/useGameSettings";
 import { addCrispText } from "../utils/text";
 
 export interface StickState {
@@ -21,8 +22,10 @@ interface StickVisuals {
   knob: Phaser.GameObjects.Container;
   aimIndicator?: Phaser.GameObjects.Graphics;
   pointerId: number | null;
-  baseX: number;
-  baseY: number;
+  baseX: number; // 現在のスティック中心X
+  baseY: number; // 現在のスティック中心Y
+  originX: number; // デフォルトの初期配置X
+  originY: number; // デフォルトの初期配置Y
   maxRadius: number;
   deadZone: number;
   state: StickState;
@@ -31,6 +34,8 @@ interface StickVisuals {
 export class ControllerScene extends Phaser.Scene {
   protected moveStick!: StickVisuals;
   protected shootStick!: StickVisuals;
+  protected joystickType: JoystickType = "dynamic";
+  protected unsubscribeSettings?: () => void;
 
   constructor() {
     super("ControllerScene");
@@ -77,13 +82,20 @@ export class ControllerScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const config = this.getStickConfig();
 
+    // 設定ストアからスティックタイプを同期
+    this.joystickType = useGameSettings.getState().joystickType;
+    this.unsubscribeSettings = useGameSettings.subscribe((state) => {
+      this.joystickType = state.joystickType;
+      this.resetAllSticks();
+    });
+
     // 複数指のマルチタッチに対応
     this.input.addPointer(3);
 
     // --- 左側: 移動バーチャルスティック ---
     this.moveStick = this.createVirtualStick({
-      baseX: config.move.xOffset,
-      baseY: height - config.move.yOffset,
+      originX: config.move.xOffset,
+      originY: height - config.move.yOffset,
       baseRadius: config.move.baseRadius,
       knobRadius: config.move.knobRadius,
       maxRadius: config.move.maxRadius,
@@ -97,8 +109,8 @@ export class ControllerScene extends Phaser.Scene {
 
     // --- 右側: 攻撃バーチャルスティック ---
     this.shootStick = this.createVirtualStick({
-      baseX: width - config.shoot.xOffset,
-      baseY: height - config.shoot.yOffset,
+      originX: width - config.shoot.xOffset,
+      originY: height - config.shoot.yOffset,
       baseRadius: config.shoot.baseRadius,
       knobRadius: config.shoot.knobRadius,
       maxRadius: config.shoot.maxRadius,
@@ -125,8 +137,8 @@ export class ControllerScene extends Phaser.Scene {
    * バーチャルスティック表示オブジェクトの生成
    */
   protected createVirtualStick(options: {
-    baseX: number;
-    baseY: number;
+    originX: number;
+    originY: number;
     baseRadius: number;
     knobRadius: number;
     maxRadius: number;
@@ -138,8 +150,8 @@ export class ControllerScene extends Phaser.Scene {
     isAimStick: boolean;
   }): StickVisuals {
     const {
-      baseX,
-      baseY,
+      originX,
+      originY,
       baseRadius,
       knobRadius,
       maxRadius,
@@ -151,20 +163,17 @@ export class ControllerScene extends Phaser.Scene {
       isAimStick,
     } = options;
 
-    const container = this.add.container(baseX, baseY);
+    const container = this.add.container(originX, originY);
+    container.setAlpha(0.6);
 
     // ベース外枠 & ガイド
     const baseBg = this.add.graphics();
-    // 半透明背景
     baseBg.fillStyle(baseColor, 0.45);
     baseBg.fillCircle(0, 0, baseRadius);
-    // 外枠リング
     baseBg.lineStyle(4, borderColor, 0.7);
     baseBg.strokeCircle(0, 0, baseRadius);
-    // 内側ガイドリング
     baseBg.lineStyle(2, borderColor, 0.3);
     baseBg.strokeCircle(0, 0, baseRadius * 0.5);
-    // 十字ガイドライン
     baseBg.lineStyle(1.5, borderColor, 0.25);
     baseBg.lineBetween(-baseRadius * 0.75, 0, baseRadius * 0.75, 0);
     baseBg.lineBetween(0, -baseRadius * 0.75, 0, baseRadius * 0.75);
@@ -190,13 +199,10 @@ export class ControllerScene extends Phaser.Scene {
     // ノブ（スティック頭）
     const knob = this.add.container(0, 0);
     const knobGraphics = this.add.graphics();
-    // ノブ本体
     knobGraphics.fillStyle(knobColor, 0.85);
     knobGraphics.fillCircle(0, 0, knobRadius);
-    // ノブ外枠
     knobGraphics.lineStyle(3.5, 0xffffff, 0.9);
     knobGraphics.strokeCircle(0, 0, knobRadius);
-    // ノブ中心のアクセントドット
     knobGraphics.fillStyle(0xffffff, 0.8);
     knobGraphics.fillCircle(0, 0, 7);
 
@@ -209,8 +215,10 @@ export class ControllerScene extends Phaser.Scene {
       knob,
       aimIndicator,
       pointerId: null,
-      baseX,
-      baseY,
+      baseX: originX,
+      baseY: originY,
+      originX,
+      originY,
       maxRadius,
       deadZone,
       state: {
@@ -232,16 +240,32 @@ export class ControllerScene extends Phaser.Scene {
 
     // 画面左半分でタップされた場合 -> 移動スティックに割り当て
     if (pointer.x < width / 2 && this.moveStick.pointerId === null) {
-      this.moveStick.pointerId = pointer.id;
-      this.updateStickPosition(this.moveStick, pointer.x, pointer.y);
-      this.notifyGameScene();
+      this.activateStick(this.moveStick, pointer);
     }
     // 画面右半分でタップされた場合 -> 攻撃スティックに割り当て
     else if (pointer.x >= width / 2 && this.shootStick.pointerId === null) {
-      this.shootStick.pointerId = pointer.id;
-      this.updateStickPosition(this.shootStick, pointer.x, pointer.y);
-      this.notifyGameScene();
+      this.activateStick(this.shootStick, pointer);
     }
+  }
+
+  /**
+   * ポインターをスティックに割り当てて開始
+   */
+  protected activateStick(stick: StickVisuals, pointer: Phaser.Input.Pointer) {
+    stick.pointerId = pointer.id;
+
+    // Dynamic モードの場合、タッチした座標にスティック中心を移動
+    if (this.joystickType === "dynamic") {
+      this.tweens.killTweensOf(stick.container);
+      stick.baseX = pointer.x;
+      stick.baseY = pointer.y;
+      stick.container.setPosition(pointer.x, pointer.y);
+    }
+
+    // 操作中はくっきり表示
+    stick.container.setAlpha(1.0);
+    this.updateStickPosition(stick, pointer.x, pointer.y);
+    this.notifyGameScene();
   }
 
   protected handlePointerMove(pointer: Phaser.Input.Pointer) {
@@ -268,12 +292,27 @@ export class ControllerScene extends Phaser.Scene {
    * スティックノブの位置と入力ベクトルの更新
    */
   protected updateStickPosition(stick: StickVisuals, pointerX: number, pointerY: number) {
-    const dx = pointerX - stick.baseX;
-    const dy = pointerY - stick.baseY;
-    const distance = Math.hypot(dx, dy);
-    const angle = Math.atan2(dy, dx);
+    let dx = pointerX - stick.baseX;
+    let dy = pointerY - stick.baseY;
+    let distance = Math.hypot(dx, dy);
+    let angle = Math.atan2(dy, dx);
 
-    // 最大半径でクランプ
+    // Dynamic モードで指が最大半径を超えて移動した場合、
+    // ベース中心 (baseX, baseY) を指の方向にスライド追従させる（Full Dynamic追従）
+    if (this.joystickType === "dynamic" && distance > stick.maxRadius) {
+      const excess = distance - stick.maxRadius;
+      stick.baseX += Math.cos(angle) * excess;
+      stick.baseY += Math.sin(angle) * excess;
+      stick.container.setPosition(stick.baseX, stick.baseY);
+
+      // 追従後の距離と変位を再計算
+      dx = pointerX - stick.baseX;
+      dy = pointerY - stick.baseY;
+      distance = Math.hypot(dx, dy);
+      angle = Math.atan2(dy, dx);
+    }
+
+    // ノブの位置を最大半径内にクランプ
     const clampedDist = Math.min(distance, stick.maxRadius);
     const knobX = Math.cos(angle) * clampedDist;
     const knobY = Math.sin(angle) * clampedDist;
@@ -337,6 +376,25 @@ export class ControllerScene extends Phaser.Scene {
       duration: 100,
       ease: Phaser.Math.Easing.Sine.Out,
     });
+
+    // Dynamic モードの場合、ベースをデフォルトの初期位置へスムーズに戻す
+    if (this.joystickType === "dynamic") {
+      this.tweens.killTweensOf(stick.container);
+      this.tweens.add({
+        targets: stick.container,
+        x: stick.originX,
+        y: stick.originY,
+        alpha: 0.6,
+        duration: 200,
+        ease: Phaser.Math.Easing.Sine.Out,
+        onComplete: () => {
+          stick.baseX = stick.originX;
+          stick.baseY = stick.originY;
+        },
+      });
+    } else {
+      stick.container.setAlpha(0.6);
+    }
   }
 
   /**
@@ -350,6 +408,10 @@ export class ControllerScene extends Phaser.Scene {
 
   protected cleanup() {
     this.resetAllSticks();
+    if (this.unsubscribeSettings) {
+      this.unsubscribeSettings();
+      this.unsubscribeSettings = undefined;
+    }
     this.input.off("pointerdown", this.handlePointerDown, this);
     this.input.off("pointermove", this.handlePointerMove, this);
     this.input.off("pointerup", this.handlePointerUp, this);

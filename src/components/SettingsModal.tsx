@@ -134,6 +134,45 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
             </button>
           </div>
 
+          {/* スティック操作形式切り替え */}
+          <div className="rounded-xl border border-slate-700/50 bg-slate-800/60 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-sm font-medium text-slate-200">スティック操作</span>
+              <span className="text-xs text-slate-400">
+                {settings.joystickType === "dynamic" ? "指の位置に追従" : "画面端に固定"}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => settings.setJoystickType("dynamic")}
+                className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${
+                  settings.joystickType === "dynamic"
+                    ? "bg-sky-600 text-white shadow"
+                    : "bg-slate-700/60 text-slate-300 hover:bg-slate-700 hover:text-white"
+                }`}
+              >
+                追従（Dynamic）
+              </button>
+              <button
+                type="button"
+                onClick={() => settings.setJoystickType("fixed")}
+                className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${
+                  settings.joystickType === "fixed"
+                    ? "bg-sky-600 text-white shadow"
+                    : "bg-slate-700/60 text-slate-300 hover:bg-slate-700 hover:text-white"
+                }`}
+              >
+                固定（Fixed）
+              </button>
+            </div>
+            <div className="mt-1.5 text-[11px] text-slate-400">
+              {settings.joystickType === "dynamic"
+                ? "タッチした位置からスティックが始まり、指の移動に合わせてベースが追従します。"
+                : "画面下部の定位置にあるスティックを操作します。"}
+            </div>
+          </div>
+
           {/* BGM 音量 */}
           <div className="rounded-xl border border-slate-700/50 bg-slate-800/60 p-3">
             <div className="mb-2 flex items-center justify-between">

@@ -100,17 +100,52 @@ protected releaseStick(stick: StickVisuals) {
 }
 ```
 
+### ⑤ Full Dynamic Joystick（指追従スティック）の幾何計算
+
+モバイルアクションゲームで「指が画面端まで大きくスライドした際にスティックから指が外れてしまう問題」を解決するため、最大半径（`maxRadius`）を超えた分だけ**ベース円の中心座標ごと指に引っ張られて移動するアルゴリズム**を採用します。
+
+```typescript
+// 指が最大半径を超えてスライドしたとき、中心座標をスライド移動させる
+if (distance > stick.maxRadius) {
+  const excess = distance - stick.maxRadius;
+  stick.baseX += Math.cos(angle) * excess;
+  stick.baseY += Math.sin(angle) * excess;
+  stick.container.setPosition(stick.baseX, stick.baseY);
+
+  // 追従後の相対変位を再計算
+  dx = pointerX - stick.baseX;
+  dy = pointerY - stick.baseY;
+  distance = Math.hypot(dx, dy);
+  angle = Math.atan2(dy, dx);
+}
+```
+
+指を離した際（`pointerup`）は、Tween を使ってベース円を画面隅のデフォルト位置（`originX`, `originY`）へ滑らかに戻します。
+
+```typescript
+this.tweens.add({
+  targets: stick.container,
+  x: stick.originX,
+  y: stick.originY,
+  alpha: 0.6,
+  duration: 200,
+  ease: Phaser.Math.Easing.Sine.Out,
+});
+```
+
+````
+
 ---
 
 ## 3. シューティングにおける角度（Rotation）の補正ノウハウ
 
-Phaserの幾何計算（`Math.atan2`）では **「0度は右方向（X軸正の向き）」** です。  
+Phaserの幾何計算（`Math.atan2`）では **「0度は右方向（X軸正の向き）」** です。
 しかし、上向きに描かれた自機スプライトや縦スクロール弾の場合、以下のように `+ Math.PI / 2`（90度）の補正を加える必要があります。
 
 ```typescript
 // 自機画像が上向きを基準に作成されている場合
 this.player.setRotation(shootAngle + Math.PI / 2);
 bullet.setRotation(shootAngle + Math.PI / 2);
-```
+````
 
 これにより、スティックを倒した方向に正確に自機が向き、弾が飛ぶようになります。
