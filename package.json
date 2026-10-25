@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "npm run format && npm run lint",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "format": "prettier --write .",
