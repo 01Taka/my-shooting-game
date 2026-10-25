@@ -16,6 +16,7 @@
 | [**06. ツインバーチャルスティックとマルチタッチ制御**](./06-virtual-twin-stick-multi-touch.md)                         | 左右の親指で移動と攻撃を同時に操作するツインスティック設計。ポインターIDバインド、デッドゾーン、角度補正（Rotation）の汎用実装レシピ。                     |
 | [**07. タッチ操作とマウス操作の判定とUI出し分け**](./07-detect-touch-vs-mouse-pointer-type.md)                         | `pointerType`（Pointer Events API）によるタッチ/マウス判別と、CSS `hover`/`pointer` メディアクエリによる動的UI切り替え設計パターン。                       |
 | [**08. サウンド管理設計とAutoplay Policy対策**](./08-audio-manager-and-autoplay-policy.md)                             | Web Audio の自動再生制限（Autoplay Policy）解除、SE多重発音のクールダウン、プロシージャル合成音フォールバック、React設定連携の汎用設計。                   |
+| [**09. 視線先行(Look-ahead)カメラと広大ワールドの全方位設計**](./09-lookahead-camera-and-world-bounds.md)              | 自機中心のカメラ追従と視線先行オフセット（Lerp補間）、カメラ移動時のマウス座標（worldX/worldY）の罠、全方位敵スポーンと追従移動レシピ。                    |
 
 ---
 
@@ -29,3 +30,4 @@
 - **「両手でバーチャルスティックを操作すると指が競合する・スティックが戻らない」** ➔ [06. ツインバーチャルスティックとマルチタッチ制御](./06-virtual-twin-stick-multi-touch.md)
 - **「指でタップされたかマウスでクリックされたかを判別してUIを切り替えたい / 疑似クリックを防ぎたい」** ➔ [07. タッチ操作とマウス操作の判定とUI出し分け](./07-detect-touch-vs-mouse-pointer-type.md)
 - **「スマホで音が鳴らない / 連射時に効果音が割れて爆音になる」** ➔ [08. サウンド管理設計とAutoplay Policy対策](./08-audio-manager-and-autoplay-policy.md)
+- **「カメラ追従時にマウスエイムの向きがズレる / 進行方向の視界が狭い」** ➔ [09. 視線先行カメラと広大ワールド設計](./09-lookahead-camera-and-world-bounds.md)

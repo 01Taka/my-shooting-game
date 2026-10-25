@@ -49,6 +49,28 @@ export class PreloadScene extends Phaser.Scene {
     enemyGraphics.fillRoundedRect(0, 0, 56, 56, 12);
     enemyGraphics.generateTexture("enemy", 56, 56);
     enemyGraphics.destroy();
+
+    // 宇宙空間背景用スターフィールドテクスチャ (512x512)
+    const starGraphics = this.make.graphics({ x: 0, y: 0 });
+    // 暗い宇宙のベース
+    starGraphics.fillStyle(0x090d16, 1);
+    starGraphics.fillRect(0, 0, 512, 512);
+    // ランダムな星々の配置
+    for (let i = 0; i < 90; i++) {
+      const starX = Phaser.Math.Between(0, 512);
+      const starY = Phaser.Math.Between(0, 512);
+      const starRadius = Phaser.Math.RND.realInRange(0.8, 2.2);
+      const alpha = Phaser.Math.RND.realInRange(0.3, 0.95);
+      const color = Phaser.Math.RND.pick([0xffffff, 0x38bdf8, 0x818cf8, 0xf472b6]);
+
+      starGraphics.fillStyle(color, alpha);
+      starGraphics.fillCircle(starX, starY, starRadius);
+    }
+    // うっすらとしたグリッドガイド線
+    starGraphics.lineStyle(1, 0x1e293b, 0.4);
+    starGraphics.strokeRect(0, 0, 512, 512);
+    starGraphics.generateTexture("starfield", 512, 512);
+    starGraphics.destroy();
   }
 
   // ==========================================
