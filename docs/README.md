@@ -57,3 +57,4 @@ docs/
 - [04. あらゆるゲームに派生できるモジュール設計思想](./dev-note/04-template-extensibility-design.md)
 - [05. スマホ横画面ゲームにおける解像度・アスペクト比と操作系UX設計](./dev-note/05-mobile-landscape-game-design.md)
 - [06. ツインスティックシューターにおけるスマートロックオン＆タップ射撃設計](./dev-note/06-smart-lock-on-and-tap-shoot.md)
+- [07. マイクロステートマシン×アクションサブルーチンによる敵AI設計思想](./dev-note/07-state-machine-action-subroutine-enemy-ai.md)
