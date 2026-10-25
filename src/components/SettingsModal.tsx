@@ -48,8 +48,13 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
         }
 
         // 横画面に固定（対応端末）
-        if (screen.orientation && "lock" in screen.orientation) {
-          await (screen.orientation as any).lock("landscape").catch(() => {});
+        const orientation = screen.orientation as
+          | (ScreenOrientation & {
+              lock?: (orientation: string) => Promise<void>;
+            })
+          | undefined;
+        if (orientation && typeof orientation.lock === "function") {
+          await orientation.lock("landscape").catch(() => {});
         }
       } else {
         const doc = document as Document & {
