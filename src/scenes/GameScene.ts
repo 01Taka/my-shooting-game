@@ -163,13 +163,23 @@ export class GameScene extends Phaser.Scene {
         const damage = (bullet.getData("damage") as number | undefined) ?? params.bullet.damage;
         bullet.destroy();
 
+        // 撃破された敵が現在ロックオン対象かどうかを事前に判定
+        const isCurrentTarget = this.lockOnManager.getLockedTarget() === enemy;
+
         const result = this.enemyManager.damageEnemy(enemy, damage);
         if (result.isDead) {
           AudioManager.getInstance().playSE("explosion");
           this.addScore(params.enemy.score);
 
-          // 撃破地点の周囲の敵へ自動チェーンロックオン！
-          this.lockOnManager.onTargetKilled(result.x, result.y, this.enemyManager.getGroup(), this);
+          // ターゲットを倒したときだけ、周囲の敵へ自動チェーンロックオン
+          if (isCurrentTarget) {
+            this.lockOnManager.onTargetKilled(
+              result.x,
+              result.y,
+              this.enemyManager.getGroup(),
+              this,
+            );
+          }
         }
       },
       undefined,
