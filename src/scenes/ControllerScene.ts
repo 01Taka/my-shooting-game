@@ -13,12 +13,6 @@ export interface StickState {
 export interface ControllerInputPayload {
   move: StickState;
   shoot: StickState;
-  // レガシー互換キー
-  left: boolean;
-  right: boolean;
-  up: boolean;
-  down: boolean;
-  shootActive: boolean;
 }
 
 interface StickVisuals {
@@ -373,11 +367,6 @@ export class ControllerScene extends Phaser.Scene {
     const payload: ControllerInputPayload = {
       move: { ...this.moveStick.state },
       shoot: { ...this.shootStick.state },
-      left: this.moveStick.state.active && this.moveStick.state.x < -0.3,
-      right: this.moveStick.state.active && this.moveStick.state.x > 0.3,
-      up: this.moveStick.state.active && this.moveStick.state.y < -0.3,
-      down: this.moveStick.state.active && this.moveStick.state.y > 0.3,
-      shootActive: this.shootStick.state.active,
     };
 
     gameScene.events.emit("controller-input", payload);

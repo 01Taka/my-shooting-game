@@ -18,11 +18,6 @@ export class GameScene extends Phaser.Scene {
   protected virtualInput: ControllerInputPayload = {
     move: { x: 0, y: 0, active: false, angle: 0, force: 0 },
     shoot: { x: 0, y: 0, active: false, angle: 0, force: 0 },
-    left: false,
-    right: false,
-    up: false,
-    down: false,
-    shootActive: false,
   };
 
   constructor() {
