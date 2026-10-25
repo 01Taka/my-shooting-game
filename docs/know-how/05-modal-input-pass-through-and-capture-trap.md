@@ -79,3 +79,32 @@ export function Modal({ onClose }: { onClose: () => void }) {
   );
 }
 ```
+
+---
+
+## 4. スマホ横画面でのモーダルはみ出しとスクロール不能（`touch-action: none` の罠）
+
+### 発生する問題
+
+Webゲームの拡大縮小・ピンチズーム防止のため、`body` や `#root` に `touch-action: none;` を指定している環境では、Reactモーダル内のコンテンツエリアに `overflow-y: auto;` を設定しただけでは**スマートフォンの指ドラッグによるスクロールがブラウザに無効化されて動きません**。
+さらに横画面スマホではビューポートの縦幅が 350px〜400px 程度と低いため、設定モーダルが上下に突き抜け、閉じるボタンが押せなくなります。
+
+### 解決策
+
+1. モーダル本体を `flex flex-col max-h-[90dvh]` にし、ヘッダーとフッターを `flex-shrink-0` で固定。
+2. スクロール領域に `flex-1 overflow-y-auto` とともに、必ず **`touch-action: pan-y;`（Tailwind: `touch-pan-y`）** を明示して縦スクロールを許可する。
+
+```tsx
+<div className="flex max-h-[90dvh] w-full max-w-lg flex-col rounded-2xl ...">
+  {/* 固定ヘッダー */}
+  <div className="flex-shrink-0 ...">ヘッダー</div>
+
+  {/* スクロール領域: touch-pan-y を付与してスマホでの縦スクロールを有効化 */}
+  <div className="flex-1 touch-pan-y space-y-3 overflow-y-auto overscroll-contain py-3 pr-1">
+    {/* 各種設定項目 */}
+  </div>
+
+  {/* 固定フッター */}
+  <div className="flex-shrink-0 ...">完了ボタン</div>
+</div>
+```

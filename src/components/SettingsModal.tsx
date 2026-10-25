@@ -91,19 +91,19 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
 
   return (
     <div
-      className="animate-in fade-in fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm duration-200"
+      className="animate-in fade-in fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-3 backdrop-blur-sm duration-200 sm:p-4"
       onClick={handleClose}
     >
       {/* モーダル本体（クリックが背景の閉じる処理に伝播しないようstopPropagation） */}
       <div
-        className="relative w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900/95 p-5 text-white shadow-2xl backdrop-blur"
+        className="relative flex max-h-[90dvh] w-full max-w-lg flex-col rounded-2xl border border-slate-700 bg-slate-900/95 p-4 text-white shadow-2xl backdrop-blur sm:p-5"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* ヘッダー */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        {/* 固定ヘッダー */}
+        <div className="flex flex-shrink-0 items-center justify-between border-b border-slate-800 pb-2.5 sm:pb-3">
           <div className="flex items-center gap-2">
             {header.icon}
-            <h2 className="text-lg font-bold tracking-wide">{header.title}</h2>
+            <h2 className="text-base font-bold tracking-wide sm:text-lg">{header.title}</h2>
           </div>
           <button
             type="button"
@@ -115,8 +115,8 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
           </button>
         </div>
 
-        {/* 設定項目セクション群 */}
-        <div className="mt-4 space-y-4">
+        {/* スクロール可能な設定項目セクション群（スマホのtouch-action対応） */}
+        <div className="flex-1 touch-pan-y space-y-3 overflow-y-auto overscroll-contain py-3 pr-1">
           {/* 全画面表示切り替え */}
           <div className="flex items-center justify-between rounded-xl border border-slate-700/50 bg-slate-800/60 p-3">
             <div>
@@ -306,12 +306,12 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
           </div>
         </div>
 
-        {/* フッター閉じるボタン */}
-        <div className="mt-5 flex justify-end border-t border-slate-800 pt-3">
+        {/* 固定フッター閉じるボタン */}
+        <div className="mt-3 flex flex-shrink-0 justify-end border-t border-slate-800 pt-2.5 sm:pt-3">
           <button
             type="button"
             onClick={handleClose}
-            className="w-full rounded-xl bg-slate-800 py-2.5 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-700 hover:text-white"
+            className="w-full rounded-xl bg-slate-800 py-2 text-xs font-medium text-slate-200 transition-colors hover:bg-slate-700 hover:text-white active:scale-[0.99] sm:py-2.5 sm:text-sm"
           >
             完了
           </button>
