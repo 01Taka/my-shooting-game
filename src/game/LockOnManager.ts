@@ -17,6 +17,8 @@ export class LockOnManager {
   protected reticleGraphics!: Phaser.GameObjects.Graphics;
   protected animAngle = 0;
   protected targetHistory: TargetHistoryEntry[] = [];
+  protected sessionTargets: Phaser.Physics.Arcade.Image[] = [];
+  protected isAimingSession = false;
 
   constructor(config: LockOnConfig) {
     this.config = config;
@@ -51,7 +53,7 @@ export class LockOnManager {
     enemies: Phaser.Physics.Arcade.Group,
     aimAngle: number,
     scene: Phaser.Scene,
-  ): void {
+  ): Phaser.Physics.Arcade.Image | null {
     const enemyList = enemies.getChildren() as Phaser.Physics.Arcade.Image[];
     const halfSectorRad = Phaser.Math.DegToRad(this.config.sectorAngleDeg / 2);
     const camera = scene.cameras.main;
@@ -83,7 +85,15 @@ export class LockOnManager {
 
     if (nearestEnemy) {
       this.lockedTarget = nearestEnemy;
+      if (this.isAimingSession) {
+        if (!this.sessionTargets.includes(nearestEnemy)) {
+          this.sessionTargets.push(nearestEnemy);
+        }
+      }
+      return nearestEnemy;
     }
+
+    return null;
   }
 
   /**
@@ -157,57 +167,90 @@ export class LockOnManager {
   }
 
   /**
-   * 新しいエイム操作の開始時に履歴をリセット
+   * 新しいエイム操作の開始時にセッションと履歴を初期化
    */
   startAimSession(): void {
+    this.isAimingSession = true;
     this.targetHistory = [];
+    this.sessionTargets = [];
   }
 
   /**
    * 指離し（Release）時の手ブレ補正（タイムバッファ方式）
-   * - 160ms未満のフリック操作: 一番最初にロックオンした敵（最初のターゲット）を採用
+   * - 160ms未満のフリック操作: エイム操作中に一番最初にロックオンした敵を採用（未捕捉ならフリック角度で即時探索）
    * - 160ms以上のドラッグ操作: 指が離れる直前（約70ms前）に安定して狙っていたターゲットを採用
    */
-  confirmReleaseTarget(releaseTime: number, touchDuration?: number): void {
-    if (this.targetHistory.length === 0) return;
+  confirmReleaseTarget(
+    releaseTime: number,
+    touchDuration?: number,
+    releaseAngle?: number,
+    player?: Phaser.Physics.Arcade.Image,
+    enemies?: Phaser.Physics.Arcade.Group,
+    scene?: Phaser.Scene,
+  ): void {
+    this.isAimingSession = false;
 
-    // 【フリック対応】操作時間が160ms未満の場合は、操作中に一番最初にロックオンした敵を採用
+    // 【フリック対応】操作時間が160ms未満の場合
     if (typeof touchDuration === "number" && touchDuration < 160) {
-      for (const entry of this.targetHistory) {
-        if (entry.target.active) {
-          this.lockedTarget = entry.target;
+      // 1. フレーム更新落ち等でセッション内にまだ新ターゲットが捕捉されていない場合、フリック時の角度で即時探索
+      if (
+        this.sessionTargets.length === 0 &&
+        typeof releaseAngle === "number" &&
+        player &&
+        enemies &&
+        scene
+      ) {
+        this.searchAndLock(player, enemies, releaseAngle, scene);
+      }
+
+      // 2. セッション中に一番最初にロックオンしたアクティブな敵を採用
+      for (const target of this.sessionTargets) {
+        if (target.active) {
+          this.lockedTarget = target;
           this.targetHistory = [];
+          this.sessionTargets = [];
           return;
         }
       }
+
+      this.targetHistory = [];
+      this.sessionTargets = [];
+      return;
     }
 
     // 【通常ドラッグ】指が浮き上がる約70ms前の安定したターゲットを探す
-    const stableTime = releaseTime - 70;
-    let bestEntry: TargetHistoryEntry | null = null;
-    let minDiff = Infinity;
+    if (this.targetHistory.length > 0) {
+      const stableTime = releaseTime - 70;
+      let bestEntry: TargetHistoryEntry | null = null;
+      let minDiff = Infinity;
 
-    for (const entry of this.targetHistory) {
-      if (entry.target.active) {
-        const diff = Math.abs(entry.time - stableTime);
-        if (diff < minDiff) {
-          minDiff = diff;
-          bestEntry = entry;
+      for (const entry of this.targetHistory) {
+        if (entry.target.active) {
+          const diff = Math.abs(entry.time - stableTime);
+          if (diff < minDiff) {
+            minDiff = diff;
+            bestEntry = entry;
+          }
         }
+      }
+
+      if (bestEntry && bestEntry.target.active) {
+        this.lockedTarget = bestEntry.target;
       }
     }
 
-    if (bestEntry && bestEntry.target.active) {
-      this.lockedTarget = bestEntry.target;
-    }
-
     this.targetHistory = [];
+    this.sessionTargets = [];
   }
 
   /**
-   * 毎フレームのターゲット履歴記録（過去160ms分を保持）
+   * 毎フレームのターゲット履歴記録（エイムセッション中のみ過去160ms分を保持）
    */
   recordTargetHistory(time: number): void {
+    if (!this.isAimingSession) {
+      return;
+    }
+
     if (this.lockedTarget && this.lockedTarget.active) {
       this.targetHistory.push({
         target: this.lockedTarget,

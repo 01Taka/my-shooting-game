@@ -234,9 +234,19 @@ export class GameScene extends Phaser.Scene {
     });
 
     // ロックオンスティック解放時の指離し手ブレ補正（タイムバッファ方式 ＆ 160ms未満フリック判定）
-    this.events.on("controller-lockon-release", (releaseTime: number, touchDuration?: number) => {
-      this.lockOnManager.confirmReleaseTarget(releaseTime, touchDuration);
-    });
+    this.events.on(
+      "controller-lockon-release",
+      (releaseTime: number, touchDuration?: number, releaseAngle?: number) => {
+        this.lockOnManager.confirmReleaseTarget(
+          releaseTime,
+          touchDuration,
+          releaseAngle,
+          this.player,
+          this.enemyManager.getGroup(),
+          this,
+        );
+      },
+    );
 
     // シーン破棄時のクリーンアップ（1度だけ実行）
     this.events.once("shutdown", () => {

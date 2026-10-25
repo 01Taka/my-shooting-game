@@ -40,6 +40,7 @@ interface StickVisuals {
   labelText: string;
   isAimStick: boolean;
   hasExceededDeadZone: boolean;
+  lastAimAngle: number;
   state: StickState;
 }
 
@@ -297,6 +298,7 @@ export class ControllerScene extends Phaser.Scene {
       labelText: label,
       isAimStick,
       hasExceededDeadZone: false,
+      lastAimAngle: 0,
       state: {
         x: 0,
         y: 0,
@@ -540,6 +542,7 @@ export class ControllerScene extends Phaser.Scene {
 
     if (distance > stick.deadZone) {
       stick.hasExceededDeadZone = true;
+      stick.lastAimAngle = angle;
       const force = Math.min(distance / stick.maxRadius, 1.0);
       stick.state.x = Math.cos(angle) * force;
       stick.state.y = Math.sin(angle) * force;
@@ -586,8 +589,13 @@ export class ControllerScene extends Phaser.Scene {
         if (isLockOnTap) {
           gameScene.events.emit("controller-lockon-tap");
         } else {
-          // 倒して離した場合: 指離し時の手ブレ巻き戻し補正（タイムバッファ）を発火（フリック時間も送信）
-          gameScene.events.emit("controller-lockon-release", this.time.now, touchDuration);
+          // 倒して離した場合: 指離し時の手ブレ巻き戻し補正（タイムバッファ）を発火（フリック時間・エイム角度も送信）
+          gameScene.events.emit(
+            "controller-lockon-release",
+            this.time.now,
+            touchDuration,
+            stick.lastAimAngle,
+          );
         }
       }
     }
