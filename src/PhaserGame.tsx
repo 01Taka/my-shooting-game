@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 
 import { AudioManager } from "./audio/AudioManager";
+import { GAME_BACKGROUND_COLOR, GAME_HEIGHT, GAME_WIDTH } from "./constants";
 import { EventBus } from "./EventBus";
 import {
   ControllerScene,
@@ -52,9 +53,9 @@ export const PhaserGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame
     const config: Phaser.Types.Core.GameConfig = {
       type: Phaser.AUTO,
       parent: containerRef.current,
-      width: 1600,
-      height: 900,
-      backgroundColor: "#0f172a", // Tailwind slate-900
+      width: GAME_WIDTH,
+      height: GAME_HEIGHT,
+      backgroundColor: GAME_BACKGROUND_COLOR,
       scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,

@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+import { DEFAULT_BGM_VOLUME, DEFAULT_SE_VOLUME, MAX_VOLUME, MIN_VOLUME } from "../constants";
+
 export type JoystickType = "fixed" | "dynamic";
 
 interface GameSettingsState {
@@ -27,16 +29,18 @@ interface GameSettingsState {
 export const useGameSettings = create<GameSettingsState>()(
   persist(
     (set) => ({
-      bgmVolume: 80,
-      seVolume: 80,
+      bgmVolume: DEFAULT_BGM_VOLUME,
+      seVolume: DEFAULT_SE_VOLUME,
       bgmMuted: false,
       seMuted: false,
       joystickType: "dynamic",
       followCursor: true,
       isOpen: false,
 
-      setBgmVolume: (volume) => set({ bgmVolume: Math.max(0, Math.min(100, volume)) }),
-      setSeVolume: (volume) => set({ seVolume: Math.max(0, Math.min(100, volume)) }),
+      setBgmVolume: (volume) =>
+        set({ bgmVolume: Math.max(MIN_VOLUME, Math.min(MAX_VOLUME, volume)) }),
+      setSeVolume: (volume) =>
+        set({ seVolume: Math.max(MIN_VOLUME, Math.min(MAX_VOLUME, volume)) }),
       toggleBgmMute: () => set((state) => ({ bgmMuted: !state.bgmMuted })),
       toggleSeMute: () => set((state) => ({ seMuted: !state.seMuted })),
       setJoystickType: (type) => set({ joystickType: type }),

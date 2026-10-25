@@ -1,5 +1,42 @@
 import Phaser from "phaser";
 
+import {
+  AIM_ARROW_ANGLE_OFFSET,
+  AIM_ARROW_BASE_OFFSET,
+  AIM_ARROW_TIP_OFFSET,
+  ATTACK_PAD_COLOR,
+  ATTACK_PAD_DEPTH,
+  ATTACK_PAD_INNER_RING_RATIO,
+  ATTACK_PAD_LABEL_OFFSET,
+  ATTACK_PAD_RADIUS,
+  CONTROLLER_MAX_POINTERS,
+  LOCKON_STICK_BASE_COLOR,
+  LOCKON_STICK_BASE_RADIUS,
+  LOCKON_STICK_BORDER_COLOR,
+  LOCKON_STICK_DEAD_ZONE,
+  LOCKON_STICK_KNOB_COLOR,
+  LOCKON_STICK_KNOB_RADIUS,
+  LOCKON_STICK_MAX_RADIUS,
+  LOCKON_STICK_X_OFFSET,
+  LOCKON_STICK_Y_OFFSET,
+  MOVE_STICK_BASE_COLOR,
+  MOVE_STICK_BASE_RADIUS,
+  MOVE_STICK_BORDER_COLOR,
+  MOVE_STICK_DEAD_ZONE,
+  MOVE_STICK_KNOB_COLOR,
+  MOVE_STICK_KNOB_RADIUS,
+  MOVE_STICK_MAX_RADIUS,
+  MOVE_STICK_X_OFFSET,
+  MOVE_STICK_Y_OFFSET,
+  PC_STICK_CENTER_DOT_RADIUS,
+  PC_STICK_KNOB_RADIUS,
+  STICK_CENTER_DOT_RADIUS,
+  STICK_CONTAINER_DEPTH,
+  STICK_CONTAINER_FADE_DURATION_MS,
+  STICK_KNOB_RESET_DURATION_MS,
+  STICK_LABEL_OFFSET_Y,
+  STICK_TAP_MAX_DURATION_MS,
+} from "../constants";
 import { useGameSettings } from "../stores/useGameSettings";
 import { type InputMode, useInputMode } from "../stores/useInputMode";
 import { addCrispText } from "../utils/text";
@@ -56,7 +93,7 @@ export class ControllerScene extends Phaser.Scene {
   protected attackPadContainer!: Phaser.GameObjects.Container;
   protected attackPadBg!: Phaser.GameObjects.Graphics;
   protected attackPadLabel!: Phaser.GameObjects.Text;
-  protected readonly attackPadRadius = 240; // 画面右下の角を中心とする攻撃扇形の半径
+  protected readonly attackPadRadius = ATTACK_PAD_RADIUS; // 画面右下の角を中心とする攻撃扇形の半径
   protected stickTouchStartTime = 0;
 
   constructor() {
@@ -64,33 +101,33 @@ export class ControllerScene extends Phaser.Scene {
   }
 
   // ==========================================
-  // バーチャルスティック設定 (1600x900スケール)
+  // バーチャルスティック設定
   // ==========================================
 
   protected getStickConfig() {
     return {
       move: {
-        xOffset: 200,
-        yOffset: 200,
-        baseRadius: 90,
-        knobRadius: 42,
-        deadZone: 12,
-        maxRadius: 80,
-        baseColor: 0x0f172a,
-        borderColor: 0x38bdf8,
-        knobColor: 0x0284c7,
+        xOffset: MOVE_STICK_X_OFFSET,
+        yOffset: MOVE_STICK_Y_OFFSET,
+        baseRadius: MOVE_STICK_BASE_RADIUS,
+        knobRadius: MOVE_STICK_KNOB_RADIUS,
+        deadZone: MOVE_STICK_DEAD_ZONE,
+        maxRadius: MOVE_STICK_MAX_RADIUS,
+        baseColor: MOVE_STICK_BASE_COLOR,
+        borderColor: MOVE_STICK_BORDER_COLOR,
+        knobColor: MOVE_STICK_KNOB_COLOR,
         label: "MOVE",
       },
       lockOn: {
-        xOffset: 460, // 攻撃パッドの外側の快適な初期配置
-        yOffset: 260,
-        baseRadius: 90,
-        knobRadius: 42,
-        deadZone: 14,
-        maxRadius: 80,
-        baseColor: 0x0f172a,
-        borderColor: 0xf43f5e,
-        knobColor: 0xe11d48,
+        xOffset: LOCKON_STICK_X_OFFSET,
+        yOffset: LOCKON_STICK_Y_OFFSET,
+        baseRadius: LOCKON_STICK_BASE_RADIUS,
+        knobRadius: LOCKON_STICK_KNOB_RADIUS,
+        deadZone: LOCKON_STICK_DEAD_ZONE,
+        maxRadius: LOCKON_STICK_MAX_RADIUS,
+        baseColor: LOCKON_STICK_BASE_COLOR,
+        borderColor: LOCKON_STICK_BORDER_COLOR,
+        knobColor: LOCKON_STICK_KNOB_COLOR,
         label: "LOCK-ON",
       },
     };
@@ -117,7 +154,7 @@ export class ControllerScene extends Phaser.Scene {
     });
 
     // 複数指のマルチタッチに対応
-    this.input.addPointer(3);
+    this.input.addPointer(CONTROLLER_MAX_POINTERS);
 
     // --- 画面右下: 1/4円の攻撃パッド ---
     this.createAttackPad(width, height);
@@ -171,18 +208,24 @@ export class ControllerScene extends Phaser.Scene {
    */
   protected createAttackPad(width: number, height: number) {
     this.attackPadContainer = this.add.container(0, 0);
-    this.attackPadContainer.setDepth(40);
+    this.attackPadContainer.setDepth(ATTACK_PAD_DEPTH);
 
     this.attackPadBg = this.add.graphics();
     this.attackPadContainer.add(this.attackPadBg);
 
     // 「FIRE」ラベルテキスト
-    this.attackPadLabel = addCrispText(this, width - 90, height - 90, "FIRE", {
-      fontFamily: "monospace",
-      fontSize: "20px",
-      color: "#ffffff",
-      fontStyle: "bold",
-    }).setOrigin(0.5);
+    this.attackPadLabel = addCrispText(
+      this,
+      width - ATTACK_PAD_LABEL_OFFSET,
+      height - ATTACK_PAD_LABEL_OFFSET,
+      "FIRE",
+      {
+        fontFamily: "monospace",
+        fontSize: "20px",
+        color: "#ffffff",
+        fontStyle: "bold",
+      },
+    ).setOrigin(0.5);
     this.attackPadContainer.add(this.attackPadLabel);
 
     this.drawAttackPadGraphics(false);
@@ -198,8 +241,8 @@ export class ControllerScene extends Phaser.Scene {
     const fillAlpha = isPressed ? 0.6 : 0.35;
     const strokeAlpha = isPressed ? 0.95 : 0.7;
 
-    this.attackPadBg.fillStyle(0xf43f5e, fillAlpha);
-    this.attackPadBg.lineStyle(4, 0xf43f5e, strokeAlpha);
+    this.attackPadBg.fillStyle(ATTACK_PAD_COLOR, fillAlpha);
+    this.attackPadBg.lineStyle(4, ATTACK_PAD_COLOR, strokeAlpha);
 
     // 右下の角 (width, height) を中心とする 1/4 円（Math.PI 〜 1.5 * Math.PI）
     this.attackPadBg.beginPath();
@@ -212,7 +255,13 @@ export class ControllerScene extends Phaser.Scene {
     // 内側の装飾アークライン
     this.attackPadBg.lineStyle(2, 0xffffff, isPressed ? 0.8 : 0.4);
     this.attackPadBg.beginPath();
-    this.attackPadBg.arc(width, height, this.attackPadRadius * 0.55, Math.PI, Math.PI * 1.5);
+    this.attackPadBg.arc(
+      width,
+      height,
+      this.attackPadRadius * ATTACK_PAD_INNER_RING_RATIO,
+      Math.PI,
+      Math.PI * 1.5,
+    );
     this.attackPadBg.strokePath();
   }
 
@@ -247,14 +296,14 @@ export class ControllerScene extends Phaser.Scene {
     } = options;
 
     const container = this.add.container(originX, originY);
-    container.setDepth(100);
+    container.setDepth(STICK_CONTAINER_DEPTH);
 
     // 1. スティック土台背景
     const baseBg = this.add.graphics();
     container.add(baseBg);
 
     // 2. ラベルテキスト
-    const labelText = addCrispText(this, 0, baseRadius + 14, label, {
+    const labelText = addCrispText(this, 0, baseRadius + STICK_LABEL_OFFSET_Y, label, {
       fontFamily: "monospace",
       fontSize: "14px",
       color: "#94a3b8",
@@ -342,11 +391,11 @@ export class ControllerScene extends Phaser.Scene {
 
         this.lockOnStick.knobGraphics.clear();
         this.lockOnStick.knobGraphics.fillStyle(0xf43f5e, 0.4);
-        this.lockOnStick.knobGraphics.fillCircle(0, 0, 26);
+        this.lockOnStick.knobGraphics.fillCircle(0, 0, PC_STICK_KNOB_RADIUS);
         this.lockOnStick.knobGraphics.lineStyle(2, 0xffffff, 0.6);
-        this.lockOnStick.knobGraphics.strokeCircle(0, 0, 26);
+        this.lockOnStick.knobGraphics.strokeCircle(0, 0, PC_STICK_KNOB_RADIUS);
         this.lockOnStick.knobGraphics.fillStyle(0xffffff, 0.85);
-        this.lockOnStick.knobGraphics.fillCircle(0, 0, 5);
+        this.lockOnStick.knobGraphics.fillCircle(0, 0, PC_STICK_CENTER_DOT_RADIUS);
       }
     } else {
       // --- スマホモード ---
@@ -398,7 +447,7 @@ export class ControllerScene extends Phaser.Scene {
     stick.knobGraphics.lineStyle(3.5, 0xffffff, 0.9);
     stick.knobGraphics.strokeCircle(0, 0, stick.knobRadius);
     stick.knobGraphics.fillStyle(0xffffff, 0.8);
-    stick.knobGraphics.fillCircle(0, 0, 7);
+    stick.knobGraphics.fillCircle(0, 0, STICK_CENTER_DOT_RADIUS);
   }
 
   /**
@@ -555,12 +604,16 @@ export class ControllerScene extends Phaser.Scene {
         stick.aimIndicator.clear();
         stick.aimIndicator.setVisible(true);
 
-        const tipX = Math.cos(angle) * (stick.maxRadius + 22);
-        const tipY = Math.sin(angle) * (stick.maxRadius + 22);
-        const leftX = Math.cos(angle + 0.35) * (stick.maxRadius + 6);
-        const leftY = Math.sin(angle + 0.35) * (stick.maxRadius + 6);
-        const rightX = Math.cos(angle - 0.35) * (stick.maxRadius + 6);
-        const rightY = Math.sin(angle - 0.35) * (stick.maxRadius + 6);
+        const tipX = Math.cos(angle) * (stick.maxRadius + AIM_ARROW_TIP_OFFSET);
+        const tipY = Math.sin(angle) * (stick.maxRadius + AIM_ARROW_TIP_OFFSET);
+        const leftX =
+          Math.cos(angle + AIM_ARROW_ANGLE_OFFSET) * (stick.maxRadius + AIM_ARROW_BASE_OFFSET);
+        const leftY =
+          Math.sin(angle + AIM_ARROW_ANGLE_OFFSET) * (stick.maxRadius + AIM_ARROW_BASE_OFFSET);
+        const rightX =
+          Math.cos(angle - AIM_ARROW_ANGLE_OFFSET) * (stick.maxRadius + AIM_ARROW_BASE_OFFSET);
+        const rightY =
+          Math.sin(angle - AIM_ARROW_ANGLE_OFFSET) * (stick.maxRadius + AIM_ARROW_BASE_OFFSET);
 
         stick.aimIndicator.fillStyle(0xf43f5e, 0.9);
         stick.aimIndicator.fillTriangle(tipX, tipY, leftX, leftY, rightX, rightY);
@@ -582,7 +635,7 @@ export class ControllerScene extends Phaser.Scene {
   protected releaseStick(stick: StickVisuals) {
     if (stick === this.lockOnStick) {
       const touchDuration = this.time.now - this.stickTouchStartTime;
-      const isLockOnTap = !stick.hasExceededDeadZone && touchDuration < 350;
+      const isLockOnTap = !stick.hasExceededDeadZone && touchDuration < STICK_TAP_MAX_DURATION_MS;
 
       const gameScene = this.scene.get("GameScene");
       if (gameScene) {
@@ -616,7 +669,7 @@ export class ControllerScene extends Phaser.Scene {
       targets: stick.knob,
       x: 0,
       y: 0,
-      duration: 100,
+      duration: STICK_KNOB_RESET_DURATION_MS,
       ease: Phaser.Math.Easing.Sine.Out,
     });
 
@@ -626,7 +679,7 @@ export class ControllerScene extends Phaser.Scene {
       this.tweens.add({
         targets: stick.container,
         alpha: 0,
-        duration: 200,
+        duration: STICK_CONTAINER_FADE_DURATION_MS,
         ease: Phaser.Math.Easing.Sine.Out,
       });
     } else {

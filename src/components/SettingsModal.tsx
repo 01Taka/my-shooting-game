@@ -1,6 +1,7 @@
 import { Maximize2, Minimize2, Settings, Volume2, VolumeX, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
+import { MAX_VOLUME, MIN_VOLUME } from "../constants";
 import { useGameSettings } from "../stores/useGameSettings";
 import { useInputMode } from "../stores/useInputMode";
 
@@ -266,8 +267,8 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
             </div>
             <input
               type="range"
-              min="0"
-              max="100"
+              min={MIN_VOLUME}
+              max={MAX_VOLUME}
               value={settings.bgmMuted ? 0 : settings.bgmVolume}
               onChange={(e) => settings.setBgmVolume(Number(e.target.value))}
               className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-700 accent-sky-500"
@@ -297,8 +298,8 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
             </div>
             <input
               type="range"
-              min="0"
-              max="100"
+              min={MIN_VOLUME}
+              max={MAX_VOLUME}
               value={settings.seMuted ? 0 : settings.seVolume}
               onChange={(e) => settings.setSeVolume(Number(e.target.value))}
               className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-700 accent-sky-500"

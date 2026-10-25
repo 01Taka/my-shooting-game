@@ -1,6 +1,20 @@
 import Phaser from "phaser";
 
 import { AudioManager } from "../audio/AudioManager";
+import {
+  BUTTON_HOVER_SCALE,
+  BUTTON_NORMAL_SCALE,
+  BUTTON_PRESSED_SCALE,
+  TITLE_BUTTON_HEIGHT,
+  TITLE_BUTTON_RADIUS,
+  TITLE_BUTTON_WIDTH,
+  TITLE_SETTINGS_BUTTON_COLOR,
+  TITLE_SETTINGS_BUTTON_Y_OFFSET,
+  TITLE_START_BUTTON_COLOR,
+  TITLE_START_BUTTON_Y_OFFSET,
+  TITLE_SUBTITLE_Y_OFFSET,
+  TITLE_TEXT_Y_OFFSET,
+} from "../constants";
 import { EventBus } from "../EventBus";
 import { addCrispText } from "../utils/text";
 
@@ -40,14 +54,14 @@ export class TitleScene extends Phaser.Scene {
     return [
       {
         label: "ゲームスタート",
-        color: 0x0284c7,
-        yOffset: 60,
+        color: TITLE_START_BUTTON_COLOR,
+        yOffset: TITLE_START_BUTTON_Y_OFFSET,
         onClick: () => this.scene.start("GameScene"),
       },
       {
         label: "設定",
-        color: 0x475569,
-        yOffset: 190,
+        color: TITLE_SETTINGS_BUTTON_COLOR,
+        yOffset: TITLE_SETTINGS_BUTTON_Y_OFFSET,
         onClick: () => EventBus.emit("open-settings"),
       },
     ];
@@ -65,13 +79,19 @@ export class TitleScene extends Phaser.Scene {
     const config = this.getTitleConfig();
 
     // タイトル文字
-    addCrispText(this, width / 2, height / 2 - 200, config.title, config.titleStyle).setOrigin(0.5);
+    addCrispText(
+      this,
+      width / 2,
+      height / 2 - TITLE_TEXT_Y_OFFSET,
+      config.title,
+      config.titleStyle,
+    ).setOrigin(0.5);
 
     // サブタイトル文字
     addCrispText(
       this,
       width / 2,
-      height / 2 - 100,
+      height / 2 - TITLE_SUBTITLE_Y_OFFSET,
       config.subTitle,
       config.subTitleStyle,
     ).setOrigin(0.5);
@@ -84,14 +104,14 @@ export class TitleScene extends Phaser.Scene {
   }
 
   protected createButton(x: number, y: number, label: string, color: number, onClick: () => void) {
-    const btnWidth = 440;
-    const btnHeight = 90;
+    const btnWidth = TITLE_BUTTON_WIDTH;
+    const btnHeight = TITLE_BUTTON_HEIGHT;
 
     const container = this.add.container(x, y);
 
     const bg = this.add.graphics();
     bg.fillStyle(color, 1);
-    bg.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 18);
+    bg.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, TITLE_BUTTON_RADIUS);
 
     const text = addCrispText(this, 0, 0, label, {
       fontSize: "32px",
@@ -102,11 +122,11 @@ export class TitleScene extends Phaser.Scene {
     container.setSize(btnWidth, btnHeight);
     container.setInteractive({ useHandCursor: true });
 
-    container.on("pointerover", () => container.setScale(1.05));
-    container.on("pointerout", () => container.setScale(1.0));
-    container.on("pointerdown", () => container.setScale(0.95));
+    container.on("pointerover", () => container.setScale(BUTTON_HOVER_SCALE));
+    container.on("pointerout", () => container.setScale(BUTTON_NORMAL_SCALE));
+    container.on("pointerdown", () => container.setScale(BUTTON_PRESSED_SCALE));
     container.on("pointerup", () => {
-      container.setScale(1.0);
+      container.setScale(BUTTON_NORMAL_SCALE);
       AudioManager.getInstance().playSE("click");
       onClick();
     });

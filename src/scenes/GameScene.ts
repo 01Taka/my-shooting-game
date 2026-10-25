@@ -1,6 +1,35 @@
 import Phaser from "phaser";
 
 import { AudioManager } from "../audio/AudioManager";
+import {
+  BULLET_DAMAGE,
+  BULLET_FIRE_RATE_MS,
+  BULLET_MAX_COUNT,
+  BULLET_SPEED,
+  CAMERA_LOOK_AHEAD_DISTANCE_X,
+  CAMERA_LOOK_AHEAD_DISTANCE_Y,
+  CAMERA_LOOK_AHEAD_SMOOTH_TIME,
+  CAMERA_MAX_LOOK_SPEED_X,
+  CAMERA_MAX_LOOK_SPEED_Y,
+  CAMERA_SHAKE_DURATION_MS,
+  CAMERA_SHAKE_INTENSITY,
+  ENEMY_DAMAGE,
+  ENEMY_HP,
+  ENEMY_SCORE,
+  ENEMY_SPAWN_INTERVAL_MS,
+  ENEMY_SPEED_MAX,
+  ENEMY_SPEED_MIN,
+  LOCKON_BREAK_DISTANCE,
+  LOCKON_CHAIN_RADIUS,
+  LOCKON_MAX_DISTANCE,
+  LOCKON_SECTOR_ANGLE_DEG,
+  PLAYER_INITIAL_HP,
+  PLAYER_SPEED,
+  WORLD_BORDER_ALPHA,
+  WORLD_BORDER_COLOR,
+  WORLD_BORDER_WIDTH,
+  WORLD_SIZE,
+} from "../constants";
 import { EventBus } from "../EventBus";
 import {
   BulletManager,
@@ -13,7 +42,7 @@ import type { GameParameters } from "../game/types";
 import type { ControllerInputPayload } from "./ControllerScene";
 
 export class GameScene extends Phaser.Scene {
-  protected readonly worldSize = 4000; // 4000x4000の広大な宇宙空間
+  protected readonly worldSize = WORLD_SIZE; // 広大な宇宙空間
   protected player!: Phaser.Physics.Arcade.Image;
 
   // 分割された責任マネージャー群
@@ -25,8 +54,8 @@ export class GameScene extends Phaser.Scene {
 
   // ゲーム状態
   protected score = 0;
-  protected hp = 100;
-  protected maxHp = 100;
+  protected hp = PLAYER_INITIAL_HP;
+  protected maxHp = PLAYER_INITIAL_HP;
 
   constructor() {
     super("GameScene");
@@ -42,35 +71,35 @@ export class GameScene extends Phaser.Scene {
   protected getGameParameters(): GameParameters {
     return {
       player: {
-        initialHp: 100,
-        speed: 520,
+        initialHp: PLAYER_INITIAL_HP,
+        speed: PLAYER_SPEED,
       },
       bullet: {
-        speed: 1050,
-        fireRateMs: 140, // タップ連打にも長押し連射にも快適なインターバル
-        maxBullets: 60,
-        damage: 10,
+        speed: BULLET_SPEED,
+        fireRateMs: BULLET_FIRE_RATE_MS,
+        maxBullets: BULLET_MAX_COUNT,
+        damage: BULLET_DAMAGE,
       },
       enemy: {
-        spawnIntervalMs: 800,
-        speedMin: 180,
-        speedMax: 320,
-        score: 100,
-        damage: 25,
-        hp: 30, // 3発で撃破
+        spawnIntervalMs: ENEMY_SPAWN_INTERVAL_MS,
+        speedMin: ENEMY_SPEED_MIN,
+        speedMax: ENEMY_SPEED_MAX,
+        score: ENEMY_SCORE,
+        damage: ENEMY_DAMAGE,
+        hp: ENEMY_HP,
       },
       camera: {
-        lookAheadDistanceY: 240, // 上下方向の先行オフセット距離
-        lookAheadDistanceX: 60, // 左右方向の先行オフセット距離（楕円軌道）
-        lookAheadSmoothTime: 0.14, // 到達目安時間（秒）
-        maxLookSpeedY: 420, // 上下最大追従速度 (px/sec)
-        maxLookSpeedX: 160, // 左右最大追従速度 (px/sec)
+        lookAheadDistanceY: CAMERA_LOOK_AHEAD_DISTANCE_Y,
+        lookAheadDistanceX: CAMERA_LOOK_AHEAD_DISTANCE_X,
+        lookAheadSmoothTime: CAMERA_LOOK_AHEAD_SMOOTH_TIME,
+        maxLookSpeedY: CAMERA_MAX_LOOK_SPEED_Y,
+        maxLookSpeedX: CAMERA_MAX_LOOK_SPEED_X,
       },
       lockOn: {
-        sectorAngleDeg: 60, // 60度扇形サーチ
-        maxDistance: 950, // 最大索敵距離
-        chainRadius: 480, // 撃破連鎖半径
-        breakDistance: 1300, // ロック解除距離
+        sectorAngleDeg: LOCKON_SECTOR_ANGLE_DEG,
+        maxDistance: LOCKON_MAX_DISTANCE,
+        chainRadius: LOCKON_CHAIN_RADIUS,
+        breakDistance: LOCKON_BREAK_DISTANCE,
       },
     };
   }
@@ -82,12 +111,12 @@ export class GameScene extends Phaser.Scene {
     const params = this.getGameParameters();
     const center = this.worldSize / 2;
 
-    // 宇宙空間背景の敷き詰め (4000x4000)
+    // 宇宙空間背景の敷き詰め
     this.add.tileSprite(center, center, this.worldSize, this.worldSize, "starfield");
 
     // ワールド境界の可視フェンス（世界の果てを示すボーダー線）
     const border = this.add.graphics();
-    border.lineStyle(8, 0x38bdf8, 0.7);
+    border.lineStyle(WORLD_BORDER_WIDTH, WORLD_BORDER_COLOR, WORLD_BORDER_ALPHA);
     border.strokeRect(0, 0, this.worldSize, this.worldSize);
 
     // プレイヤー作成 (中央スタート 2000, 2000)
@@ -274,7 +303,7 @@ export class GameScene extends Phaser.Scene {
     AudioManager.getInstance().playSE("hit");
 
     // 画面フラッシュ演出
-    this.cameraManager.shake(150, 0.01);
+    this.cameraManager.shake(CAMERA_SHAKE_DURATION_MS, CAMERA_SHAKE_INTENSITY);
 
     if (this.hp <= 0) {
       this.gameOver();

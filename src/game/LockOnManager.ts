@@ -1,5 +1,25 @@
 import Phaser from "phaser";
 
+import {
+  LOCKON_BRACKET_LENGTH,
+  LOCKON_DEPTH,
+  LOCKON_FLICK_THRESHOLD_MS,
+  LOCKON_GUIDE_ALPHA,
+  LOCKON_GUIDE_LINE_WIDTH,
+  LOCKON_HISTORY_CUTOFF_MS,
+  LOCKON_INNER_LINE_WIDTH,
+  LOCKON_INNER_OFFSET,
+  LOCKON_INNER_RADIUS,
+  LOCKON_LINE_WIDTH,
+  LOCKON_OUT_OF_SCREEN_BREAK_DISTANCE,
+  LOCKON_PRIMARY_ALPHA,
+  LOCKON_PRIMARY_COLOR,
+  LOCKON_RETICLE_SIZE,
+  LOCKON_ROTATION_SPEED,
+  LOCKON_SECONDARY_ALPHA,
+  LOCKON_SECONDARY_COLOR,
+  LOCKON_STABLE_SAMPLE_OFFSET_MS,
+} from "../constants";
 import type { LockOnConfig } from "./types";
 
 interface TargetHistoryEntry {
@@ -28,9 +48,9 @@ export class LockOnManager {
    * レティクル描画オブジェクト等の初期化
    */
   init(scene: Phaser.Scene): void {
-    // 敵の上に重なるよう高い深度(depth: 50)でグラフィックを生成
+    // 敵の上に重なるよう高い深度でグラフィックを生成
     this.reticleGraphics = scene.add.graphics();
-    this.reticleGraphics.setDepth(50);
+    this.reticleGraphics.setDepth(LOCKON_DEPTH);
   }
 
   /**
@@ -190,8 +210,8 @@ export class LockOnManager {
   ): void {
     this.isAimingSession = false;
 
-    // 【フリック対応】操作時間が160ms未満の場合
-    if (typeof touchDuration === "number" && touchDuration < 160) {
+    // 【フリック対応】操作時間がしきい値未満の場合
+    if (typeof touchDuration === "number" && touchDuration < LOCKON_FLICK_THRESHOLD_MS) {
       // 1. フレーム更新落ち等でセッション内にまだ新ターゲットが捕捉されていない場合、フリック時の角度で即時探索
       if (
         this.sessionTargets.length === 0 &&
@@ -218,9 +238,9 @@ export class LockOnManager {
       return;
     }
 
-    // 【通常ドラッグ】指が浮き上がる約70ms前の安定したターゲットを探す
+    // 【通常ドラッグ】指が浮き上がる安定時点のターゲットを探す
     if (this.targetHistory.length > 0) {
-      const stableTime = releaseTime - 70;
+      const stableTime = releaseTime - LOCKON_STABLE_SAMPLE_OFFSET_MS;
       let bestEntry: TargetHistoryEntry | null = null;
       let minDiff = Infinity;
 
@@ -244,7 +264,7 @@ export class LockOnManager {
   }
 
   /**
-   * 毎フレームのターゲット履歴記録（エイムセッション中のみ過去160ms分を保持）
+   * 毎フレームのターゲット履歴記録（エイムセッション中のみ過去一定期間分を保持）
    */
   recordTargetHistory(time: number): void {
     if (!this.isAimingSession) {
@@ -257,7 +277,7 @@ export class LockOnManager {
         time,
       });
 
-      const cutoff = time - 160;
+      const cutoff = time - LOCKON_HISTORY_CUTOFF_MS;
       while (this.targetHistory.length > 0 && this.targetHistory[0].time < cutoff) {
         this.targetHistory.shift();
       }
@@ -289,24 +309,27 @@ export class LockOnManager {
     const camera = scene.cameras.main;
     const isOutScreen = !camera.worldView.contains(target.x, target.y);
 
-    if (distToPlayer > this.config.breakDistance || (isOutScreen && distToPlayer > 1000)) {
+    if (
+      distToPlayer > this.config.breakDistance ||
+      (isOutScreen && distToPlayer > LOCKON_OUT_OF_SCREEN_BREAK_DISTANCE)
+    ) {
       this.lockedTarget = null;
       return;
     }
 
     // レティクルの回転アニメーション
-    this.animAngle += (delta / 1000) * 2.5;
+    this.animAngle += (delta / 1000) * LOCKON_ROTATION_SPEED;
 
     // --- ターゲットレティクル描画 ---
     const tx = target.x;
     const ty = target.y;
-    const size = 32;
+    const size = LOCKON_RETICLE_SIZE;
 
     // 1. 赤〜オレンジのサイバー系照準枠
-    this.reticleGraphics.lineStyle(2.5, 0xf43f5e, 0.9);
+    this.reticleGraphics.lineStyle(LOCKON_LINE_WIDTH, LOCKON_PRIMARY_COLOR, LOCKON_PRIMARY_ALPHA);
 
     // 四隅のコーナーブラケット [ ]
-    const bracketLen = 10;
+    const bracketLen = LOCKON_BRACKET_LENGTH;
     // 左上
     this.reticleGraphics.strokeLineShape(
       new Phaser.Geom.Line(tx - size, ty - size + bracketLen, tx - size, ty - size),
@@ -337,19 +360,27 @@ export class LockOnManager {
     );
 
     // 2. 中央の回転ドット/十字インジケーター
-    this.reticleGraphics.lineStyle(1.5, 0xfb7185, 0.6);
-    const innerRadius = 14;
+    this.reticleGraphics.lineStyle(
+      LOCKON_INNER_LINE_WIDTH,
+      LOCKON_SECONDARY_COLOR,
+      LOCKON_SECONDARY_ALPHA,
+    );
+    const innerRadius = LOCKON_INNER_RADIUS;
     for (let i = 0; i < 4; i++) {
       const a = this.animAngle + (i * Math.PI) / 2;
-      const x1 = tx + Math.cos(a) * 6;
-      const y1 = ty + Math.sin(a) * 6;
+      const x1 = tx + Math.cos(a) * LOCKON_INNER_OFFSET;
+      const y1 = ty + Math.sin(a) * LOCKON_INNER_OFFSET;
       const x2 = tx + Math.cos(a) * innerRadius;
       const y2 = ty + Math.sin(a) * innerRadius;
       this.reticleGraphics.strokeLineShape(new Phaser.Geom.Line(x1, y1, x2, y2));
     }
 
     // 3. プレイヤーからターゲットへのガイドレーザー点線（薄いライン）
-    this.reticleGraphics.lineStyle(1, 0xf43f5e, 0.25);
+    this.reticleGraphics.lineStyle(
+      LOCKON_GUIDE_LINE_WIDTH,
+      LOCKON_PRIMARY_COLOR,
+      LOCKON_GUIDE_ALPHA,
+    );
     this.reticleGraphics.strokeLineShape(new Phaser.Geom.Line(player.x, player.y, tx, ty));
   }
 

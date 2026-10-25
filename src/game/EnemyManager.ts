@@ -1,5 +1,15 @@
 import Phaser from "phaser";
 
+import {
+  ENEMY_BOUNDS_PADDING,
+  ENEMY_DEFAULT_SPEED,
+  ENEMY_DESPAWN_DISTANCE,
+  ENEMY_FLASH_COLOR,
+  ENEMY_FLASH_DURATION_MS,
+  ENEMY_SPAWN_DISTANCE_MAX,
+  ENEMY_SPAWN_DISTANCE_MIN,
+  WORLD_SIZE,
+} from "../constants";
 import type { EnemyConfig } from "./types";
 
 /**
@@ -11,7 +21,7 @@ export class EnemyManager {
   protected enemies!: Phaser.Physics.Arcade.Group;
   protected spawnTimer!: Phaser.Time.TimerEvent;
   protected scene!: Phaser.Scene;
-  protected worldSize = 4000;
+  protected worldSize = WORLD_SIZE;
   protected getPlayerPosition!: () => { x: number; y: number };
 
   constructor(config: EnemyConfig) {
@@ -53,16 +63,24 @@ export class EnemyManager {
   protected spawnEnemy(): void {
     const playerPos = this.getPlayerPosition();
 
-    // プレイヤー中心から全周囲360度の視野外（950〜1150px）にスポーン
+    // プレイヤー中心から全周囲360度の視野外にスポーン
     const spawnAngle = Phaser.Math.RND.realInRange(0, Math.PI * 2);
-    const spawnDistance = Phaser.Math.Between(950, 1150);
+    const spawnDistance = Phaser.Math.Between(ENEMY_SPAWN_DISTANCE_MIN, ENEMY_SPAWN_DISTANCE_MAX);
 
     const spawnX = playerPos.x + Math.cos(spawnAngle) * spawnDistance;
     const spawnY = playerPos.y + Math.sin(spawnAngle) * spawnDistance;
 
     // ワールド境界内に収まるようクランプ
-    const clampedX = Phaser.Math.Clamp(spawnX, 80, this.worldSize - 80);
-    const clampedY = Phaser.Math.Clamp(spawnY, 80, this.worldSize - 80);
+    const clampedX = Phaser.Math.Clamp(
+      spawnX,
+      ENEMY_BOUNDS_PADDING,
+      this.worldSize - ENEMY_BOUNDS_PADDING,
+    );
+    const clampedY = Phaser.Math.Clamp(
+      spawnY,
+      ENEMY_BOUNDS_PADDING,
+      this.worldSize - ENEMY_BOUNDS_PADDING,
+    );
 
     const enemy = this.enemies.create(clampedX, clampedY, "enemy") as Phaser.Physics.Arcade.Image;
     if (enemy) {
@@ -92,8 +110,8 @@ export class EnemyManager {
     }
 
     // 被弾フラッシュ演出（赤く点滅）
-    enemy.setTint(0xff5555);
-    this.scene.time.delayedCall(70, () => {
+    enemy.setTint(ENEMY_FLASH_COLOR);
+    this.scene.time.delayedCall(ENEMY_FLASH_DURATION_MS, () => {
       if (enemy.active) {
         enemy.clearTint();
       }
@@ -110,16 +128,16 @@ export class EnemyManager {
     for (const enemy of enemies) {
       if (enemy.active) {
         // プレイヤーに向かって追従移動
-        const speed = (enemy.getData("speed") as number) || 240;
+        const speed = (enemy.getData("speed") as number) || ENEMY_DEFAULT_SPEED;
         this.scene.physics.moveToObject(enemy, player, speed);
 
         // 敵の向きをプレイヤーに向ける
         const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, player.x, player.y);
         enemy.setRotation(angle + Math.PI / 2);
 
-        // プレイヤーから遠く離れすぎた敵（2400px以上）は消去してリソース節約
+        // プレイヤーから遠く離れすぎた敵は消去してリソース節約
         const dist = Phaser.Math.Distance.Between(enemy.x, enemy.y, player.x, player.y);
-        if (dist > 2400) {
+        if (dist > ENEMY_DESPAWN_DISTANCE) {
           enemy.destroy();
         }
       }

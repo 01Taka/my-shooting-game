@@ -1,5 +1,37 @@
 import Phaser from "phaser";
 
+import {
+  BULLET_COLOR,
+  BULLET_TEXTURE_RADIUS,
+  BULLET_TEXTURE_SIZE,
+  ENEMY_COLOR,
+  ENEMY_TEXTURE_RADIUS,
+  ENEMY_TEXTURE_SIZE,
+  PLAYER_COLOR,
+  PLAYER_TEXTURE_SIZE,
+  PRELOAD_BAR_COLOR,
+  PRELOAD_BAR_HEIGHT,
+  PRELOAD_BAR_RADIUS,
+  PRELOAD_BAR_WIDTH,
+  PRELOAD_BOX_ALPHA,
+  PRELOAD_BOX_COLOR,
+  PRELOAD_BOX_HEIGHT,
+  PRELOAD_BOX_RADIUS,
+  PRELOAD_BOX_WIDTH,
+  PRELOAD_LOADING_TEXT_Y_OFFSET,
+  PRELOAD_PERCENT_TEXT_Y_OFFSET,
+  STAR_ALPHA_MAX,
+  STAR_ALPHA_MIN,
+  STAR_COLORS,
+  STAR_RADIUS_MAX,
+  STAR_RADIUS_MIN,
+  STARFIELD_BG_COLOR,
+  STARFIELD_GRID_ALPHA,
+  STARFIELD_GRID_COLOR,
+  STARFIELD_GRID_WIDTH,
+  STARFIELD_STAR_COUNT,
+  STARFIELD_TEXTURE_SIZE,
+} from "../constants";
 import { EventBus } from "../EventBus";
 import { addCrispText } from "../utils/text";
 
@@ -29,47 +61,60 @@ export class PreloadScene extends Phaser.Scene {
    * 動的テクスチャの生成（1600x900の高解像度に合わせて2倍サイズで生成）
    */
   protected createDummyAssets() {
-    // プレイヤー用自機グラフィック (64x64)
+    // プレイヤー用自機グラフィック
     const playerGraphics = this.make.graphics({ x: 0, y: 0 });
-    playerGraphics.fillStyle(0x38bdf8, 1);
-    playerGraphics.fillTriangle(0, 64, 32, 0, 64, 64);
-    playerGraphics.generateTexture("player", 64, 64);
+    playerGraphics.fillStyle(PLAYER_COLOR, 1);
+    playerGraphics.fillTriangle(
+      0,
+      PLAYER_TEXTURE_SIZE,
+      PLAYER_TEXTURE_SIZE / 2,
+      0,
+      PLAYER_TEXTURE_SIZE,
+      PLAYER_TEXTURE_SIZE,
+    );
+    playerGraphics.generateTexture("player", PLAYER_TEXTURE_SIZE, PLAYER_TEXTURE_SIZE);
     playerGraphics.destroy();
 
-    // 弾グラフィック (16x16)
+    // 弾グラフィック
     const bulletGraphics = this.make.graphics({ x: 0, y: 0 });
-    bulletGraphics.fillStyle(0xfacc15, 1);
-    bulletGraphics.fillCircle(8, 8, 8);
-    bulletGraphics.generateTexture("bullet", 16, 16);
+    bulletGraphics.fillStyle(BULLET_COLOR, 1);
+    bulletGraphics.fillCircle(BULLET_TEXTURE_RADIUS, BULLET_TEXTURE_RADIUS, BULLET_TEXTURE_RADIUS);
+    bulletGraphics.generateTexture("bullet", BULLET_TEXTURE_SIZE, BULLET_TEXTURE_SIZE);
     bulletGraphics.destroy();
 
-    // 敵グラフィック (56x56)
+    // 敵グラフィック
     const enemyGraphics = this.make.graphics({ x: 0, y: 0 });
-    enemyGraphics.fillStyle(0xf43f5e, 1);
-    enemyGraphics.fillRoundedRect(0, 0, 56, 56, 12);
-    enemyGraphics.generateTexture("enemy", 56, 56);
+    enemyGraphics.fillStyle(ENEMY_COLOR, 1);
+    enemyGraphics.fillRoundedRect(
+      0,
+      0,
+      ENEMY_TEXTURE_SIZE,
+      ENEMY_TEXTURE_SIZE,
+      ENEMY_TEXTURE_RADIUS,
+    );
+    enemyGraphics.generateTexture("enemy", ENEMY_TEXTURE_SIZE, ENEMY_TEXTURE_SIZE);
     enemyGraphics.destroy();
 
-    // 宇宙空間背景用スターフィールドテクスチャ (512x512)
+    // 宇宙空間背景用スターフィールドテクスチャ
     const starGraphics = this.make.graphics({ x: 0, y: 0 });
     // 暗い宇宙のベース
-    starGraphics.fillStyle(0x090d16, 1);
-    starGraphics.fillRect(0, 0, 512, 512);
+    starGraphics.fillStyle(STARFIELD_BG_COLOR, 1);
+    starGraphics.fillRect(0, 0, STARFIELD_TEXTURE_SIZE, STARFIELD_TEXTURE_SIZE);
     // ランダムな星々の配置
-    for (let i = 0; i < 90; i++) {
-      const starX = Phaser.Math.Between(0, 512);
-      const starY = Phaser.Math.Between(0, 512);
-      const starRadius = Phaser.Math.RND.realInRange(0.8, 2.2);
-      const alpha = Phaser.Math.RND.realInRange(0.3, 0.95);
-      const color = Phaser.Math.RND.pick([0xffffff, 0x38bdf8, 0x818cf8, 0xf472b6]);
+    for (let i = 0; i < STARFIELD_STAR_COUNT; i++) {
+      const starX = Phaser.Math.Between(0, STARFIELD_TEXTURE_SIZE);
+      const starY = Phaser.Math.Between(0, STARFIELD_TEXTURE_SIZE);
+      const starRadius = Phaser.Math.RND.realInRange(STAR_RADIUS_MIN, STAR_RADIUS_MAX);
+      const alpha = Phaser.Math.RND.realInRange(STAR_ALPHA_MIN, STAR_ALPHA_MAX);
+      const color = Phaser.Math.RND.pick(STAR_COLORS);
 
       starGraphics.fillStyle(color, alpha);
       starGraphics.fillCircle(starX, starY, starRadius);
     }
     // うっすらとしたグリッドガイド線
-    starGraphics.lineStyle(1, 0x1e293b, 0.4);
-    starGraphics.strokeRect(0, 0, 512, 512);
-    starGraphics.generateTexture("starfield", 512, 512);
+    starGraphics.lineStyle(STARFIELD_GRID_WIDTH, STARFIELD_GRID_COLOR, STARFIELD_GRID_ALPHA);
+    starGraphics.strokeRect(0, 0, STARFIELD_TEXTURE_SIZE, STARFIELD_TEXTURE_SIZE);
+    starGraphics.generateTexture("starfield", STARFIELD_TEXTURE_SIZE, STARFIELD_TEXTURE_SIZE);
     starGraphics.destroy();
   }
 
@@ -81,22 +126,40 @@ export class PreloadScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     // タイトル・ローディングテキスト（高解像度テキスト）
-    const loadingText = addCrispText(this, width / 2, height / 2 - 80, "Now Loading...", {
-      fontSize: "40px",
-      fontFamily: "monospace",
-      color: "#ffffff",
-    }).setOrigin(0.5);
+    const loadingText = addCrispText(
+      this,
+      width / 2,
+      height / 2 - PRELOAD_LOADING_TEXT_Y_OFFSET,
+      "Now Loading...",
+      {
+        fontSize: "40px",
+        fontFamily: "monospace",
+        color: "#ffffff",
+      },
+    ).setOrigin(0.5);
 
-    const percentText = addCrispText(this, width / 2, height / 2 + 70, "0%", {
-      fontSize: "30px",
-      fontFamily: "monospace",
-      color: "#94a3b8",
-    }).setOrigin(0.5);
+    const percentText = addCrispText(
+      this,
+      width / 2,
+      height / 2 + PRELOAD_PERCENT_TEXT_Y_OFFSET,
+      "0%",
+      {
+        fontSize: "30px",
+        fontFamily: "monospace",
+        color: "#94a3b8",
+      },
+    ).setOrigin(0.5);
 
     // プログレスバーの枠
     const progressBox = this.add.graphics();
-    progressBox.fillStyle(0x334155, 0.8);
-    progressBox.fillRoundedRect(width / 2 - 300, height / 2 - 20, 600, 40, 12);
+    progressBox.fillStyle(PRELOAD_BOX_COLOR, PRELOAD_BOX_ALPHA);
+    progressBox.fillRoundedRect(
+      width / 2 - PRELOAD_BOX_WIDTH / 2,
+      height / 2 - PRELOAD_BOX_HEIGHT / 2,
+      PRELOAD_BOX_WIDTH,
+      PRELOAD_BOX_HEIGHT,
+      PRELOAD_BOX_RADIUS,
+    );
 
     // プログレスバー本体
     const progressBar = this.add.graphics();
@@ -104,8 +167,14 @@ export class PreloadScene extends Phaser.Scene {
     this.load.on("progress", (value: number) => {
       percentText.setText(`${Math.floor(value * 100)}%`);
       progressBar.clear();
-      progressBar.fillStyle(0x38bdf8, 1);
-      progressBar.fillRoundedRect(width / 2 - 294, height / 2 - 14, 588 * value, 28, 8);
+      progressBar.fillStyle(PRELOAD_BAR_COLOR, 1);
+      progressBar.fillRoundedRect(
+        width / 2 - PRELOAD_BAR_WIDTH / 2,
+        height / 2 - PRELOAD_BAR_HEIGHT / 2,
+        PRELOAD_BAR_WIDTH * value,
+        PRELOAD_BAR_HEIGHT,
+        PRELOAD_BAR_RADIUS,
+      );
     });
 
     this.load.on("complete", () => {

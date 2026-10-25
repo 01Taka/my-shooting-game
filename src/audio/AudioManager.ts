@@ -1,5 +1,31 @@
 import type Phaser from "phaser";
 
+import {
+  MAX_VOLUME,
+  MIN_VOLUME,
+  SE_DEFAULT_COOLDOWN_MS,
+  SYNTH_CLICK_DURATION,
+  SYNTH_CLICK_FREQ_CHANGE_TIME,
+  SYNTH_CLICK_FREQ_MID,
+  SYNTH_CLICK_FREQ_START,
+  SYNTH_CLICK_VOLUME_SCALE,
+  SYNTH_EXPLOSION_DURATION,
+  SYNTH_EXPLOSION_FILTER_FREQ_END,
+  SYNTH_EXPLOSION_FILTER_FREQ_START,
+  SYNTH_EXPLOSION_VOLUME_SCALE,
+  SYNTH_GAMEOVER_FREQS,
+  SYNTH_GAMEOVER_STEP_INTERVAL,
+  SYNTH_GAMEOVER_VOLUME_SCALE,
+  SYNTH_HIT_DURATION,
+  SYNTH_HIT_FREQ_END,
+  SYNTH_HIT_FREQ_START,
+  SYNTH_HIT_VOLUME_SCALE,
+  SYNTH_LASER_DURATION,
+  SYNTH_LASER_FREQ_END,
+  SYNTH_LASER_FREQ_START,
+  SYNTH_LASER_VOLUME_SCALE,
+  SYNTH_RAMP_MIN_GAIN,
+} from "../constants";
 import { useGameSettings } from "../stores/useGameSettings";
 
 export type SynthSoundType = "laser" | "explosion" | "hit" | "click" | "gameover";
@@ -19,7 +45,7 @@ export class AudioManager {
 
   // SE多重発音を防止するクールダウン管理（キー -> 最終再生時刻ms）
   private seCooldowns: Map<string, number> = new Map();
-  private readonly defaultCooldownMs = 40;
+  private readonly defaultCooldownMs = SE_DEFAULT_COOLDOWN_MS;
 
   // AudioContextアンロック済みフラグ
   private isUnlocked = false;
@@ -108,7 +134,7 @@ export class AudioManager {
     this.stopBGM();
 
     const settings = useGameSettings.getState();
-    const effectiveVolume = settings.bgmMuted ? 0 : settings.bgmVolume / 100;
+    const effectiveVolume = settings.bgmMuted ? 0 : settings.bgmVolume / MAX_VOLUME;
 
     // アセットが存在する場合に再生
     if (this.game.cache.audio.has(key)) {
@@ -154,7 +180,7 @@ export class AudioManager {
    * 再生中のBGM音量を設定ストアと同期
    */
   private syncBgmVolume(volume: number, muted: boolean): void {
-    const effectiveVolume = muted ? 0 : volume / 100;
+    const effectiveVolume = muted ? 0 : volume / MAX_VOLUME;
     if (this.currentBgm && "setVolume" in this.currentBgm) {
       (this.currentBgm as Phaser.Sound.WebAudioSound).setVolume(effectiveVolume);
     }
@@ -169,7 +195,7 @@ export class AudioManager {
    */
   public playSE(key: string, options?: SoundPlayOptions): void {
     const settings = useGameSettings.getState();
-    if (settings.seMuted || settings.seVolume <= 0) return;
+    if (settings.seMuted || settings.seVolume <= MIN_VOLUME) return;
 
     // クールダウン（同一フレーム・短時間の爆音化防止）判定
     const now = performance.now();
@@ -179,7 +205,7 @@ export class AudioManager {
     }
     this.seCooldowns.set(key, now);
 
-    const baseVolume = settings.seVolume / 100;
+    const baseVolume = settings.seVolume / MAX_VOLUME;
     const finalVolume = Math.max(0, Math.min(1.0, baseVolume * (options?.volume ?? 1.0)));
 
     // 1. Phaser のキャッシュに実音声ファイルが存在する場合
@@ -226,23 +252,26 @@ export class AudioManager {
         const gain = audioCtx.createGain();
 
         osc.type = "sawtooth";
-        osc.frequency.setValueAtTime(880, now);
-        osc.frequency.exponentialRampToValueAtTime(110, now + 0.12);
+        osc.frequency.setValueAtTime(SYNTH_LASER_FREQ_START, now);
+        osc.frequency.exponentialRampToValueAtTime(
+          SYNTH_LASER_FREQ_END,
+          now + SYNTH_LASER_DURATION,
+        );
 
-        gain.gain.setValueAtTime(volume * 0.1, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        gain.gain.setValueAtTime(volume * SYNTH_LASER_VOLUME_SCALE, now);
+        gain.gain.exponentialRampToValueAtTime(SYNTH_RAMP_MIN_GAIN, now + SYNTH_LASER_DURATION);
 
         osc.connect(gain);
         gain.connect(audioCtx.destination);
 
         osc.start(now);
-        osc.stop(now + 0.12);
+        osc.stop(now + SYNTH_LASER_DURATION);
         break;
       }
 
       case "explosion": {
         // ホワイトノイズ＋ローパスフィルターによる爆発音
-        const bufferSize = audioCtx.sampleRate * 0.35;
+        const bufferSize = audioCtx.sampleRate * SYNTH_EXPLOSION_DURATION;
         const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
         const output = noiseBuffer.getChannelData(0);
         for (let i = 0; i < bufferSize; i++) {
@@ -254,12 +283,15 @@ export class AudioManager {
 
         const filter = audioCtx.createBiquadFilter();
         filter.type = "lowpass";
-        filter.frequency.setValueAtTime(600, now);
-        filter.frequency.exponentialRampToValueAtTime(60, now + 0.35);
+        filter.frequency.setValueAtTime(SYNTH_EXPLOSION_FILTER_FREQ_START, now);
+        filter.frequency.exponentialRampToValueAtTime(
+          SYNTH_EXPLOSION_FILTER_FREQ_END,
+          now + SYNTH_EXPLOSION_DURATION,
+        );
 
         const gain = audioCtx.createGain();
-        gain.gain.setValueAtTime(volume * 0.7, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+        gain.gain.setValueAtTime(volume * SYNTH_EXPLOSION_VOLUME_SCALE, now);
+        gain.gain.exponentialRampToValueAtTime(SYNTH_RAMP_MIN_GAIN, now + SYNTH_EXPLOSION_DURATION);
 
         whiteNoise.connect(filter);
         filter.connect(gain);
@@ -275,17 +307,17 @@ export class AudioManager {
         const gain = audioCtx.createGain();
 
         osc.type = "triangle";
-        osc.frequency.setValueAtTime(220, now);
-        osc.frequency.exponentialRampToValueAtTime(50, now + 0.08);
+        osc.frequency.setValueAtTime(SYNTH_HIT_FREQ_START, now);
+        osc.frequency.exponentialRampToValueAtTime(SYNTH_HIT_FREQ_END, now + SYNTH_HIT_DURATION);
 
-        gain.gain.setValueAtTime(volume * 0.6, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        gain.gain.setValueAtTime(volume * SYNTH_HIT_VOLUME_SCALE, now);
+        gain.gain.exponentialRampToValueAtTime(SYNTH_RAMP_MIN_GAIN, now + SYNTH_HIT_DURATION);
 
         osc.connect(gain);
         gain.connect(audioCtx.destination);
 
         osc.start(now);
-        osc.stop(now + 0.08);
+        osc.stop(now + SYNTH_HIT_DURATION);
         break;
       }
 
@@ -295,38 +327,43 @@ export class AudioManager {
         const gain = audioCtx.createGain();
 
         osc.type = "sine";
-        osc.frequency.setValueAtTime(1000, now);
-        osc.frequency.setValueAtTime(1400, now + 0.015);
+        osc.frequency.setValueAtTime(SYNTH_CLICK_FREQ_START, now);
+        osc.frequency.setValueAtTime(SYNTH_CLICK_FREQ_MID, now + SYNTH_CLICK_FREQ_CHANGE_TIME);
 
-        gain.gain.setValueAtTime(volume * 0.3, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+        gain.gain.setValueAtTime(volume * SYNTH_CLICK_VOLUME_SCALE, now);
+        gain.gain.exponentialRampToValueAtTime(SYNTH_RAMP_MIN_GAIN, now + SYNTH_CLICK_DURATION);
 
         osc.connect(gain);
         gain.connect(audioCtx.destination);
 
         osc.start(now);
-        osc.stop(now + 0.04);
+        osc.stop(now + SYNTH_CLICK_DURATION);
         break;
       }
 
       case "gameover": {
         // 哀愁のある下降アルペジオ音
-        const freqs = [330, 294, 262, 196];
-        freqs.forEach((freq, idx) => {
+        SYNTH_GAMEOVER_FREQS.forEach((freq, idx) => {
           const osc = audioCtx.createOscillator();
           const gain = audioCtx.createGain();
 
           osc.type = "square";
-          osc.frequency.setValueAtTime(freq, now + idx * 0.15);
+          osc.frequency.setValueAtTime(freq, now + idx * SYNTH_GAMEOVER_STEP_INTERVAL);
 
-          gain.gain.setValueAtTime(volume * 0.3, now + idx * 0.15);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + (idx + 1) * 0.15);
+          gain.gain.setValueAtTime(
+            volume * SYNTH_GAMEOVER_VOLUME_SCALE,
+            now + idx * SYNTH_GAMEOVER_STEP_INTERVAL,
+          );
+          gain.gain.exponentialRampToValueAtTime(
+            SYNTH_RAMP_MIN_GAIN,
+            now + (idx + 1) * SYNTH_GAMEOVER_STEP_INTERVAL,
+          );
 
           osc.connect(gain);
           gain.connect(audioCtx.destination);
 
-          osc.start(now + idx * 0.15);
-          osc.stop(now + (idx + 1) * 0.15);
+          osc.start(now + idx * SYNTH_GAMEOVER_STEP_INTERVAL);
+          osc.stop(now + (idx + 1) * SYNTH_GAMEOVER_STEP_INTERVAL);
         });
         break;
       }

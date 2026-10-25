@@ -1,12 +1,20 @@
 import type Phaser from "phaser";
 
+import {
+  TEXT_DEFAULT_RESOLUTION,
+  TEXT_MAX_RESOLUTION,
+  TEXT_MIN_RESOLUTION,
+  TEXT_PADDING_X,
+  TEXT_PADDING_Y,
+} from "../constants";
+
 /**
  * デバイスピクセル比（DPR）に応じた高精細解像度（最低2倍、最大3倍）を取得
  */
 export const getDeviceResolution = (): number => {
-  if (typeof window === "undefined") return 2;
+  if (typeof window === "undefined") return TEXT_DEFAULT_RESOLUTION;
   const dpr = window.devicePixelRatio || 1;
-  return Math.min(Math.max(dpr, 2), 2);
+  return Math.min(Math.max(dpr, TEXT_MIN_RESOLUTION), TEXT_MAX_RESOLUTION);
 };
 
 // Windows・Mac・iOS・Androidすべてで最高品質のアンチエイリアスが効くフォントスタック
@@ -39,7 +47,7 @@ export function addCrispText(
 
   const textObj = scene.add.text(x, y, text, {
     resolution: getDeviceResolution(),
-    padding: { x: 4, y: 4 },
+    padding: { x: TEXT_PADDING_X, y: TEXT_PADDING_Y },
     ...cleanStyle,
     // strokeThicknessが明示的に数値で指定されている場合のみ渡す
     ...(typeof style?.strokeThickness === "number" && style.strokeThickness > 0

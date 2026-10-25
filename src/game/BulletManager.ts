@@ -1,6 +1,12 @@
 import Phaser from "phaser";
 
 import { AudioManager } from "../audio/AudioManager";
+import {
+  BULLET_BOUNDS_MARGIN,
+  BULLET_DETUNE_RANGE,
+  BULLET_MAX_DISTANCE,
+  BULLET_SPAWN_OFFSET,
+} from "../constants";
 import type { BulletConfig } from "./types";
 
 /**
@@ -47,8 +53,8 @@ export class BulletManager {
     const currentTime = time ?? performance.now();
     if (!this.canFire(currentTime)) return false;
 
-    const spawnOffsetX = Math.cos(angle) * 32;
-    const spawnOffsetY = Math.sin(angle) * 32;
+    const spawnOffsetX = Math.cos(angle) * BULLET_SPAWN_OFFSET;
+    const spawnOffsetY = Math.sin(angle) * BULLET_SPAWN_OFFSET;
 
     const bullet = this.bullets.get(
       playerX + spawnOffsetX,
@@ -63,7 +69,7 @@ export class BulletManager {
       bullet.setData("damage", this.config.damage);
 
       AudioManager.getInstance().playSE("laser", {
-        detune: Phaser.Math.Between(-30, 30),
+        detune: Phaser.Math.Between(-BULLET_DETUNE_RANGE, BULLET_DETUNE_RANGE),
       });
 
       this.lastFired = currentTime + this.config.fireRateMs;
@@ -82,11 +88,11 @@ export class BulletManager {
       if (bullet.active) {
         const dist = Phaser.Math.Distance.Between(bullet.x, bullet.y, playerX, playerY);
         if (
-          dist > 1400 ||
-          bullet.x < -40 ||
-          bullet.x > worldSize + 40 ||
-          bullet.y < -40 ||
-          bullet.y > worldSize + 40
+          dist > BULLET_MAX_DISTANCE ||
+          bullet.x < -BULLET_BOUNDS_MARGIN ||
+          bullet.x > worldSize + BULLET_BOUNDS_MARGIN ||
+          bullet.y < -BULLET_BOUNDS_MARGIN ||
+          bullet.y > worldSize + BULLET_BOUNDS_MARGIN
         ) {
           bullet.destroy();
         }
