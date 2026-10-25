@@ -13,9 +13,9 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   const inputMode = useInputMode((s) => s.mode);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // スマホ版では「カーソルを追従」はONのままdisabled
+  // スマホ版では「カーソルを追従」はDisabled（元の設定値は維持）
   const isMobile = inputMode === "mobile";
-  const cursorFollowActive = isMobile ? true : settings.followCursor;
+  const cursorFollowActive = settings.followCursor;
   const cursorFollowDisabled = isMobile;
 
   // PC版かつカーソル追従が有効な場合、スティック操作はdisabled
