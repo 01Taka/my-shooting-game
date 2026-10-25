@@ -1,5 +1,7 @@
 import Phaser from "phaser";
 
+import { addCrispText } from "../utils/text";
+
 export class ControllerScene extends Phaser.Scene {
   protected inputState = {
     left: false,
@@ -84,14 +86,12 @@ export class ControllerScene extends Phaser.Scene {
     shotBg.lineStyle(3, 0xffffff, 0.8);
     shotBg.strokeCircle(0, 0, shotRadius);
 
-    const shotLabel = this.add
-      .text(0, 0, shotConfig.label, {
-        fontSize: "14px",
-        fontFamily: "monospace",
-        fontStyle: "bold",
-        color: "#ffffff",
-      })
-      .setOrigin(0.5);
+    const shotLabel = addCrispText(this, 0, 0, shotConfig.label, {
+      fontSize: "14px",
+      fontFamily: "monospace",
+      fontStyle: "bold",
+      color: "#ffffff",
+    }).setOrigin(0.5);
 
     shotBtn.add([shotBg, shotLabel]);
     shotBtn.setSize(shotRadius * 2, shotRadius * 2);
@@ -134,12 +134,10 @@ export class ControllerScene extends Phaser.Scene {
     bg.lineStyle(2, 0x64748b, 0.8);
     bg.strokeRoundedRect(-size / 2, -size / 2, size, size, 8);
 
-    const txt = this.add
-      .text(0, 0, label, {
-        fontSize: "16px",
-        color: "#ffffff",
-      })
-      .setOrigin(0.5);
+    const txt = addCrispText(this, 0, 0, label, {
+      fontSize: "16px",
+      color: "#ffffff",
+    }).setOrigin(0.5);
 
     btn.add([bg, txt]);
     btn.setSize(size, size);

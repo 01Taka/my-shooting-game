@@ -58,6 +58,11 @@ export const PhaserGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
       },
+      render: {
+        antialias: true,
+        antialiasGL: true,
+        roundPixels: true,
+      },
       physics: {
         default: "arcade",
         arcade: {

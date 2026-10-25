@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 
 import { EventBus } from "../EventBus";
+import { addCrispText } from "../utils/text";
 
 export class UIScene extends Phaser.Scene {
   protected scoreText!: Phaser.GameObjects.Text;
@@ -77,7 +78,7 @@ export class UIScene extends Phaser.Scene {
     const hudConfig = this.getHUDConfig();
 
     // --- HPバー表示（左上） ---
-    this.add.text(20, 16, hudConfig.hpLabel, {
+    addCrispText(this, 20, 16, hudConfig.hpLabel, {
       fontSize: "14px",
       fontFamily: "monospace",
       color: "#94a3b8",
@@ -88,7 +89,7 @@ export class UIScene extends Phaser.Scene {
     hpBg.fillRoundedRect(50, 16, 120, 16, 4);
 
     this.hpBarFill = this.add.graphics();
-    this.hpText = this.add.text(178, 16, `${this.hp}/${this.maxHp}`, {
+    this.hpText = addCrispText(this, 178, 16, `${this.hp}/${this.maxHp}`, {
       fontSize: "12px",
       fontFamily: "monospace",
       color: "#e2e8f0",
@@ -96,24 +97,21 @@ export class UIScene extends Phaser.Scene {
     this.updateHpBar(this.hp);
 
     // --- スコア表示（中央上） ---
-    this.scoreText = this.add
-      .text(width / 2, 24, `${hudConfig.scorePrefix}00000`, {
-        fontSize: "18px",
-        fontFamily: "monospace",
-        fontStyle: "bold",
-        color: "#f8fafc",
-      })
-      .setOrigin(0.5);
+    this.scoreText = addCrispText(this, width / 2, 24, `${hudConfig.scorePrefix}00000`, {
+      fontSize: "18px",
+      fontFamily: "monospace",
+      fontStyle: "bold",
+      color: "#f8fafc",
+    }).setOrigin(0.5);
 
     // --- ポーズボタン（右上） ---
-    const pauseBtn = this.add
-      .text(width - 20, 24, hudConfig.pauseButtonText, {
-        fontSize: "14px",
-        fontFamily: "sans-serif",
-        backgroundColor: "#1e293b",
-        padding: { x: 10, y: 6 },
-        color: "#ffffff",
-      })
+    const pauseBtn = addCrispText(this, width - 20, 24, hudConfig.pauseButtonText, {
+      fontSize: "14px",
+      fontFamily: "sans-serif",
+      backgroundColor: "#1e293b",
+      padding: { x: 10, y: 6 },
+      color: "#ffffff",
+    })
       .setOrigin(1, 0.5)
       .setInteractive({ useHandCursor: true });
 
@@ -197,14 +195,12 @@ export class UIScene extends Phaser.Scene {
 
     const menuConfig = this.getPauseMenuConfig();
 
-    const title = this.add
-      .text(width / 2, height / 2 - 80, menuConfig.title, {
-        fontSize: "24px",
-        fontFamily: "monospace",
-        fontStyle: "bold",
-        color: "#ffffff",
-      })
-      .setOrigin(0.5);
+    const title = addCrispText(this, width / 2, height / 2 - 80, menuConfig.title, {
+      fontSize: "24px",
+      fontFamily: "monospace",
+      fontStyle: "bold",
+      color: "#ffffff",
+    }).setOrigin(0.5);
 
     this.pauseMenuContainer.add([backdrop, modalBg, title]);
 
@@ -228,13 +224,11 @@ export class UIScene extends Phaser.Scene {
     bg.fillStyle(color, 1);
     bg.fillRoundedRect(-100, -18, 200, 36, 6);
 
-    const label = this.add
-      .text(0, 0, text, {
-        fontSize: "15px",
-        fontFamily: "sans-serif",
-        color: "#ffffff",
-      })
-      .setOrigin(0.5);
+    const label = addCrispText(this, 0, 0, text, {
+      fontSize: "15px",
+      fontFamily: "sans-serif",
+      color: "#ffffff",
+    }).setOrigin(0.5);
 
     btn.add([bg, label]);
     btn.setSize(200, 36);

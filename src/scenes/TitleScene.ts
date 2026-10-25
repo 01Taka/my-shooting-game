@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 
 import { EventBus } from "../EventBus";
+import { addCrispText } from "../utils/text";
 
 export class TitleScene extends Phaser.Scene {
   constructor() {
@@ -65,10 +66,12 @@ export class TitleScene extends Phaser.Scene {
     const config = this.getTitleConfig();
 
     // タイトル文字
-    this.add.text(width / 2, height / 2 - 120, config.title, config.titleStyle).setOrigin(0.5);
+    addCrispText(this, width / 2, height / 2 - 120, config.title, config.titleStyle).setOrigin(0.5);
 
     // サブタイトル文字
-    this.add.text(width / 2, height / 2 - 60, config.subTitle, config.subTitleStyle).setOrigin(0.5);
+    addCrispText(this, width / 2, height / 2 - 60, config.subTitle, config.subTitleStyle).setOrigin(
+      0.5,
+    );
 
     // メニューボタン生成
     const buttons = this.getMenuButtons();
@@ -87,13 +90,11 @@ export class TitleScene extends Phaser.Scene {
     bg.fillStyle(color, 1);
     bg.fillRoundedRect(-btnWidth / 2, -btnHeight / 2, btnWidth, btnHeight, 10);
 
-    const text = this.add
-      .text(0, 0, label, {
-        fontSize: "18px",
-        fontFamily: "sans-serif",
-        color: "#ffffff",
-      })
-      .setOrigin(0.5);
+    const text = addCrispText(this, 0, 0, label, {
+      fontSize: "18px",
+      fontFamily: "sans-serif",
+      color: "#ffffff",
+    }).setOrigin(0.5);
 
     container.add([bg, text]);
     container.setSize(btnWidth, btnHeight);

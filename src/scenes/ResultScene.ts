@@ -1,6 +1,8 @@
 import confetti from "canvas-confetti";
 import Phaser from "phaser";
 
+import { addCrispText } from "../utils/text";
+
 export class ResultScene extends Phaser.Scene {
   protected resultType: "gameover" | "clear" = "gameover";
   protected finalScore = 0;
@@ -79,23 +81,19 @@ export class ResultScene extends Phaser.Scene {
     }
 
     // メインメッセージ
-    this.add
-      .text(width / 2, height / 2 - 90, config.titleText, {
-        fontSize: "36px",
-        fontFamily: "monospace",
-        fontStyle: "bold",
-        color: config.titleColor,
-      })
-      .setOrigin(0.5);
+    addCrispText(this, width / 2, height / 2 - 90, config.titleText, {
+      fontSize: "36px",
+      fontFamily: "monospace",
+      fontStyle: "bold",
+      color: config.titleColor,
+    }).setOrigin(0.5);
 
     // スコア表示
-    this.add
-      .text(width / 2, height / 2 - 25, config.scoreText, {
-        fontSize: "20px",
-        fontFamily: "monospace",
-        color: "#ffffff",
-      })
-      .setOrigin(0.5);
+    addCrispText(this, width / 2, height / 2 - 25, config.scoreText, {
+      fontSize: "20px",
+      fontFamily: "monospace",
+      color: "#ffffff",
+    }).setOrigin(0.5);
 
     // ボタン生成
     const actionButtons = this.getActionButtons();
@@ -118,13 +116,11 @@ export class ResultScene extends Phaser.Scene {
     bg.fillStyle(color, 1);
     bg.fillRoundedRect(-100, -20, 200, 40, 8);
 
-    const txt = this.add
-      .text(0, 0, label, {
-        fontSize: "15px",
-        fontFamily: "sans-serif",
-        color: "#ffffff",
-      })
-      .setOrigin(0.5);
+    const txt = addCrispText(this, 0, 0, label, {
+      fontSize: "15px",
+      fontFamily: "sans-serif",
+      color: "#ffffff",
+    }).setOrigin(0.5);
 
     btn.add([bg, txt]);
     btn.setSize(200, 40);

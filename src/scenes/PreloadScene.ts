@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 
 import { EventBus } from "../EventBus";
+import { addCrispText } from "../utils/text";
 
 export class PreloadScene extends Phaser.Scene {
   constructor() {
@@ -57,22 +58,18 @@ export class PreloadScene extends Phaser.Scene {
   preload() {
     const { width, height } = this.scale;
 
-    // タイトル・ローディングテキスト
-    const loadingText = this.add
-      .text(width / 2, height / 2 - 50, "Now Loading...", {
-        fontSize: "24px",
-        fontFamily: "monospace",
-        color: "#ffffff",
-      })
-      .setOrigin(0.5);
+    // タイトル・ローディングテキスト（高解像度テキスト）
+    const loadingText = addCrispText(this, width / 2, height / 2 - 50, "Now Loading...", {
+      fontSize: "24px",
+      fontFamily: "monospace",
+      color: "#ffffff",
+    }).setOrigin(0.5);
 
-    const percentText = this.add
-      .text(width / 2, height / 2 + 40, "0%", {
-        fontSize: "18px",
-        fontFamily: "monospace",
-        color: "#94a3b8",
-      })
-      .setOrigin(0.5);
+    const percentText = addCrispText(this, width / 2, height / 2 + 40, "0%", {
+      fontSize: "18px",
+      fontFamily: "monospace",
+      color: "#94a3b8",
+    }).setOrigin(0.5);
 
     // プログレスバーの枠
     const progressBox = this.add.graphics();
