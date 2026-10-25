@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 
 import { EventBus } from "../EventBus";
+import type { ControllerInputPayload } from "./ControllerScene";
 
 export class GameScene extends Phaser.Scene {
   protected player!: Phaser.Physics.Arcade.Image;
@@ -13,13 +14,15 @@ export class GameScene extends Phaser.Scene {
   protected lastFired = 0;
   protected enemyTimer!: Phaser.Time.TimerEvent;
 
-  // バーチャルコントローラー等からの入力フラグ
-  protected virtualInput = {
+  // バーチャルスティック入力状態
+  protected virtualInput: ControllerInputPayload = {
+    move: { x: 0, y: 0, active: false, angle: 0, force: 0 },
+    shoot: { x: 0, y: 0, active: false, angle: 0, force: 0 },
     left: false,
     right: false,
     up: false,
     down: false,
-    shoot: false,
+    shootActive: false,
   };
 
   constructor() {
@@ -38,8 +41,8 @@ export class GameScene extends Phaser.Scene {
     return {
       initialHp: 100,
       playerSpeed: 500, // 250 -> 500
-      fireRateMs: 180,
-      bulletSpeed: -800, // -400 -> -800
+      fireRateMs: 160,
+      bulletSpeed: 900,
       enemySpawnIntervalMs: 1000,
       enemySpeedMin: 200,
       enemySpeedMax: 360,
@@ -53,13 +56,13 @@ export class GameScene extends Phaser.Scene {
    */
   protected initGameObjects(width: number, height: number) {
     // プレイヤー作成 (64x64)
-    this.player = this.physics.add.image(width / 2, height - 120, "player");
+    this.player = this.physics.add.image(width / 2, height - 140, "player");
     this.player.setCollideWorldBounds(true);
 
     // 弾グループ
     this.bullets = this.physics.add.group({
       defaultKey: "bullet",
-      maxSize: 40,
+      maxSize: 50,
     });
 
     // 敵グループ
@@ -133,32 +136,76 @@ export class GameScene extends Phaser.Scene {
     let vx = 0;
     let vy = 0;
 
-    const isLeft = (this.cursors && this.cursors.left.isDown) || this.virtualInput.left;
-    const isRight = (this.cursors && this.cursors.right.isDown) || this.virtualInput.right;
-    const isUp = (this.cursors && this.cursors.up.isDown) || this.virtualInput.up;
-    const isDown = (this.cursors && this.cursors.down.isDown) || this.virtualInput.down;
-    const isShoot = (this.cursors && this.cursors.space.isDown) || this.virtualInput.shoot;
+    // --- 1. 移動制御 ---
+    if (this.virtualInput.move.active) {
+      // 左バーチャルスティックによるアナログ移動
+      vx = this.virtualInput.move.x * params.playerSpeed;
+      vy = this.virtualInput.move.y * params.playerSpeed;
+    } else {
+      // キーボード（カーソルキー）入力
+      const isLeft = Boolean(this.cursors && this.cursors.left.isDown);
+      const isRight = Boolean(this.cursors && this.cursors.right.isDown);
+      const isUp = Boolean(this.cursors && this.cursors.up.isDown);
+      const isDown = Boolean(this.cursors && this.cursors.down.isDown);
 
-    if (isLeft) vx -= params.playerSpeed;
-    if (isRight) vx += params.playerSpeed;
-    if (isUp) vy -= params.playerSpeed;
-    if (isDown) vy += params.playerSpeed;
+      if (isLeft) vx -= params.playerSpeed;
+      if (isRight) vx += params.playerSpeed;
+      if (isUp) vy -= params.playerSpeed;
+      if (isDown) vy += params.playerSpeed;
+
+      // 斜め移動時の速度正規化
+      if (vx !== 0 && vy !== 0) {
+        vx *= Math.SQRT1_2;
+        vy *= Math.SQRT1_2;
+      }
+    }
 
     this.player.setVelocity(vx, vy);
 
-    // ショット発射
-    if (isShoot && time > this.lastFired) {
-      const bullet = this.bullets.get(
-        this.player.x,
-        this.player.y - 32,
-      ) as Phaser.Physics.Arcade.Image | null;
+    // --- 2. 自機の向き（ローテーション）制御 ---
+    // 攻撃スティックが倒されている場合はその向きを優先、なければ移動方向を向く
+    if (this.virtualInput.shoot.active) {
+      // 自機画像は上向き(0度=右に対して-90度)を基準に作成されているため +PI/2 で補正
+      this.player.setRotation(this.virtualInput.shoot.angle + Math.PI / 2);
+    } else if (this.virtualInput.move.active) {
+      this.player.setRotation(this.virtualInput.move.angle + Math.PI / 2);
+    } else if (vx !== 0 || vy !== 0) {
+      const moveAngle = Math.atan2(vy, vx);
+      this.player.setRotation(moveAngle + Math.PI / 2);
+    }
 
-      if (bullet) {
-        bullet.setActive(true);
-        bullet.setVisible(true);
-        bullet.setVelocityY(params.bulletSpeed);
-        this.lastFired = time + params.fireRateMs;
-      }
+    // --- 3. 射撃制御 ---
+    const isKeyboardShoot = Boolean(this.cursors && this.cursors.space.isDown);
+    const isVirtualShoot = this.virtualInput.shoot.active;
+
+    if ((isVirtualShoot || isKeyboardShoot) && time > this.lastFired) {
+      const shootAngle = isVirtualShoot
+        ? this.virtualInput.shoot.angle
+        : this.player.rotation - Math.PI / 2;
+
+      this.fireBullet(shootAngle, params.bulletSpeed);
+      this.lastFired = time + params.fireRateMs;
+    }
+  }
+
+  /**
+   * 指定した角度へ弾を発射
+   */
+  protected fireBullet(angle: number, speed: number) {
+    // プレイヤーの先端付近から弾を射出
+    const spawnOffsetX = Math.cos(angle) * 32;
+    const spawnOffsetY = Math.sin(angle) * 32;
+
+    const bullet = this.bullets.get(
+      this.player.x + spawnOffsetX,
+      this.player.y + spawnOffsetY,
+    ) as Phaser.Physics.Arcade.Image | null;
+
+    if (bullet) {
+      bullet.setActive(true);
+      bullet.setVisible(true);
+      bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+      bullet.setRotation(angle + Math.PI / 2);
     }
   }
 
@@ -166,14 +213,20 @@ export class GameScene extends Phaser.Scene {
    * 毎フレームのゲームオブジェクト更新・画面外判定
    */
   protected updateGameObjects() {
+    const { width, height } = this.scale;
+
+    // 弾の画面外（全方向）破棄判定
     const bullets = this.bullets.getChildren() as Phaser.Physics.Arcade.Image[];
     for (const bullet of bullets) {
-      if (bullet.active && bullet.y < -20) {
+      if (
+        bullet.active &&
+        (bullet.x < -40 || bullet.x > width + 40 || bullet.y < -40 || bullet.y > height + 40)
+      ) {
         bullet.destroy();
       }
     }
 
-    const { height } = this.scale;
+    // 敵の画面外（下部）破棄判定
     const enemies = this.enemies.getChildren() as Phaser.Physics.Arcade.Image[];
     for (const enemy of enemies) {
       if (enemy.active && enemy.y > height + 40) {
@@ -204,13 +257,9 @@ export class GameScene extends Phaser.Scene {
       score: this.score,
     });
 
-    // タッチ端末判定
-    const isTouchDevice =
-      this.sys.game.device.input.touch || "ontouchstart" in window || navigator.maxTouchPoints > 0;
-
-    if (isTouchDevice) {
-      this.scene.launch("ControllerScene");
-    }
+    // コントローラーシーン（移動・攻撃バーチャルスティック）を起動
+    // PC環境・タッチ環境の両方で利用可能
+    this.scene.launch("ControllerScene");
 
     // 物理境界
     this.physics.world.setBounds(0, 0, width, height);
@@ -228,7 +277,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     // ControllerScene からのイベントを受信
-    this.events.on("controller-input", (input: typeof this.virtualInput) => {
+    this.events.on("controller-input", (input: ControllerInputPayload) => {
       this.virtualInput = input;
     });
 

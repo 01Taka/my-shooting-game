@@ -42,7 +42,7 @@ protected setupCollisions() { ... }
 - **`PreloadScene`**: `loadCustomAssets()`（画像・音声ロード）, `createDummyAssets()`（図形生成）
 - **`GameScene`**: `getGameParameters()`（パラメータ）, `initGameObjects()`（キャラ生成）, `setupCollisions()`（当たり判定）
 - **`UIScene`**: `getHUDConfig()`（HP/スコア文言）, `getPauseMenuConfig()`（ポーズメニュー項目）
-- **`ControllerScene`**: `getControllerConfig()`（ボタン配置・ラベル・色）
+- **`ControllerScene`**: `getStickConfig()`（スティック配置・半径・カラー・ラベル等）
 - **`ResultScene`**: `getResultConfig()`（クリア/ゲームオーバー文字）, `getActionButtons()`（リトライボタン等）
 
 ---
