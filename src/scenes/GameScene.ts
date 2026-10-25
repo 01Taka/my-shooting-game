@@ -187,21 +187,19 @@ export class GameScene extends Phaser.Scene {
     }
 
     // 画面外の弾・敵を消去
-    this.bullets.children.each((b) => {
-      const bullet = b as Phaser.Physics.Arcade.Image;
+    const bullets = this.bullets.getChildren() as Phaser.Physics.Arcade.Image[];
+    for (const bullet of bullets) {
       if (bullet.active && bullet.y < -10) {
         bullet.destroy();
       }
-      return null;
-    });
+    }
 
     const { height } = this.scale;
-    this.enemies.children.each((e) => {
-      const enemy = e as Phaser.Physics.Arcade.Image;
+    const enemies = this.enemies.getChildren() as Phaser.Physics.Arcade.Image[];
+    for (const enemy of enemies) {
       if (enemy.active && enemy.y > height + 20) {
         enemy.destroy();
       }
-      return null;
-    });
+    }
   }
 }
