@@ -7,7 +7,6 @@ import {
   GameScene,
   PreloadScene,
   ResultScene,
-  SettingsScene,
   TitleScene,
   UIScene,
 } from "./scenes";
@@ -66,15 +65,7 @@ export const PhaserGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame
           debug: false,
         },
       },
-      scene: [
-        PreloadScene,
-        TitleScene,
-        GameScene,
-        UIScene,
-        ControllerScene,
-        SettingsScene,
-        ResultScene,
-      ],
+      scene: [PreloadScene, TitleScene, GameScene, UIScene, ControllerScene, ResultScene],
     };
 
     game.current = new Phaser.Game(config);

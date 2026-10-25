@@ -161,9 +161,9 @@ export class UIScene extends Phaser.Scene {
       () => this.resumeGame(),
     );
 
-    // ボタン2: 設定
+    // ボタン2: 設定（React側の設定モーダルを開く）
     const settingsBtn = this.createMenuButton(width / 2, height / 2 + 30, "設定", 0x475569, () => {
-      this.scene.launch("SettingsScene", { from: "UIScene" });
+      EventBus.emit("open-settings");
     });
 
     // ボタン3: タイトルへ

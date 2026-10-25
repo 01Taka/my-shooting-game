@@ -35,9 +35,9 @@ export class TitleScene extends Phaser.Scene {
       this.scene.start("GameScene");
     });
 
-    // 「設定」ボタン
+    // 「設定」ボタン（React側の設定モーダルを開く）
     this.createButton(width / 2, height / 2 + 100, "設定", 0x475569, () => {
-      this.scene.launch("SettingsScene", { from: "TitleScene" });
+      EventBus.emit("open-settings");
     });
   }
 
