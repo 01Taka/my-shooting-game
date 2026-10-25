@@ -47,7 +47,7 @@ export class GameScene extends Phaser.Scene {
       },
       bullet: {
         speed: 1050,
-        fireRateMs: 70, // タップ連打を妨げない最小インターバル
+        fireRateMs: 140, // タップ連打にも長押し連射にも快適なインターバル
         maxBullets: 60,
         damage: 10,
       },
@@ -161,16 +161,15 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * タップによる単発射撃の処理
+   * 射撃処理（タップ単発または長押し連射）
    */
-  protected handleTapShoot(shootAngle?: number) {
+  protected shoot(shootAngle?: number) {
     if (this.hp <= 0) return;
 
     let finalAngle: number;
     const lockedTarget = this.lockOnManager.getLockedTarget();
 
     if (lockedTarget && lockedTarget.active) {
-      // ロックオン対象が存在すれば、その敵の方向へ発射
       finalAngle = Phaser.Math.Angle.Between(
         this.player.x,
         this.player.y,
@@ -180,7 +179,6 @@ export class GameScene extends Phaser.Scene {
     } else if (typeof shootAngle === "number") {
       finalAngle = shootAngle;
     } else {
-      // ロックオン対象がいない場合は自機の正面へ発射
       finalAngle = this.player.rotation - Math.PI / 2;
     }
 
@@ -225,11 +223,6 @@ export class GameScene extends Phaser.Scene {
       this.playerController.setVirtualInput(input);
     });
 
-    // コントローラーからのタップ射撃イベントを受信
-    this.events.on("controller-tap-shoot", () => {
-      this.handleTapShoot();
-    });
-
     // シーン破棄時のクリーンアップ
     this.events.on("shutdown", () => {
       this.enemyManager?.destroy();
@@ -238,7 +231,6 @@ export class GameScene extends Phaser.Scene {
       this.lockOnManager?.destroy();
       this.playerController?.destroy();
       this.events.off("controller-input");
-      this.events.off("controller-tap-shoot");
     });
   }
 
@@ -280,9 +272,9 @@ export class GameScene extends Phaser.Scene {
 
     const lockedTarget = this.lockOnManager.getLockedTarget();
 
-    // 1. プレイヤー入力受付・移動・向き制御（PCでのタップ射撃コールバック含む）
+    // 1. プレイヤー入力受付・移動・向き制御（射撃コールバック含む）
     const inputState = this.playerController.update(this, this.player, lockedTarget, (angle) =>
-      this.handleTapShoot(angle),
+      this.shoot(angle),
     );
 
     // 2. スティック倒し中（索敵モード）なら60°扇形で敵をサーチ＆ロックオン

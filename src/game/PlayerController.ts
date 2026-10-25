@@ -13,7 +13,7 @@ export interface PlayerInputState {
 
 /**
  * プレイヤー入力および機体アクションコントローラー
- * 索敵モード（スティック倒し中）の判定、機体移動、自機の向き制御を担当
+ * 索敵モード（ロックオンスティック倒し中）の判定、機体移動、自機の向き制御、射撃トリガーを担当
  */
 export class PlayerController {
   protected config: PlayerConfig;
@@ -27,11 +27,9 @@ export class PlayerController {
 
   protected virtualInput: ControllerInputPayload = {
     move: { x: 0, y: 0, active: false, angle: 0, force: 0 },
-    shoot: { x: 0, y: 0, active: false, angle: 0, force: 0 },
+    lockOn: { x: 0, y: 0, active: false, angle: 0, force: 0 },
+    attack: false,
   };
-
-  protected spaceKeyJustDown = false;
-  protected mouseJustDown = false;
 
   constructor(config: PlayerConfig) {
     this.config = config;
@@ -65,13 +63,13 @@ export class PlayerController {
   }
 
   /**
-   * 毎フレームの移動入力受付、移動速度更新、機体向き更新
+   * 毎フレームの移動入力受付、移動速度更新、機体向き更新、射撃トリガー
    */
   update(
     scene: Phaser.Scene,
     player: Phaser.Physics.Arcade.Image,
     lockedTarget: Phaser.Physics.Arcade.Image | null,
-    onTapShoot: (shootAngle: number) => void,
+    onShoot: (shootAngle: number) => void,
   ): PlayerInputState {
     let vx = 0;
     let vy = 0;
@@ -110,17 +108,15 @@ export class PlayerController {
     const isPcMode = useInputMode.getState().mode === "pc";
     const isPcCursorFollow = isPcMode && useGameSettings.getState().followCursor;
 
-    // --- 2. 索敵モード（スティック倒し中）の判定 ---
-    // force >= 0.4 でデッドライン超え（索敵中）。この間は射撃しない。
-    const isStickAiming = this.virtualInput.shoot.active && this.virtualInput.shoot.force >= 0.4;
-    let isAiming = isStickAiming;
-    let aimAngle = this.virtualInput.shoot.angle;
+    // --- 2. 索敵モード（ロックオンスティック倒し中）の判定 ---
+    // 深さに関わらず、アクティブ（デッドゾーン超過）であれば即座に索敵モード
+    const isAiming = this.virtualInput.lockOn.active;
+    let aimAngle = this.virtualInput.lockOn.angle;
 
     if (isPcCursorFollow) {
       const pointer = scene.input.activePointer;
       if (pointer && (pointer.worldX !== 0 || pointer.worldY !== 0)) {
         aimAngle = Math.atan2(pointer.worldY - player.y, pointer.worldX - player.x);
-        isAiming = Boolean(pointer.isDown || pointer.rightButtonDown());
       }
     }
 
@@ -137,6 +133,8 @@ export class PlayerController {
     } else if (isAiming) {
       // 索敵中はエイム方向を向く
       player.setRotation(aimAngle + Math.PI / 2);
+    } else if (isPcCursorFollow) {
+      player.setRotation(aimAngle + Math.PI / 2);
     } else if (this.virtualInput.move.active) {
       player.setRotation(this.virtualInput.move.angle + Math.PI / 2);
     } else if (vx !== 0 || vy !== 0) {
@@ -144,20 +142,18 @@ export class PlayerController {
       player.setRotation(moveAngle + Math.PI / 2);
     }
 
-    // --- 4. PCモードでの単発タップ射撃判定（スペースキーJustDown または 左クリックJustDown） ---
-    if (isPcMode) {
-      const isSpaceJustDown = Phaser.Input.Keyboard.JustDown(this.cursors.space);
-      const pointer = scene.input.activePointer;
-      const isPointerJustDown = pointer.primaryDown && !this.mouseJustDown;
-      this.mouseJustDown = pointer.primaryDown;
+    // --- 4. 攻撃判定（タップまたは長押し連射） ---
+    const isMobileAttack = this.virtualInput.attack;
+    const isPcAttack =
+      isPcMode &&
+      Boolean(scene.input.activePointer.isDown || (this.cursors && this.cursors.space.isDown));
 
-      if (isSpaceJustDown || isPointerJustDown) {
-        const shootAngle =
-          lockedTarget && lockedTarget.active
-            ? Phaser.Math.Angle.Between(player.x, player.y, lockedTarget.x, lockedTarget.y)
-            : player.rotation - Math.PI / 2;
-        onTapShoot(shootAngle);
-      }
+    if (isMobileAttack || isPcAttack) {
+      const shootAngle =
+        lockedTarget && lockedTarget.active
+          ? Phaser.Math.Angle.Between(player.x, player.y, lockedTarget.x, lockedTarget.y)
+          : player.rotation - Math.PI / 2;
+      onShoot(shootAngle);
     }
 
     const isMoving =
