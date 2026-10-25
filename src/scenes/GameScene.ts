@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 
+import { AudioManager } from "../audio/AudioManager";
 import { EventBus } from "../EventBus";
 import { useGameSettings } from "../stores/useGameSettings";
 import { useInputMode } from "../stores/useInputMode";
@@ -85,6 +86,7 @@ export class GameScene extends Phaser.Scene {
       (bulletObj, enemyObj) => {
         bulletObj.destroy();
         enemyObj.destroy();
+        AudioManager.getInstance().playSE("explosion");
         this.addScore(params.enemyScore);
       },
       undefined,
@@ -234,6 +236,9 @@ export class GameScene extends Phaser.Scene {
       bullet.setVisible(true);
       bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
       bullet.setRotation(angle + Math.PI / 2);
+      AudioManager.getInstance().playSE("laser", {
+        detune: Phaser.Math.Between(-30, 30),
+      });
     }
   }
 
@@ -336,6 +341,8 @@ export class GameScene extends Phaser.Scene {
     this.hp = Math.max(0, this.hp - amount);
     EventBus.emit("hp-updated", this.hp);
 
+    AudioManager.getInstance().playSE("hit");
+
     // 画面フラッシュ演出
     this.cameras.main.shake(150, 0.01);
 
@@ -347,6 +354,8 @@ export class GameScene extends Phaser.Scene {
   protected gameOver() {
     if (this.enemyTimer) this.enemyTimer.paused = true;
     this.physics.pause();
+
+    AudioManager.getInstance().playSE("gameover");
 
     // ゲーム画面を停止させたまま ResultScene をオーバーレイ表示
     this.scene.pause("GameScene");

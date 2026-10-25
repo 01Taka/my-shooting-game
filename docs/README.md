@@ -45,6 +45,7 @@ docs/
 - [05. Reactモーダルのタップ突き抜け防止とキャプチャフェーズの罠](./know-how/05-modal-input-pass-through-and-capture-trap.md)
 - [06. ツインバーチャルスティックとマルチタッチ制御](./know-how/06-virtual-twin-stick-multi-touch.md)
 - [07. タッチ操作とマウス操作の判定とUI出し分け](./know-how/07-detect-touch-vs-mouse-pointer-type.md)
+- [08. サウンド管理設計とAutoplay Policy対策](./know-how/08-audio-manager-and-autoplay-policy.md)
 
 ### 📙 [dev-note/ (設計思想・思考フレームワーク)](./dev-note/README.md)
 

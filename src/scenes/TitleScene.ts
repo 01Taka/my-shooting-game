@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 
+import { AudioManager } from "../audio/AudioManager";
 import { EventBus } from "../EventBus";
 import { addCrispText } from "../utils/text";
 
@@ -106,6 +107,7 @@ export class TitleScene extends Phaser.Scene {
     container.on("pointerdown", () => container.setScale(0.95));
     container.on("pointerup", () => {
       container.setScale(1.0);
+      AudioManager.getInstance().playSE("click");
       onClick();
     });
 

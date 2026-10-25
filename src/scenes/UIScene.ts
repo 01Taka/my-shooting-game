@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 
+import { AudioManager } from "../audio/AudioManager";
 import { EventBus } from "../EventBus";
 import { addCrispText } from "../utils/text";
 
@@ -149,6 +150,7 @@ export class UIScene extends Phaser.Scene {
   }
 
   protected togglePause() {
+    AudioManager.getInstance().playSE("click");
     this.isPaused = !this.isPaused;
 
     if (this.isPaused) {
@@ -230,7 +232,10 @@ export class UIScene extends Phaser.Scene {
     btn.add([bg, label]);
     btn.setSize(360, 64);
     btn.setInteractive({ useHandCursor: true });
-    btn.on("pointerdown", callback);
+    btn.on("pointerdown", () => {
+      AudioManager.getInstance().playSE("click");
+      callback();
+    });
 
     return btn;
   }

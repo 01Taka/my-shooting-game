@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 
+import { AudioManager } from "./audio/AudioManager";
 import { EventBus } from "./EventBus";
 import {
   ControllerScene,
@@ -74,6 +75,7 @@ export const PhaserGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame
     };
 
     game.current = new Phaser.Game(config);
+    AudioManager.getInstance().init(game.current);
 
     const onSceneReady = (sceneInstance: Phaser.Scene) => {
       scene.current = sceneInstance;
@@ -87,6 +89,7 @@ export const PhaserGame = forwardRef<IRefPhaserGame, IProps>(function PhaserGame
     // コンポーネントが破棄されたらゲームインスタンスも片付ける
     return () => {
       EventBus.off("current-scene-ready", onSceneReady);
+      AudioManager.getInstance().destroy();
       if (game.current) {
         game.current.destroy(true);
         game.current = null;

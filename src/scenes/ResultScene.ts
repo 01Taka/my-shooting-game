@@ -1,6 +1,7 @@
 import confetti from "canvas-confetti";
 import Phaser from "phaser";
 
+import { AudioManager } from "../audio/AudioManager";
 import { addCrispText } from "../utils/text";
 
 export class ResultScene extends Phaser.Scene {
@@ -132,6 +133,7 @@ export class ResultScene extends Phaser.Scene {
     btn.on("pointerdown", () => btn.setScale(0.96));
     btn.on("pointerup", () => {
       btn.setScale(1.0);
+      AudioManager.getInstance().playSE("click");
       onClick();
     });
 
