@@ -1,6 +1,6 @@
 # React と Phaser の連携＆UIモーダルの入力突き抜け対策
 
-ゲーム描画・物理演算を担う Phaser と、UI・設定モーダルを担う React をハイブリッド連携させる際のアーキテクチャと、**モーダル表示時のタップ判定すり抜けバグの完全な防ぎ方**です。
+ゲーム描画・物理演算を担う Phaser と、UI・設定モーダルを担う React をハイブリッド連携させる際のアーキテクチャと、**モーダル表示時のタップ判定すり抜けバグの完全な防ぎ方・注意点**です。
 
 ---
 
@@ -40,11 +40,11 @@ React の設定モーダルを開いている状態でモーダル上をタッ�
 
 ---
 
-## 3. 多重防御による完全遮断（解決策）
+## 3. 正しい完全遮断の実装（最も安全な解決策）
 
-この問題は、**① Phaser側の入力マネージャー制御** と **② DOMネイティブイベントのキャプチャ遮断** の両方を組み合わせることで確実に防ぎます。
+### 決定打: モーダル開閉に合わせて Phaser の入力を一時停止
 
-### 防御策 1: モーダル開閉に合わせて Phaser の入力を一時停止
+Phaser 側で `game.input.enabled = false` を設定すれば、仮にブラウザのネイティブイベントが Canvas に届いても、Phaser の入力マネージャー自体が停止しているため、**ゲーム内のボタンや自機が反応することは 100% 確実に防げます**。
 
 ```tsx
 // src/App.tsx
@@ -76,56 +76,57 @@ export default function App() {
 }
 ```
 
-### 防御策 2: モーダル最外層でネイティブイベントをキャプチャフェーズで遮断
+---
 
-モーダルの背景要素（オーバーレイ）に対して、Reactのハンドラだけでなく、**DOMのキャプチャフェーズ（`capture: true`）** でイベントを捕捉して `stopPropagation()` します。
+## 4. 【重要】モーダル実装時の落とし穴（子要素のクリック消失バグ）
+
+> [!CAUTION]
+> **やってはいけないアンチパターン: 最外層での `capture: true` による `stopPropagation`**  
+> 「DOMイベントを根元で止めよう」として、モーダル最外層（背景オーバーレイ）で以下のようにネイティブの `capture: true` を使うと、**イベントが子要素に下りていかなくなり、モーダル内の「×」ボタンや「完了」ボタン、スライダーが一切クリック・操作できなくなります**。
+>
+> ```ts
+> // ❌ やってはいけない！子要素のボタンクリックまで死んでしまう
+> overlayElement.addEventListener("click", (e) => e.stopPropagation(), { capture: true });
+> overlayElement.addEventListener("pointerdown", (e) => e.stopPropagation(), { capture: true });
+> ```
+
+### 正しいモーダル実装コード ([src/components/SettingsModal.tsx](../src/components/SettingsModal.tsx))
+
+Phaser 側の入力は上記の `App.tsx`（`game.input.enabled = false`）で完全に止まっているため、モーダルコンポーネント側は通常の React パターン（背景クリックで閉じ、本体クリックでバブリング防止）で実装すれば安全かつ正常に動作します。
 
 ```tsx
-// src/components/SettingsModal.tsx
-const overlayRef = useRef<HTMLDivElement>(null);
+export function SettingsModal({ onClose }: SettingsModalProps) {
+  const settings = useGameSettings();
 
-useEffect(() => {
-  const el = overlayRef.current;
-  if (!el) return;
-
-  const stopNativePropagation = (e: Event) => {
-    e.stopPropagation();
+  const handleClose = () => {
+    settings.closeSettings();
+    if (onClose) onClose();
   };
 
-  const targetEvents = [
-    "pointerdown",
-    "pointerup",
-    "pointermove",
-    "mousedown",
-    "mouseup",
-    "touchstart",
-    "touchend",
-    "touchmove",
-    "click",
-    "contextmenu",
-  ];
+  return (
+    // 背景オーバーレイ: 背景タップでモーダルを閉じる
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80"
+      onClick={handleClose}
+    >
+      {/* モーダル本体: クリックが背景へ伝播して勝手に閉じないよう stopPropagation */}
+      <div
+        className="relative w-full max-w-md rounded-2xl bg-slate-900 p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* ×ボタン */}
+        <button type="button" onClick={handleClose}>
+          <X className="h-5 w-5" />
+        </button>
 
-  targetEvents.forEach((evt) => {
-    // capture: true で、DOMツリー上部から下りてくる段階で即座に遮断
-    el.addEventListener(evt, stopNativePropagation, { capture: true });
-  });
+        {/* スライダーや全画面ボタンなど */}
 
-  return () => {
-    targetEvents.forEach((evt) => {
-      el.removeEventListener(evt, stopNativePropagation, { capture: true });
-    });
-  };
-}, []);
-
-return (
-  <div
-    ref={overlayRef}
-    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80"
-    onClick={handleClose}
-  >
-    <div onClick={(e) => e.stopPropagation()}>{/* モーダル本文 */}</div>
-  </div>
-);
+        {/* 完了ボタン */}
+        <button type="button" onClick={handleClose}>
+          完了
+        </button>
+      </div>
+    </div>
+  );
+}
 ```
-
-この2つの対策により、スマホの実機タッチ・PCのマウスクリック・ドラッグ操作のすべてにおいて背後のシーンへの誤爆を完全に防止できます。
