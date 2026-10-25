@@ -228,8 +228,8 @@ export class GameScene extends Phaser.Scene {
       this.lockOnManager.lockNearestEnemy(this.player, this.enemyManager.getGroup(), this);
     });
 
-    // シーン破棄時のクリーンアップ
-    this.events.on("shutdown", () => {
+    // シーン破棄時のクリーンアップ（1度だけ実行）
+    this.events.once("shutdown", () => {
       this.enemyManager?.destroy();
       this.bulletManager?.destroy();
       this.cameraManager?.destroy();

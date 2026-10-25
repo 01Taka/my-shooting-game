@@ -142,6 +142,9 @@ export class EnemyManager {
     if (this.spawnTimer) {
       this.spawnTimer.remove();
     }
-    this.enemies?.clear(true, true);
+    // シーン停止時はPhaser本体がグループを破棄するため、childrenが存在する場合のみ安全にクリア
+    if (this.enemies && this.enemies.children) {
+      this.enemies.clear(true, true);
+    }
   }
 }

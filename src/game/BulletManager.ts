@@ -98,6 +98,8 @@ export class BulletManager {
    * リソース解放
    */
   destroy(): void {
-    this.bullets?.clear(true, true);
+    if (this.bullets && this.bullets.children) {
+      this.bullets.clear(true, true);
+    }
   }
 }
