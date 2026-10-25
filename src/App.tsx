@@ -24,6 +24,22 @@ export default function App() {
     };
   }, [openSettings]);
 
+  // 設定モーダルの開閉に合わせて Phaser の入力を制御
+  useEffect(() => {
+    const game = phaserRef.current?.game;
+    if (!game) return;
+
+    if (isSettingsOpen) {
+      game.input.enabled = false;
+      // 押しっぱなし状態が残らないようポインター状態をリセット
+      game.input.pointers?.forEach((pointer) => {
+        pointer.reset();
+      });
+    } else {
+      game.input.enabled = true;
+    }
+  }, [isSettingsOpen]);
+
   return (
     <main className="relative h-screen w-screen overflow-hidden bg-slate-900 select-none">
       {/* 設定モーダル（Reactコンポーネント。全画面切り替えや音量設定を内包） */}

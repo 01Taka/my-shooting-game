@@ -1,5 +1,5 @@
 import { Maximize2, Minimize2, Settings, Volume2, VolumeX, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useGameSettings } from "../stores/useGameSettings";
 
@@ -21,6 +21,40 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   } = useGameSettings();
 
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  // 背後のPhaser Canvasにクリックやタッチイベントが突き抜けるのを防ぐ
+  useEffect(() => {
+    const el = overlayRef.current;
+    if (!el) return;
+
+    const stopNativePropagation = (e: Event) => {
+      e.stopPropagation();
+    };
+
+    const targetEvents = [
+      "pointerdown",
+      "pointerup",
+      "pointermove",
+      "mousedown",
+      "mouseup",
+      "touchstart",
+      "touchend",
+      "touchmove",
+      "click",
+      "contextmenu",
+    ];
+
+    targetEvents.forEach((evt) => {
+      el.addEventListener(evt, stopNativePropagation, { capture: true });
+    });
+
+    return () => {
+      targetEvents.forEach((evt) => {
+        el.removeEventListener(evt, stopNativePropagation, { capture: true });
+      });
+    };
+  }, []);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -72,8 +106,15 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
 
   return (
     <div
+      ref={overlayRef}
       className="animate-in fade-in fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm duration-200"
       onClick={handleClose}
+      onPointerDown={(e) => e.stopPropagation()}
+      onPointerUp={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+      onTouchEnd={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onMouseUp={(e) => e.stopPropagation()}
     >
       <div
         className="relative w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900/95 p-5 text-white shadow-2xl backdrop-blur"
