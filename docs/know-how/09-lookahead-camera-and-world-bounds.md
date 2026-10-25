@@ -28,6 +28,7 @@ HPバー（`UIScene`）やバーチャルパッド（`ControllerScene`）を `Ga
 
 自機の位置から視線方向へオフセットした「見えない注視点（`cameraTarget`）」を用意し、カメラはそのターゲットを物理的な臨界減衰スプリング（SmoothDamp）で追従させます。
 単純な線形Lerpと異なり、初速ゼロから滑らかに加速し、オーバーシュートなしで吸い付くように目標位置へ収束するため、激しいエイム反転でもカメラ酔いが発生しません。
+（※本プロジェクトでは `CameraManager`（[`src/game/CameraManager.ts`](../../src/game/CameraManager.ts)）および `smoothDamp`（[`src/utils/math.ts`](../../src/utils/math.ts)）としてカプセル化されています）
 
 ```typescript
 // 1. カメラ設定: 自機位置には 1:1 即時同期（遅延ゼロ: lerp=1）

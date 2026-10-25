@@ -45,6 +45,18 @@ protected setupCollisions() { ... }
 - **`ControllerScene`**: `getStickConfig()`（スティック配置・半径・カラー・ラベル等）
 - **`ResultScene`**: `getResultConfig()`（クリア/ゲームオーバー文字）, `getActionButtons()`（リトライボタン等）
 
+### GameScene のモジュール責任分割（Manager パターン）
+
+`GameScene` が肥大化して複数の責任を負うことを防ぐため、ゲームロジックは以下の独立したマネージャーモジュール（`src/game/`）へ委譲されています：
+
+1. **`CameraManager`**: 自機への遅延ゼロ追従 ＋ SmoothDamp（臨界減衰スプリング）視線先行オフセット、画面シェイク
+2. **`BulletManager`**: 弾丸プール、発射SE・角度制御、有効射程外の自動消去
+3. **`EnemyManager`**: 360度ランダムスポーン、自機追従AI移動・向き合わせ、遠距離消去
+4. **`PlayerController`**: キーボード（WASD/矢印/Space）、バーチャルスティック、PCマウス入力の合成と速度・向き計算
+5. **`math.ts` (`src/utils/math.ts`)**: 臨界減衰スプリング（SmoothDamp）等の純粋な数学・物理演算
+
+これにより、`GameScene` は各モジュールを配線し、衝突判定（`setupCollisions`）とゲーム進行（HP・スコア・ゲームオーバー）の調整役に専念できます。
+
 ---
 
 ## 3. 別ゲームへの派生ワークフロー
