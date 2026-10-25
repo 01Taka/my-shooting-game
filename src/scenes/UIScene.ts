@@ -3,17 +3,68 @@ import Phaser from "phaser";
 import { EventBus } from "../EventBus";
 
 export class UIScene extends Phaser.Scene {
-  private scoreText!: Phaser.GameObjects.Text;
-  private hpBarFill!: Phaser.GameObjects.Graphics;
-  private hpText!: Phaser.GameObjects.Text;
-  private pauseMenuContainer!: Phaser.GameObjects.Container;
-  private isPaused = false;
-  private hp = 100;
-  private maxHp = 100;
+  protected scoreText!: Phaser.GameObjects.Text;
+  protected hpBarFill!: Phaser.GameObjects.Graphics;
+  protected hpText!: Phaser.GameObjects.Text;
+  protected pauseMenuContainer!: Phaser.GameObjects.Container;
+  protected isPaused = false;
+  protected hp = 100;
+  protected maxHp = 100;
 
   constructor() {
     super("UIScene");
   }
+
+  // ==========================================
+  // ゲーム特有のUI設定・メニュー定義
+  // （派生ゲーム作成時はここをオーバーライドまたは編集）
+  // ==========================================
+
+  /**
+   * HUD表示（HPやスコア等）のラベル設定
+   */
+  protected getHUDConfig() {
+    return {
+      hpLabel: "HP",
+      scorePrefix: "SCORE: ",
+      pauseButtonText: "II ポーズ",
+    };
+  }
+
+  /**
+   * ポーズメニューのタイトルおよび項目一覧の定義
+   */
+  protected getPauseMenuConfig() {
+    return {
+      title: "PAUSE",
+      items: [
+        {
+          label: "ゲーム再開",
+          color: 0x0284c7,
+          onClick: () => this.resumeGame(),
+        },
+        {
+          label: "設定",
+          color: 0x475569,
+          onClick: () => EventBus.emit("open-settings"),
+        },
+        {
+          label: "タイトルへ",
+          color: 0xd97706,
+          onClick: () => {
+            this.scene.stop("UIScene");
+            this.scene.stop("ControllerScene");
+            this.scene.stop("GameScene");
+            this.scene.start("TitleScene");
+          },
+        },
+      ],
+    };
+  }
+
+  // ==========================================
+  // 共通HUD・ポーズ制御
+  // ==========================================
 
   init(data: { hp?: number; maxHp?: number; score?: number }) {
     this.hp = data.hp ?? 100;
@@ -23,9 +74,10 @@ export class UIScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
+    const hudConfig = this.getHUDConfig();
 
     // --- HPバー表示（左上） ---
-    this.add.text(20, 16, "HP", {
+    this.add.text(20, 16, hudConfig.hpLabel, {
       fontSize: "14px",
       fontFamily: "monospace",
       color: "#94a3b8",
@@ -45,7 +97,7 @@ export class UIScene extends Phaser.Scene {
 
     // --- スコア表示（中央上） ---
     this.scoreText = this.add
-      .text(width / 2, 24, "SCORE: 00000", {
+      .text(width / 2, 24, `${hudConfig.scorePrefix}00000`, {
         fontSize: "18px",
         fontFamily: "monospace",
         fontStyle: "bold",
@@ -55,7 +107,7 @@ export class UIScene extends Phaser.Scene {
 
     // --- ポーズボタン（右上） ---
     const pauseBtn = this.add
-      .text(width - 20, 24, "II ポーズ", {
+      .text(width - 20, 24, hudConfig.pauseButtonText, {
         fontSize: "14px",
         fontFamily: "sans-serif",
         backgroundColor: "#1e293b",
@@ -72,7 +124,7 @@ export class UIScene extends Phaser.Scene {
 
     // イベント購読
     const onScoreUpdate = (newScore: number) => {
-      this.scoreText.setText(`SCORE: ${String(newScore).padStart(5, "0")}`);
+      this.scoreText.setText(`${hudConfig.scorePrefix}${String(newScore).padStart(5, "0")}`);
     };
 
     const onHpUpdate = (newHp: number) => {
@@ -88,7 +140,7 @@ export class UIScene extends Phaser.Scene {
     });
   }
 
-  private updateHpBar(currentHp: number) {
+  protected updateHpBar(currentHp: number) {
     this.hp = currentHp;
     this.hpBarFill.clear();
 
@@ -100,7 +152,7 @@ export class UIScene extends Phaser.Scene {
     this.hpText.setText(`${Math.max(0, currentHp)}/${this.maxHp}`);
   }
 
-  private togglePause() {
+  protected togglePause() {
     this.isPaused = !this.isPaused;
 
     if (this.isPaused) {
@@ -114,7 +166,7 @@ export class UIScene extends Phaser.Scene {
     }
   }
 
-  private resumeGame() {
+  protected resumeGame() {
     this.isPaused = false;
     this.pauseMenuContainer.setVisible(false);
     this.scene.resume("GameScene");
@@ -123,7 +175,7 @@ export class UIScene extends Phaser.Scene {
     }
   }
 
-  private createPauseMenu(width: number, height: number) {
+  protected createPauseMenu(width: number, height: number) {
     this.pauseMenuContainer = this.add.container(0, 0);
     this.pauseMenuContainer.setVisible(false);
 
@@ -143,8 +195,10 @@ export class UIScene extends Phaser.Scene {
     modalBg.lineStyle(2, 0x475569, 1);
     modalBg.strokeRoundedRect(width / 2 - 140, height / 2 - 120, 280, 240, 12);
 
+    const menuConfig = this.getPauseMenuConfig();
+
     const title = this.add
-      .text(width / 2, height / 2 - 80, "PAUSE", {
+      .text(width / 2, height / 2 - 80, menuConfig.title, {
         fontSize: "24px",
         fontFamily: "monospace",
         fontStyle: "bold",
@@ -152,38 +206,17 @@ export class UIScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    // ボタン1: ゲーム再開
-    const resumeBtn = this.createMenuButton(
-      width / 2,
-      height / 2 - 25,
-      "ゲーム再開",
-      0x0284c7,
-      () => this.resumeGame(),
-    );
+    this.pauseMenuContainer.add([backdrop, modalBg, title]);
 
-    // ボタン2: 設定（React側の設定モーダルを開く）
-    const settingsBtn = this.createMenuButton(width / 2, height / 2 + 30, "設定", 0x475569, () => {
-      EventBus.emit("open-settings");
+    // 設定されたメニューボタンを順次配置
+    menuConfig.items.forEach((item, index) => {
+      const yPos = height / 2 - 25 + index * 55;
+      const btn = this.createMenuButton(width / 2, yPos, item.label, item.color, item.onClick);
+      this.pauseMenuContainer.add(btn);
     });
-
-    // ボタン3: タイトルへ
-    const titleBtn = this.createMenuButton(
-      width / 2,
-      height / 2 + 85,
-      "タイトルへ",
-      0xd97706,
-      () => {
-        this.scene.stop("UIScene");
-        this.scene.stop("ControllerScene");
-        this.scene.stop("GameScene");
-        this.scene.start("TitleScene");
-      },
-    );
-
-    this.pauseMenuContainer.add([backdrop, modalBg, title, resumeBtn, settingsBtn, titleBtn]);
   }
 
-  private createMenuButton(
+  protected createMenuButton(
     x: number,
     y: number,
     text: string,

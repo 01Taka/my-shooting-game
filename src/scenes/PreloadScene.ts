@@ -7,6 +7,53 @@ export class PreloadScene extends Phaser.Scene {
     super("PreloadScene");
   }
 
+  // ==========================================
+  // ゲーム特有のアセット読み込み・生成メソッド
+  // （派生ゲーム作成時はここをオーバーライドまたは編集）
+  // ==========================================
+
+  /**
+   * ゲームで使用する個別アセット（画像・音声・テクスチャ等）の読み込み・生成
+   */
+  protected loadCustomAssets() {
+    // 外部ファイル読み込み例:
+    // this.load.image("background", "assets/bg.png");
+    // this.load.audio("laser", "assets/laser.mp3");
+
+    // 動的テクスチャ生成
+    this.createDummyAssets();
+  }
+
+  /**
+   * 動的テクスチャの生成（外部画像ファイルなしで即座に動作確認可能にする用）
+   */
+  protected createDummyAssets() {
+    // プレイヤー用自機グラフィック
+    const playerGraphics = this.make.graphics({ x: 0, y: 0 });
+    playerGraphics.fillStyle(0x38bdf8, 1);
+    playerGraphics.fillTriangle(0, 32, 16, 0, 32, 32);
+    playerGraphics.generateTexture("player", 32, 32);
+    playerGraphics.destroy();
+
+    // 弾グラフィック
+    const bulletGraphics = this.make.graphics({ x: 0, y: 0 });
+    bulletGraphics.fillStyle(0xfacc15, 1);
+    bulletGraphics.fillCircle(4, 4, 4);
+    bulletGraphics.generateTexture("bullet", 8, 8);
+    bulletGraphics.destroy();
+
+    // 敵グラフィック
+    const enemyGraphics = this.make.graphics({ x: 0, y: 0 });
+    enemyGraphics.fillStyle(0xf43f5e, 1);
+    enemyGraphics.fillRoundedRect(0, 0, 28, 28, 6);
+    enemyGraphics.generateTexture("enemy", 28, 28);
+    enemyGraphics.destroy();
+  }
+
+  // ==========================================
+  // 共通プリロード処理（プログレスバー等）
+  // ==========================================
+
   preload() {
     const { width, height } = this.scale;
 
@@ -52,32 +99,8 @@ export class PreloadScene extends Phaser.Scene {
       this.scene.start("TitleScene");
     });
 
-    // ここでダミーのアセットや本番用アセットをロード（ロード完了イベントを確実に発火させるため軽量なデータやタイマー）
-    // 図形テクスチャの動的生成
-    this.createDummyAssets();
-  }
-
-  private createDummyAssets() {
-    // プレイヤー用自機グラフィック
-    const playerGraphics = this.make.graphics({ x: 0, y: 0 });
-    playerGraphics.fillStyle(0x38bdf8, 1);
-    playerGraphics.fillTriangle(0, 32, 16, 0, 32, 32);
-    playerGraphics.generateTexture("player", 32, 32);
-    playerGraphics.destroy();
-
-    // 弾グラフィック
-    const bulletGraphics = this.make.graphics({ x: 0, y: 0 });
-    bulletGraphics.fillStyle(0xfacc15, 1);
-    bulletGraphics.fillCircle(4, 4, 4);
-    bulletGraphics.generateTexture("bullet", 8, 8);
-    bulletGraphics.destroy();
-
-    // 敵グラフィック
-    const enemyGraphics = this.make.graphics({ x: 0, y: 0 });
-    enemyGraphics.fillStyle(0xf43f5e, 1);
-    enemyGraphics.fillRoundedRect(0, 0, 28, 28, 6);
-    enemyGraphics.generateTexture("enemy", 28, 28);
-    enemyGraphics.destroy();
+    // ゲーム特有のアセット読み込みを実行
+    this.loadCustomAssets();
   }
 
   create() {

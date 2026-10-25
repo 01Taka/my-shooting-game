@@ -2,12 +2,53 @@ import confetti from "canvas-confetti";
 import Phaser from "phaser";
 
 export class ResultScene extends Phaser.Scene {
-  private resultType: "gameover" | "clear" = "gameover";
-  private finalScore = 0;
+  protected resultType: "gameover" | "clear" = "gameover";
+  protected finalScore = 0;
 
   constructor() {
     super("ResultScene");
   }
+
+  // ==========================================
+  // ゲーム特有のリザルト設定
+  // （派生ゲーム作成時はここをオーバーライドまたは編集）
+  // ==========================================
+
+  /**
+   * 結果表示テキストおよびスタイルの定義
+   */
+  protected getResultConfig(isClear: boolean, score: number) {
+    return {
+      titleText: isClear ? "STAGE CLEAR!" : "GAME OVER",
+      titleColor: isClear ? "#38bdf8" : "#f43f5e",
+      scoreText: `FINAL SCORE: ${score}`,
+      triggerConfetti: isClear,
+    };
+  }
+
+  /**
+   * リザルト画面のアクションボタン一覧
+   */
+  protected getActionButtons() {
+    return [
+      {
+        label: "もう一度遊ぶ",
+        color: 0x0284c7,
+        yOffset: 40,
+        onClick: () => this.cleanupAndStart("GameScene"),
+      },
+      {
+        label: "タイトルへ戻る",
+        color: 0x475569,
+        yOffset: 105,
+        onClick: () => this.cleanupAndStart("TitleScene"),
+      },
+    ];
+  }
+
+  // ==========================================
+  // 共通リザルト制御
+  // ==========================================
 
   init(data: { result?: "gameover" | "clear"; score?: number }) {
     this.resultType = data.result ?? "gameover";
@@ -16,16 +57,16 @@ export class ResultScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
+    const isClear = this.resultType === "clear";
+    const config = this.getResultConfig(isClear, this.finalScore);
 
     // 背後にゲーム画面が見えるように半透明のオーバーレイ
     const backdrop = this.add.graphics();
     backdrop.fillStyle(0x020617, 0.8);
     backdrop.fillRect(0, 0, width, height);
 
-    const isClear = this.resultType === "clear";
-
     // クリア時の紙吹雪演出
-    if (isClear) {
+    if (config.triggerConfetti) {
       try {
         confetti({
           particleCount: 100,
@@ -33,44 +74,37 @@ export class ResultScene extends Phaser.Scene {
           origin: { y: 0.6 },
         });
       } catch {
-        // 環境による例外を安全に無視
+        // 例外を安全に無視
       }
     }
 
     // メインメッセージ
-    const titleText = isClear ? "STAGE CLEAR!" : "GAME OVER";
-    const titleColor = isClear ? "#38bdf8" : "#f43f5e";
-
     this.add
-      .text(width / 2, height / 2 - 90, titleText, {
+      .text(width / 2, height / 2 - 90, config.titleText, {
         fontSize: "36px",
         fontFamily: "monospace",
         fontStyle: "bold",
-        color: titleColor,
+        color: config.titleColor,
       })
       .setOrigin(0.5);
 
     // スコア表示
     this.add
-      .text(width / 2, height / 2 - 25, `FINAL SCORE: ${this.finalScore}`, {
+      .text(width / 2, height / 2 - 25, config.scoreText, {
         fontSize: "20px",
         fontFamily: "monospace",
         color: "#ffffff",
       })
       .setOrigin(0.5);
 
-    // --- ボタン: リトライ ---
-    this.createButton(width / 2, height / 2 + 40, "もう一度遊ぶ", 0x0284c7, () => {
-      this.cleanupAndStart("GameScene");
-    });
-
-    // --- ボタン: タイトルへ ---
-    this.createButton(width / 2, height / 2 + 105, "タイトルへ戻る", 0x475569, () => {
-      this.cleanupAndStart("TitleScene");
-    });
+    // ボタン生成
+    const actionButtons = this.getActionButtons();
+    for (const btn of actionButtons) {
+      this.createButton(width / 2, height / 2 + btn.yOffset, btn.label, btn.color, btn.onClick);
+    }
   }
 
-  private cleanupAndStart(targetScene: "GameScene" | "TitleScene") {
+  protected cleanupAndStart(targetScene: "GameScene" | "TitleScene") {
     this.scene.stop("ResultScene");
     this.scene.stop("UIScene");
     this.scene.stop("ControllerScene");
@@ -78,7 +112,7 @@ export class ResultScene extends Phaser.Scene {
     this.scene.start(targetScene);
   }
 
-  private createButton(x: number, y: number, label: string, color: number, onClick: () => void) {
+  protected createButton(x: number, y: number, label: string, color: number, onClick: () => void) {
     const btn = this.add.container(x, y);
     const bg = this.add.graphics();
     bg.fillStyle(color, 1);

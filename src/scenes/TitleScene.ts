@@ -7,41 +7,77 @@ export class TitleScene extends Phaser.Scene {
     super("TitleScene");
   }
 
+  // ==========================================
+  // ゲーム特有の設定・カスタマイズメソッド
+  // （派生ゲーム作成時はここをオーバーライドまたは編集）
+  // ==========================================
+
+  /**
+   * タイトル画面のテキスト設定を取得
+   */
+  protected getTitleConfig() {
+    return {
+      title: "SPACE SHOOTER",
+      titleStyle: {
+        fontSize: "44px",
+        fontFamily: "sans-serif",
+        fontStyle: "bold",
+        color: "#38bdf8",
+      },
+      subTitle: "- 横画面スマホ対応シューティング -",
+      subTitleStyle: {
+        fontSize: "16px",
+        fontFamily: "sans-serif",
+        color: "#94a3b8",
+      },
+    };
+  }
+
+  /**
+   * タイトル画面のメニューボタン定義を取得
+   */
+  protected getMenuButtons() {
+    return [
+      {
+        label: "ゲームスタート",
+        color: 0x0284c7,
+        yOffset: 30,
+        onClick: () => this.scene.start("GameScene"),
+      },
+      {
+        label: "設定",
+        color: 0x475569,
+        yOffset: 100,
+        onClick: () => EventBus.emit("open-settings"),
+      },
+    ];
+  }
+
+  // ==========================================
+  // 共通描画処理
+  // ==========================================
+
   create() {
     const { width, height } = this.scale;
 
     EventBus.emit("current-scene-ready", this);
 
+    const config = this.getTitleConfig();
+
     // タイトル文字
-    this.add
-      .text(width / 2, height / 2 - 120, "SPACE SHOOTER", {
-        fontSize: "44px",
-        fontFamily: "sans-serif",
-        fontStyle: "bold",
-        color: "#38bdf8",
-      })
-      .setOrigin(0.5);
+    this.add.text(width / 2, height / 2 - 120, config.title, config.titleStyle).setOrigin(0.5);
 
-    this.add
-      .text(width / 2, height / 2 - 60, "- 横画面スマホ対応シューティング -", {
-        fontSize: "16px",
-        fontFamily: "sans-serif",
-        color: "#94a3b8",
-      })
-      .setOrigin(0.5);
+    // サブタイトル文字
+    this.add.text(width / 2, height / 2 - 60, config.subTitle, config.subTitleStyle).setOrigin(0.5);
 
-    // 「スタート」ボタン
-    this.createButton(width / 2, height / 2 + 30, "ゲームスタート", 0x0284c7, () => {
-      this.scene.start("GameScene");
-    });
-
-    // 「設定」ボタン（React側の設定モーダルを開く）
-    this.createButton(width / 2, height / 2 + 100, "設定", 0x475569, () => {
-      EventBus.emit("open-settings");
-    });
+    // メニューボタン生成
+    const buttons = this.getMenuButtons();
+    for (const btn of buttons) {
+      this.createButton(width / 2, height / 2 + btn.yOffset, btn.label, btn.color, btn.onClick);
+    }
   }
 
-  private createButton(x: number, y: number, label: string, color: number, onClick: () => void) {
+  protected createButton(x: number, y: number, label: string, color: number, onClick: () => void) {
     const btnWidth = 220;
     const btnHeight = 48;
 
@@ -63,18 +99,9 @@ export class TitleScene extends Phaser.Scene {
     container.setSize(btnWidth, btnHeight);
     container.setInteractive({ useHandCursor: true });
 
-    container.on("pointerover", () => {
-      container.setScale(1.05);
-    });
-
-    container.on("pointerout", () => {
-      container.setScale(1.0);
-    });
-
-    container.on("pointerdown", () => {
-      container.setScale(0.95);
-    });
-
+    container.on("pointerover", () => container.setScale(1.05));
+    container.on("pointerout", () => container.setScale(1.0));
+    container.on("pointerdown", () => container.setScale(0.95));
     container.on("pointerup", () => {
       container.setScale(1.0);
       onClick();

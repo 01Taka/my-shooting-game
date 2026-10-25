@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 
 export class ControllerScene extends Phaser.Scene {
-  private inputState = {
+  protected inputState = {
     left: false,
     right: false,
     up: false,
@@ -13,36 +13,79 @@ export class ControllerScene extends Phaser.Scene {
     super("ControllerScene");
   }
 
+  // ==========================================
+  // ゲーム特有のバーチャルコントローラー設定
+  // （派生ゲーム作成時はここをオーバーライドまたは編集）
+  // ==========================================
+
+  /**
+   * バーチャルボタンの表示設定（ラベル、配置、キー等）
+   */
+  protected getControllerConfig() {
+    return {
+      dpad: {
+        centerXOffset: 100,
+        centerYOffset: 100,
+        btnSize: 42,
+        buttons: [
+          { key: "left" as const, label: "◀", offsetX: -50, offsetY: 0 },
+          { key: "right" as const, label: "▶", offsetX: 50, offsetY: 0 },
+          { key: "up" as const, label: "▲", offsetX: 0, offsetY: -50 },
+          { key: "down" as const, label: "▼", offsetX: 0, offsetY: 50 },
+        ],
+      },
+      actionButton: {
+        xOffset: 90,
+        yOffset: 90,
+        radius: 40,
+        label: "SHOT",
+        color: 0xef4444,
+        activeColor: 0xdc2626,
+      },
+    };
+  }
+
+  // ==========================================
+  // コントローラー生成・イベント処理
+  // ==========================================
+
   create() {
     const { width, height } = this.scale;
+    const config = this.getControllerConfig();
 
     // マルチタッチ対応を有効化
     this.input.addPointer(2);
 
     // --- 左側: バーチャル十字キー（D-Pad） ---
-    const dpadCenterX = 100;
-    const dpadCenterY = height - 100;
-    const btnSize = 42;
+    const dpadCenterX = config.dpad.centerXOffset;
+    const dpadCenterY = height - config.dpad.centerYOffset;
+    const btnSize = config.dpad.btnSize;
 
-    this.createDpadButton(dpadCenterX - 50, dpadCenterY, "◀", btnSize, "left");
-    this.createDpadButton(dpadCenterX + 50, dpadCenterY, "▶", btnSize, "right");
-    this.createDpadButton(dpadCenterX, dpadCenterY - 50, "▲", btnSize, "up");
-    this.createDpadButton(dpadCenterX, dpadCenterY + 50, "▼", btnSize, "down");
+    for (const btn of config.dpad.buttons) {
+      this.createDpadButton(
+        dpadCenterX + btn.offsetX,
+        dpadCenterY + btn.offsetY,
+        btn.label,
+        btnSize,
+        btn.key,
+      );
+    }
 
-    // --- 右側: ショットボタン ---
-    const shotX = width - 90;
-    const shotY = height - 90;
-    const shotRadius = 40;
+    // --- 右側: アクションボタン ---
+    const shotConfig = config.actionButton;
+    const shotX = width - shotConfig.xOffset;
+    const shotY = height - shotConfig.yOffset;
+    const shotRadius = shotConfig.radius;
 
     const shotBtn = this.add.container(shotX, shotY);
     const shotBg = this.add.graphics();
-    shotBg.fillStyle(0xef4444, 0.7);
+    shotBg.fillStyle(shotConfig.color, 0.7);
     shotBg.fillCircle(0, 0, shotRadius);
     shotBg.lineStyle(3, 0xffffff, 0.8);
     shotBg.strokeCircle(0, 0, shotRadius);
 
     const shotLabel = this.add
-      .text(0, 0, "SHOT", {
+      .text(0, 0, shotConfig.label, {
         fontSize: "14px",
         fontFamily: "monospace",
         fontStyle: "bold",
@@ -57,7 +100,7 @@ export class ControllerScene extends Phaser.Scene {
     shotBtn.on("pointerdown", () => {
       this.inputState.shoot = true;
       shotBg.clear();
-      shotBg.fillStyle(0xdc2626, 0.9);
+      shotBg.fillStyle(shotConfig.activeColor, 0.9);
       shotBg.fillCircle(0, 0, shotRadius);
       this.notifyGameScene();
     });
@@ -65,7 +108,7 @@ export class ControllerScene extends Phaser.Scene {
     const releaseShot = () => {
       this.inputState.shoot = false;
       shotBg.clear();
-      shotBg.fillStyle(0xef4444, 0.7);
+      shotBg.fillStyle(shotConfig.color, 0.7);
       shotBg.fillCircle(0, 0, shotRadius);
       shotBg.lineStyle(3, 0xffffff, 0.8);
       shotBg.strokeCircle(0, 0, shotRadius);
@@ -76,7 +119,7 @@ export class ControllerScene extends Phaser.Scene {
     shotBtn.on("pointerout", releaseShot);
   }
 
-  private createDpadButton(
+  protected createDpadButton(
     x: number,
     y: number,
     label: string,
@@ -124,7 +167,7 @@ export class ControllerScene extends Phaser.Scene {
     btn.on("pointerout", release);
   }
 
-  private notifyGameScene() {
+  protected notifyGameScene() {
     const gameScene = this.scene.get("GameScene");
     if (gameScene) {
       gameScene.events.emit("controller-input", { ...this.inputState });

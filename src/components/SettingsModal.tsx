@@ -1,5 +1,5 @@
 import { Maximize2, Minimize2, Settings, Volume2, VolumeX, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import { useGameSettings } from "../stores/useGameSettings";
 
@@ -8,20 +8,22 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ onClose }: SettingsModalProps) {
-  const {
-    bgmVolume,
-    seVolume,
-    bgmMuted,
-    seMuted,
-    setBgmVolume,
-    setSeVolume,
-    toggleBgmMute,
-    toggleSeMute,
-    closeSettings,
-  } = useGameSettings();
-
+  const settings = useGameSettings();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
+
+  // ==========================================
+  // ゲーム特有の設定画面カスタマイズ定義
+  // （派生ゲーム作成時はここを編集）
+  // ==========================================
+
+  /**
+   * 設定モーダルのヘッダー情報
+   */
+  const getModalHeader = () => ({
+    title: "設定",
+    icon: <Settings className="h-5 w-5 text-sky-400" />,
+  });
 
   // 背後のPhaser Canvasにクリックやタッチイベントが突き抜けるのを防ぐ
   useEffect(() => {
@@ -100,9 +102,11 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   };
 
   const handleClose = () => {
-    closeSettings();
+    settings.closeSettings();
     if (onClose) onClose();
   };
+
+  const header = getModalHeader();
 
   return (
     <div
@@ -123,8 +127,8 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
         {/* ヘッダー */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
-            <Settings className="h-5 w-5 text-sky-400" />
-            <h2 className="text-lg font-bold tracking-wide">設定</h2>
+            {header.icon}
+            <h2 className="text-lg font-bold tracking-wide">{header.title}</h2>
           </div>
           <button
             type="button"
@@ -136,9 +140,9 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
           </button>
         </div>
 
-        {/* 設定項目 */}
+        {/* 設定項目セクション群 */}
         <div className="mt-4 space-y-4">
-          {/* 全画面表示切り替え（右上のピルから移動） */}
+          {/* 全画面表示切り替え */}
           <div className="flex items-center justify-between rounded-xl border border-slate-700/50 bg-slate-800/60 p-3">
             <div>
               <div className="text-sm font-medium text-slate-200">画面表示</div>
@@ -172,17 +176,17 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={toggleBgmMute}
+                  onClick={settings.toggleBgmMute}
                   className="rounded p-1 text-slate-400 transition-colors hover:text-white"
                 >
-                  {bgmMuted || bgmVolume === 0 ? (
+                  {settings.bgmMuted || settings.bgmVolume === 0 ? (
                     <VolumeX className="h-4 w-4 text-rose-400" />
                   ) : (
                     <Volume2 className="h-4 w-4 text-sky-400" />
                   )}
                 </button>
                 <span className="w-10 text-right font-mono text-xs text-slate-300">
-                  {bgmMuted ? "0%" : `${bgmVolume}%`}
+                  {settings.bgmMuted ? "0%" : `${settings.bgmVolume}%`}
                 </span>
               </div>
             </div>
@@ -190,8 +194,8 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
               type="range"
               min="0"
               max="100"
-              value={bgmMuted ? 0 : bgmVolume}
-              onChange={(e) => setBgmVolume(Number(e.target.value))}
+              value={settings.bgmMuted ? 0 : settings.bgmVolume}
+              onChange={(e) => settings.setBgmVolume(Number(e.target.value))}
               className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-700 accent-sky-500"
             />
           </div>
@@ -203,17 +207,17 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={toggleSeMute}
+                  onClick={settings.toggleSeMute}
                   className="rounded p-1 text-slate-400 transition-colors hover:text-white"
                 >
-                  {seMuted || seVolume === 0 ? (
+                  {settings.seMuted || settings.seVolume === 0 ? (
                     <VolumeX className="h-4 w-4 text-rose-400" />
                   ) : (
                     <Volume2 className="h-4 w-4 text-sky-400" />
                   )}
                 </button>
                 <span className="w-10 text-right font-mono text-xs text-slate-300">
-                  {seMuted ? "0%" : `${seVolume}%`}
+                  {settings.seMuted ? "0%" : `${settings.seVolume}%`}
                 </span>
               </div>
             </div>
@@ -221,8 +225,8 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
               type="range"
               min="0"
               max="100"
-              value={seMuted ? 0 : seVolume}
-              onChange={(e) => setSeVolume(Number(e.target.value))}
+              value={settings.seMuted ? 0 : settings.seVolume}
+              onChange={(e) => settings.setSeVolume(Number(e.target.value))}
               className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-700 accent-sky-500"
             />
           </div>
