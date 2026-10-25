@@ -1,0 +1,12 @@
+@import "tailwindcss";
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  user-select: none; /* 連打時のテキスト選択を防止 */
+  touch-action: manipulation; /* スマホ時のダブルタップズーム防止 */
+}

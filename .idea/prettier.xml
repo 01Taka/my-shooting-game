@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PrettierConfiguration">
+    <option name="myRunOnSave" value="true" />
+    <option name="myFiles" value="{**/*,*}.{js,ts,jsx,tsx,cjs,mjs,json,css,scss,html,vue,svelte}" />
+    <option name="myPackage" value="$PROJECT_DIR$/node_modules/prettier" />
+  </component>
+</project>

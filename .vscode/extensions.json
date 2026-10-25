@@ -1,0 +1,17 @@
+{
+  "recommendations": [
+    // 必須：コード品質・フォーマット
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "EditorConfig.EditorConfig",
+    "bradlc.vscode-tailwindcss",
+
+    // Phaser / ゲーム開発向け
+    "kissthedesign.vscode-image-preview",
+    "christian-kohler.path-intellisense",
+
+    // あると便利
+    "usernamehw.errorlens",
+    "eamodio.gitlens"
+  ]
+}
