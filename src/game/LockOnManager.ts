@@ -2,6 +2,11 @@ import Phaser from "phaser";
 
 import type { LockOnConfig } from "./types";
 
+interface TargetHistoryEntry {
+  target: Phaser.Physics.Arcade.Image;
+  time: number;
+}
+
 /**
  * 60°扇形スマートロックオン ＆ 撃破チェーン管理マネージャー
  * スティック方向の最寄り敵の吸着、ターゲット枠描画、撃破時の周囲連鎖を担当
@@ -11,6 +16,7 @@ export class LockOnManager {
   protected lockedTarget: Phaser.Physics.Arcade.Image | null = null;
   protected reticleGraphics!: Phaser.GameObjects.Graphics;
   protected animAngle = 0;
+  protected targetHistory: TargetHistoryEntry[] = [];
 
   constructor(config: LockOnConfig) {
     this.config = config;
@@ -151,9 +157,67 @@ export class LockOnManager {
   }
 
   /**
+   * 指離し（Release）時の手ブレ補正（タイムバッファ方式）
+   * 指が画面から離れる最後のブレ（急激な微動）を無視し、
+   * 離す直前（約60〜80ms前）に安定して狙っていたターゲットを最終確定させる
+   */
+  confirmReleaseTarget(releaseTime: number): void {
+    if (this.targetHistory.length === 0) return;
+
+    // 指が浮き上がる約70ms前のターゲットを探す
+    const stableTime = releaseTime - 70;
+    let bestEntry: TargetHistoryEntry | null = null;
+    let minDiff = Infinity;
+
+    for (const entry of this.targetHistory) {
+      if (entry.target.active) {
+        const diff = Math.abs(entry.time - stableTime);
+        if (diff < minDiff) {
+          minDiff = diff;
+          bestEntry = entry;
+        }
+      }
+    }
+
+    if (bestEntry && bestEntry.target.active) {
+      this.lockedTarget = bestEntry.target;
+    }
+
+    this.targetHistory = [];
+  }
+
+  /**
+   * 毎フレームのターゲット履歴記録（過去160ms分を保持）
+   */
+  recordTargetHistory(time: number): void {
+    if (this.lockedTarget && this.lockedTarget.active) {
+      this.targetHistory.push({
+        target: this.lockedTarget,
+        time,
+      });
+
+      const cutoff = time - 160;
+      while (this.targetHistory.length > 0 && this.targetHistory[0].time < cutoff) {
+        this.targetHistory.shift();
+      }
+    } else {
+      this.targetHistory = [];
+    }
+  }
+
+  /**
    * 毎フレームのロックオン維持チェック ＆ レティクルアニメーション描画
    */
-  update(player: Phaser.Physics.Arcade.Image, delta: number, scene: Phaser.Scene): void {
+  update(
+    player: Phaser.Physics.Arcade.Image,
+    delta: number,
+    scene: Phaser.Scene,
+    time?: number,
+  ): void {
+    if (typeof time === "number") {
+      this.recordTargetHistory(time);
+    }
+
     this.reticleGraphics.clear();
 
     const target = this.getLockedTarget();

@@ -572,16 +572,18 @@ export class ControllerScene extends Phaser.Scene {
    * スティック解放時のリセット処理
    */
   protected releaseStick(stick: StickVisuals) {
-    // 【仕様1】ロックオンスティックをタップして離した場合（デッドゾーン未満かつ短時間）
-    const isLockOnTap =
-      stick === this.lockOnStick &&
-      !stick.hasExceededDeadZone &&
-      this.time.now - this.stickTouchStartTime < 350;
+    if (stick === this.lockOnStick) {
+      const isLockOnTap =
+        !stick.hasExceededDeadZone && this.time.now - this.stickTouchStartTime < 350;
 
-    if (isLockOnTap) {
       const gameScene = this.scene.get("GameScene");
       if (gameScene) {
-        gameScene.events.emit("controller-lockon-tap");
+        if (isLockOnTap) {
+          gameScene.events.emit("controller-lockon-tap");
+        } else {
+          // 倒して離した場合: 指離し時の手ブレ巻き戻し補正（タイムバッファ）を発火
+          gameScene.events.emit("controller-lockon-release", this.time.now);
+        }
       }
     }
 

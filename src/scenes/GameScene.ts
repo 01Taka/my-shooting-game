@@ -228,6 +228,11 @@ export class GameScene extends Phaser.Scene {
       this.lockOnManager.lockNearestEnemy(this.player, this.enemyManager.getGroup(), this);
     });
 
+    // ロックオンスティック解放時の指離し手ブレ補正（タイムバッファ方式）
+    this.events.on("controller-lockon-release", (releaseTime: number) => {
+      this.lockOnManager.confirmReleaseTarget(releaseTime);
+    });
+
     // シーン破棄時のクリーンアップ（1度だけ実行）
     this.events.once("shutdown", () => {
       this.enemyManager?.destroy();
@@ -237,6 +242,7 @@ export class GameScene extends Phaser.Scene {
       this.playerController?.destroy();
       this.events.off("controller-input");
       this.events.off("controller-lockon-tap");
+      this.events.off("controller-lockon-release");
     });
   }
 
@@ -273,7 +279,7 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  update(_time: number, delta: number) {
+  update(time: number, delta: number) {
     if (this.hp <= 0) return;
 
     const lockedTarget = this.lockOnManager.getLockedTarget();
@@ -293,8 +299,8 @@ export class GameScene extends Phaser.Scene {
       );
     }
 
-    // 3. ロックオン維持判定 ＆ レティクルアニメーション描画
-    this.lockOnManager.update(this.player, delta, this);
+    // 3. ロックオン維持判定 ＆ レティクルアニメーション描画 ＆ 履歴バッファ記録
+    this.lockOnManager.update(this.player, delta, this, time);
 
     // 4. カメラの先行オフセット更新（スティック操作中はスティック優先、指離し時はロック敵へ吸着、ロックなし時は中央固定）
     this.cameraManager.update(
