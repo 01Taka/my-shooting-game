@@ -81,6 +81,41 @@ export class LockOnManager {
   }
 
   /**
+   * 360度全方位の画面内最寄り敵を即座にオートロックオン（スティックタップ時用）
+   */
+  lockNearestEnemy(
+    player: Phaser.Physics.Arcade.Image,
+    enemies: Phaser.Physics.Arcade.Group,
+    scene: Phaser.Scene,
+  ): Phaser.Physics.Arcade.Image | null {
+    const enemyList = enemies.getChildren() as Phaser.Physics.Arcade.Image[];
+    const camera = scene.cameras.main;
+
+    let nearestEnemy: Phaser.Physics.Arcade.Image | null = null;
+    let minDistance = Infinity;
+
+    for (const enemy of enemyList) {
+      if (!enemy.active) continue;
+
+      const dist = Phaser.Math.Distance.Between(player.x, player.y, enemy.x, enemy.y);
+      if (dist > this.config.maxDistance) continue;
+
+      // 画面内判定
+      if (!camera.worldView.contains(enemy.x, enemy.y)) continue;
+
+      if (dist < minDistance) {
+        minDistance = dist;
+        nearestEnemy = enemy;
+      }
+    }
+
+    if (nearestEnemy) {
+      this.lockedTarget = nearestEnemy;
+    }
+    return nearestEnemy;
+  }
+
+  /**
    * 敵撃破時の周囲チェーンロックオン
    * 倒した敵の位置から周囲半径（chainRadius）以内の最近敵へターゲットを即座に連鎖
    */

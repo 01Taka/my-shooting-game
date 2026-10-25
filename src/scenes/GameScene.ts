@@ -223,6 +223,11 @@ export class GameScene extends Phaser.Scene {
       this.playerController.setVirtualInput(input);
     });
 
+    // ロックオンスティックのタップによる最寄り敵オートロックオン
+    this.events.on("controller-lockon-tap", () => {
+      this.lockOnManager.lockNearestEnemy(this.player, this.enemyManager.getGroup(), this);
+    });
+
     // シーン破棄時のクリーンアップ
     this.events.on("shutdown", () => {
       this.enemyManager?.destroy();
@@ -231,6 +236,7 @@ export class GameScene extends Phaser.Scene {
       this.lockOnManager?.destroy();
       this.playerController?.destroy();
       this.events.off("controller-input");
+      this.events.off("controller-lockon-tap");
     });
   }
 

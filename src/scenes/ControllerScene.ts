@@ -15,7 +15,7 @@ export interface StickState {
 export interface ControllerInputPayload {
   move: StickState;
   lockOn: StickState;
-  attack: boolean; // 画面右側の攻撃エリアをタップまたは長押し中
+  attack: boolean; // 画面右下の攻撃パッドをタップまたは長押し中
 }
 
 interface StickVisuals {
@@ -39,6 +39,7 @@ interface StickVisuals {
   knobColor: number;
   labelText: string;
   isAimStick: boolean;
+  hasExceededDeadZone: boolean;
   state: StickState;
 }
 
@@ -49,6 +50,13 @@ export class ControllerScene extends Phaser.Scene {
   protected inputMode: InputMode = "mobile";
   protected unsubscribeSettings?: () => void;
   protected unsubscribeInputMode?: () => void;
+
+  // 画面右下の1/4円攻撃パッド
+  protected attackPadContainer!: Phaser.GameObjects.Container;
+  protected attackPadBg!: Phaser.GameObjects.Graphics;
+  protected attackPadLabel!: Phaser.GameObjects.Text;
+  protected readonly attackPadRadius = 240; // 画面右下の角を中心とする攻撃扇形の半径
+  protected stickTouchStartTime = 0;
 
   constructor() {
     super("ControllerScene");
@@ -73,8 +81,8 @@ export class ControllerScene extends Phaser.Scene {
         label: "MOVE",
       },
       lockOn: {
-        xOffset: 380, // スティック1つ分（直径180px）画面中央寄りに配置し誤タップを防止
-        yOffset: 200,
+        xOffset: 460, // 攻撃パッドの外側の快適な初期配置
+        yOffset: 260,
         baseRadius: 90,
         knobRadius: 42,
         deadZone: 14,
@@ -110,7 +118,10 @@ export class ControllerScene extends Phaser.Scene {
     // 複数指のマルチタッチに対応
     this.input.addPointer(3);
 
-    // --- 左側: 移動バーチャルスティック（Dynamic設定が反映される） ---
+    // --- 画面右下: 1/4円の攻撃パッド ---
+    this.createAttackPad(width, height);
+
+    // --- 左側: 移動バーチャルスティック ---
     this.moveStick = this.createVirtualStick({
       originX: config.move.xOffset,
       originY: height - config.move.yOffset,
@@ -125,7 +136,7 @@ export class ControllerScene extends Phaser.Scene {
       isAimStick: false,
     });
 
-    // --- 右側: ロックオンバーチャルスティック（常にFixed定位置に固定） ---
+    // --- 右側: ロックオンバーチャルスティック ---
     this.lockOnStick = this.createVirtualStick({
       originX: width - config.lockOn.xOffset,
       originY: height - config.lockOn.yOffset,
@@ -152,6 +163,56 @@ export class ControllerScene extends Phaser.Scene {
     // ポーズや非表示時のリセット
     this.events.on("pause", this.resetAllSticks, this);
     this.events.on("shutdown", this.cleanup, this);
+  }
+
+  /**
+   * 画面右下の1/4円攻撃パッドの生成
+   */
+  protected createAttackPad(width: number, height: number) {
+    this.attackPadContainer = this.add.container(0, 0);
+    this.attackPadContainer.setDepth(40);
+
+    this.attackPadBg = this.add.graphics();
+    this.attackPadContainer.add(this.attackPadBg);
+
+    // 「FIRE」ラベルテキスト
+    this.attackPadLabel = addCrispText(this, width - 90, height - 90, "FIRE", {
+      fontFamily: "monospace",
+      fontSize: "20px",
+      color: "#ffffff",
+      fontStyle: "bold",
+    }).setOrigin(0.5);
+    this.attackPadContainer.add(this.attackPadLabel);
+
+    this.drawAttackPadGraphics(false);
+  }
+
+  /**
+   * 攻撃パッドの扇形グラフィック描画
+   */
+  protected drawAttackPadGraphics(isPressed: boolean) {
+    const { width, height } = this.scale;
+    this.attackPadBg.clear();
+
+    const fillAlpha = isPressed ? 0.6 : 0.35;
+    const strokeAlpha = isPressed ? 0.95 : 0.7;
+
+    this.attackPadBg.fillStyle(0xf43f5e, fillAlpha);
+    this.attackPadBg.lineStyle(4, 0xf43f5e, strokeAlpha);
+
+    // 右下の角 (width, height) を中心とする 1/4 円（Math.PI 〜 1.5 * Math.PI）
+    this.attackPadBg.beginPath();
+    this.attackPadBg.moveTo(width, height);
+    this.attackPadBg.arc(width, height, this.attackPadRadius, Math.PI, Math.PI * 1.5);
+    this.attackPadBg.closePath();
+    this.attackPadBg.fillPath();
+    this.attackPadBg.strokePath();
+
+    // 内側の装飾アークライン
+    this.attackPadBg.lineStyle(2, 0xffffff, isPressed ? 0.8 : 0.4);
+    this.attackPadBg.beginPath();
+    this.attackPadBg.arc(width, height, this.attackPadRadius * 0.55, Math.PI, Math.PI * 1.5);
+    this.attackPadBg.strokePath();
   }
 
   /**
@@ -235,6 +296,7 @@ export class ControllerScene extends Phaser.Scene {
       knobColor,
       labelText: label,
       isAimStick,
+      hasExceededDeadZone: false,
       state: {
         x: 0,
         y: 0,
@@ -249,16 +311,17 @@ export class ControllerScene extends Phaser.Scene {
    * PCモード / スマホモードに応じたビジュアル描画の切り替え
    */
   protected applyModeVisuals() {
+    const isDynamic = useGameSettings.getState().joystickType === "dynamic";
+
     if (this.inputMode === "pc") {
       const isCursorFollow = useGameSettings.getState().followCursor;
 
-      // 移動スティックはPCでは非表示
       this.moveStick.container.setVisible(false);
+      this.attackPadContainer.setVisible(false);
 
       if (isCursorFollow) {
         this.lockOnStick.container.setVisible(false);
       } else {
-        // PCモード・固定表示
         this.lockOnStick.container.setVisible(true);
         this.lockOnStick.baseX = this.lockOnStick.originX;
         this.lockOnStick.baseY = this.lockOnStick.originY;
@@ -285,17 +348,25 @@ export class ControllerScene extends Phaser.Scene {
       }
     } else {
       // --- スマホモード ---
-      // 1. 移動スティックを表示
+      // 1. 右下攻撃パッドを表示
+      this.attackPadContainer.setVisible(true);
+      this.drawAttackPadGraphics(this.attackPointerIds.size > 0);
+
+      // 2. 移動スティックを表示
       this.moveStick.container.setVisible(true);
       this.moveStick.container.setAlpha(0.6);
       this.drawFullStickGraphics(this.moveStick);
 
-      // 2. ロックオンスティックを常にFixed定位置で表示
+      // 3. ロックオンスティックの表示（Dynamic時は非操作時は非表示にして視界を遮らない）
       this.lockOnStick.container.setVisible(true);
-      this.lockOnStick.baseX = this.lockOnStick.originX;
-      this.lockOnStick.baseY = this.lockOnStick.originY;
-      this.lockOnStick.container.setPosition(this.lockOnStick.originX, this.lockOnStick.originY);
-      this.lockOnStick.container.setAlpha(0.6);
+      if (isDynamic) {
+        this.lockOnStick.container.setAlpha(0);
+      } else {
+        this.lockOnStick.baseX = this.lockOnStick.originX;
+        this.lockOnStick.baseY = this.lockOnStick.originY;
+        this.lockOnStick.container.setPosition(this.lockOnStick.originX, this.lockOnStick.originY);
+        this.lockOnStick.container.setAlpha(0.6);
+      }
       this.drawFullStickGraphics(this.lockOnStick);
     }
   }
@@ -359,26 +430,24 @@ export class ControllerScene extends Phaser.Scene {
       }
     } else {
       // スマホモード:
-      // - 画面左半分: 移動スティック（Dynamic設定が反映）
-      // - 画面右半分: ロックオンスティック（Fixed定位置）または攻撃タッチパッド
-      const { width } = this.scale;
+      // - 画面左半分: 移動スティック
+      // - 画面右半分:
+      //   - 右下1/4円の内側: 攻撃パッド（タップ/長押し連射）
+      //   - 右下1/4円の外側: ダイナミック・ロックオンスティック
+      const { width, height } = this.scale;
       if (pointer.x < width / 2 && this.moveStick.pointerId === null) {
         this.activateStick(this.moveStick, pointer);
       } else if (pointer.x >= width / 2) {
-        // ロックオンスティックの定位置からの距離判定
-        const distToLockOn = Math.hypot(
-          pointer.x - this.lockOnStick.originX,
-          pointer.y - this.lockOnStick.originY,
-        );
-        const captureRadius = 120; // ベース半径90pxに対する安全なキャプチャ領域
+        const distFromCorner = Math.hypot(width - pointer.x, height - pointer.y);
 
-        if (distToLockOn <= captureRadius && this.lockOnStick.pointerId === null) {
-          // ロックオンスティック操作
-          this.activateStick(this.lockOnStick, pointer);
-        } else {
-          // ロックオンスティック以外の画面右側全域: 攻撃発動（タップまたは長押し連射）
+        if (distFromCorner <= this.attackPadRadius) {
+          // 1/4円の内側: 攻撃発動
           this.attackPointerIds.add(pointer.id);
+          this.drawAttackPadGraphics(true);
           this.notifyGameScene();
+        } else if (this.lockOnStick.pointerId === null) {
+          // 1/4円の外側: ロックオンスティック操作
+          this.activateStick(this.lockOnStick, pointer);
         }
       }
     }
@@ -389,10 +458,10 @@ export class ControllerScene extends Phaser.Scene {
    */
   protected activateStick(stick: StickVisuals, pointer: Phaser.Input.Pointer) {
     stick.pointerId = pointer.id;
+    stick.hasExceededDeadZone = false;
+    this.stickTouchStartTime = this.time.now;
 
-    // 移動スティックのみ Dynamic 設定を適用。ロックオンスティックは常に Fixed 定位置
-    const isDynamic =
-      stick === this.moveStick && useGameSettings.getState().joystickType === "dynamic";
+    const isDynamic = useGameSettings.getState().joystickType === "dynamic";
 
     if (isDynamic) {
       this.tweens.killTweensOf(stick.container);
@@ -429,6 +498,7 @@ export class ControllerScene extends Phaser.Scene {
       this.notifyGameScene();
     } else if (this.attackPointerIds.has(pointer.id)) {
       this.attackPointerIds.delete(pointer.id);
+      this.drawAttackPadGraphics(this.attackPointerIds.size > 0);
       this.notifyGameScene();
     }
   }
@@ -442,10 +512,9 @@ export class ControllerScene extends Phaser.Scene {
     let distance = Math.hypot(dx, dy);
     let angle = Math.atan2(dy, dx);
 
-    // 移動スティックのみ Dynamic 追従移動。ロックオンスティックは Fixed 固定
-    const isDynamic =
-      stick === this.moveStick && useGameSettings.getState().joystickType === "dynamic";
+    const isDynamic = useGameSettings.getState().joystickType === "dynamic";
 
+    // Dynamic 追従移動（指が最大半径を超えた場合）
     if (isDynamic && distance > stick.maxRadius) {
       const excess = distance - stick.maxRadius;
       stick.baseX += Math.cos(angle) * excess;
@@ -465,6 +534,7 @@ export class ControllerScene extends Phaser.Scene {
     stick.knob.setPosition(knobX, knobY);
 
     if (distance > stick.deadZone) {
+      stick.hasExceededDeadZone = true;
       const force = Math.min(distance / stick.maxRadius, 1.0);
       stick.state.x = Math.cos(angle) * force;
       stick.state.y = Math.sin(angle) * force;
@@ -502,11 +572,25 @@ export class ControllerScene extends Phaser.Scene {
    * スティック解放時のリセット処理
    */
   protected releaseStick(stick: StickVisuals) {
+    // 【仕様1】ロックオンスティックをタップして離した場合（デッドゾーン未満かつ短時間）
+    const isLockOnTap =
+      stick === this.lockOnStick &&
+      !stick.hasExceededDeadZone &&
+      this.time.now - this.stickTouchStartTime < 350;
+
+    if (isLockOnTap) {
+      const gameScene = this.scene.get("GameScene");
+      if (gameScene) {
+        gameScene.events.emit("controller-lockon-tap");
+      }
+    }
+
     stick.pointerId = null;
     stick.state.x = 0;
     stick.state.y = 0;
     stick.state.active = false;
     stick.state.force = 0;
+    stick.hasExceededDeadZone = false;
 
     if (stick.aimIndicator) {
       stick.aimIndicator.setVisible(false);
@@ -521,14 +605,13 @@ export class ControllerScene extends Phaser.Scene {
       ease: Phaser.Math.Easing.Sine.Out,
     });
 
-    if (stick === this.moveStick && useGameSettings.getState().joystickType === "dynamic") {
+    const isDynamic = useGameSettings.getState().joystickType === "dynamic";
+    if (isDynamic) {
       this.tweens.killTweensOf(stick.container);
       this.tweens.add({
         targets: stick.container,
-        x: stick.originX,
-        y: stick.originY,
-        alpha: 0.6,
-        duration: 250,
+        alpha: 0,
+        duration: 200,
         ease: Phaser.Math.Easing.Sine.Out,
       });
     } else {
@@ -543,6 +626,7 @@ export class ControllerScene extends Phaser.Scene {
     if (this.moveStick) this.releaseStick(this.moveStick);
     if (this.lockOnStick) this.releaseStick(this.lockOnStick);
     this.attackPointerIds.clear();
+    this.drawAttackPadGraphics(false);
     this.notifyGameScene();
   }
 
