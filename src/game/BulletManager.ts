@@ -43,8 +43,9 @@ export class BulletManager {
   /**
    * 指定したプレイヤー座標と幾何角度へ弾を発射
    */
-  fire(playerX: number, playerY: number, angle: number, time: number): boolean {
-    if (!this.canFire(time)) return false;
+  fire(playerX: number, playerY: number, angle: number, time?: number): boolean {
+    const currentTime = time ?? performance.now();
+    if (!this.canFire(currentTime)) return false;
 
     const spawnOffsetX = Math.cos(angle) * 32;
     const spawnOffsetY = Math.sin(angle) * 32;
@@ -59,12 +60,13 @@ export class BulletManager {
       bullet.setVisible(true);
       bullet.setVelocity(Math.cos(angle) * this.config.speed, Math.sin(angle) * this.config.speed);
       bullet.setRotation(angle + Math.PI / 2);
+      bullet.setData("damage", this.config.damage);
 
       AudioManager.getInstance().playSE("laser", {
         detune: Phaser.Math.Between(-30, 30),
       });
 
-      this.lastFired = time + this.config.fireRateMs;
+      this.lastFired = currentTime + this.config.fireRateMs;
       return true;
     }
 

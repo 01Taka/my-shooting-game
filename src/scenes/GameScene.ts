@@ -2,7 +2,13 @@ import Phaser from "phaser";
 
 import { AudioManager } from "../audio/AudioManager";
 import { EventBus } from "../EventBus";
-import { BulletManager, CameraManager, EnemyManager, PlayerController } from "../game";
+import {
+  BulletManager,
+  CameraManager,
+  EnemyManager,
+  LockOnManager,
+  PlayerController,
+} from "../game";
 import type { GameParameters } from "../game/types";
 import type { ControllerInputPayload } from "./ControllerScene";
 
@@ -14,6 +20,7 @@ export class GameScene extends Phaser.Scene {
   protected cameraManager!: CameraManager;
   protected bulletManager!: BulletManager;
   protected enemyManager!: EnemyManager;
+  protected lockOnManager!: LockOnManager;
   protected playerController!: PlayerController;
 
   // ゲーム状態
@@ -39,9 +46,10 @@ export class GameScene extends Phaser.Scene {
         speed: 520,
       },
       bullet: {
-        speed: 950,
-        fireRateMs: 160,
+        speed: 1050,
+        fireRateMs: 70, // タップ連打を妨げない最小インターバル
         maxBullets: 60,
+        damage: 10,
       },
       enemy: {
         spawnIntervalMs: 800,
@@ -49,13 +57,20 @@ export class GameScene extends Phaser.Scene {
         speedMax: 320,
         score: 100,
         damage: 25,
+        hp: 30, // 3発で撃破
       },
       camera: {
-        lookAheadDistanceY: 240, // 上下方向の先行オフセット距離（画面高が低いため大きく確保）
-        lookAheadDistanceX: 60, // 左右方向の先行オフセット距離（上下の1/4：横長画面のため控えめに設定）
-        lookAheadSmoothTime: 0.14, // 視線先行カメラが目標オフセットに到達する目安時間（秒）
-        maxLookSpeedY: 420, // 上下の急激なエイム反転による画面の跳ね上がりを防止する最大追従速度 (px/sec)
-        maxLookSpeedX: 160, // 左右の最大追従速度 (px/sec)
+        lookAheadDistanceY: 240, // 上下方向の先行オフセット距離
+        lookAheadDistanceX: 60, // 左右方向の先行オフセット距離（楕円軌道）
+        lookAheadSmoothTime: 0.14, // 到達目安時間（秒）
+        maxLookSpeedY: 420, // 上下最大追従速度 (px/sec)
+        maxLookSpeedX: 160, // 左右最大追従速度 (px/sec)
+      },
+      lockOn: {
+        sectorAngleDeg: 60, // 60度扇形サーチ
+        maxDistance: 950, // 最大索敵距離
+        chainRadius: 480, // 撃破連鎖半径
+        breakDistance: 1300, // ロック解除距離
       },
     };
   }
@@ -94,6 +109,10 @@ export class GameScene extends Phaser.Scene {
       y: this.player.y,
     }));
 
+    // スマートロックオンマネージャーの初期化
+    this.lockOnManager = new LockOnManager(params.lockOn);
+    this.lockOnManager.init(this);
+
     // プレイヤー入力コントローラーの初期化
     this.playerController = new PlayerController(params.player);
     this.playerController.init(this);
@@ -105,15 +124,24 @@ export class GameScene extends Phaser.Scene {
   protected setupCollisions() {
     const params = this.getGameParameters();
 
-    // 弾と敵の衝突
+    // 弾と敵の衝突（HP減算 ＆ 撃破時チェーンロックオン）
     this.physics.add.overlap(
       this.bulletManager.getGroup(),
       this.enemyManager.getGroup(),
       (bulletObj, enemyObj) => {
-        bulletObj.destroy();
-        enemyObj.destroy();
-        AudioManager.getInstance().playSE("explosion");
-        this.addScore(params.enemy.score);
+        const bullet = bulletObj as Phaser.Physics.Arcade.Image;
+        const enemy = enemyObj as Phaser.Physics.Arcade.Image;
+        const damage = (bullet.getData("damage") as number | undefined) ?? params.bullet.damage;
+        bullet.destroy();
+
+        const result = this.enemyManager.damageEnemy(enemy, damage);
+        if (result.isDead) {
+          AudioManager.getInstance().playSE("explosion");
+          this.addScore(params.enemy.score);
+
+          // 撃破地点の周囲の敵へ自動チェーンロックオン！
+          this.lockOnManager.onTargetKilled(result.x, result.y, this.enemyManager.getGroup(), this);
+        }
       },
       undefined,
       this,
@@ -130,6 +158,33 @@ export class GameScene extends Phaser.Scene {
       undefined,
       this,
     );
+  }
+
+  /**
+   * タップによる単発射撃の処理
+   */
+  protected handleTapShoot(shootAngle?: number) {
+    if (this.hp <= 0) return;
+
+    let finalAngle: number;
+    const lockedTarget = this.lockOnManager.getLockedTarget();
+
+    if (lockedTarget && lockedTarget.active) {
+      // ロックオン対象が存在すれば、その敵の方向へ発射
+      finalAngle = Phaser.Math.Angle.Between(
+        this.player.x,
+        this.player.y,
+        lockedTarget.x,
+        lockedTarget.y,
+      );
+    } else if (typeof shootAngle === "number") {
+      finalAngle = shootAngle;
+    } else {
+      // ロックオン対象がいない場合は自機の正面へ発射
+      finalAngle = this.player.rotation - Math.PI / 2;
+    }
+
+    this.bulletManager.fire(this.player.x, this.player.y, finalAngle);
   }
 
   // ==========================================
@@ -170,13 +225,20 @@ export class GameScene extends Phaser.Scene {
       this.playerController.setVirtualInput(input);
     });
 
+    // コントローラーからのタップ射撃イベントを受信
+    this.events.on("controller-tap-shoot", () => {
+      this.handleTapShoot();
+    });
+
     // シーン破棄時のクリーンアップ
     this.events.on("shutdown", () => {
       this.enemyManager?.destroy();
       this.bulletManager?.destroy();
       this.cameraManager?.destroy();
+      this.lockOnManager?.destroy();
       this.playerController?.destroy();
       this.events.off("controller-input");
+      this.events.off("controller-tap-shoot");
     });
   }
 
@@ -213,23 +275,39 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  update(time: number, delta: number) {
+  update(_time: number, delta: number) {
     if (this.hp <= 0) return;
 
-    // 1. プレイヤー入力受付・移動・向き・射撃
-    const inputState = this.playerController.update(
-      this,
-      this.player,
-      time,
-      (shootAngle, currentTime) => {
-        this.bulletManager.fire(this.player.x, this.player.y, shootAngle, currentTime);
-      },
+    const lockedTarget = this.lockOnManager.getLockedTarget();
+
+    // 1. プレイヤー入力受付・移動・向き制御（PCでのタップ射撃コールバック含む）
+    const inputState = this.playerController.update(this, this.player, lockedTarget, (angle) =>
+      this.handleTapShoot(angle),
     );
 
-    // 2. カメラの視線先行（Look-ahead）更新
-    this.cameraManager.update(this.player, inputState.isMoving, inputState.isShooting, delta);
+    // 2. スティック倒し中（索敵モード）なら60°扇形で敵をサーチ＆ロックオン
+    if (inputState.isAiming) {
+      this.lockOnManager.searchAndLock(
+        this.player,
+        this.enemyManager.getGroup(),
+        inputState.aimAngle,
+        this,
+      );
+    }
 
-    // 3. 弾薬・敵のフレーム更新（生存距離・追従AI判定）
+    // 3. ロックオン維持判定 ＆ レティクルアニメーション描画
+    this.lockOnManager.update(this.player, delta, this);
+
+    // 4. カメラの先行オフセット更新（ロック対象への吸着 ＆ 静止時の中央復帰）
+    this.cameraManager.update(
+      this.player,
+      inputState.isMoving,
+      inputState.isAiming,
+      delta,
+      this.lockOnManager.getLockedTarget(),
+    );
+
+    // 5. 弾薬・敵のフレーム更新（生存距離・追従AI判定）
     this.bulletManager.update(this.player.x, this.player.y, this.worldSize);
     this.enemyManager.update(this.player);
   }

@@ -68,8 +68,38 @@ export class EnemyManager {
     if (enemy) {
       const speed = Phaser.Math.Between(this.config.speedMin, this.config.speedMax);
       enemy.setData("speed", speed);
+      enemy.setData("hp", this.config.hp);
       enemy.setCollideWorldBounds(true);
     }
+  }
+
+  /**
+   * 敵へのダメージ処理（被弾フラッシュ＆HPゼロでの撃破判定）
+   */
+  damageEnemy(
+    enemy: Phaser.Physics.Arcade.Image,
+    amount: number,
+  ): { isDead: boolean; x: number; y: number } {
+    const x = enemy.x;
+    const y = enemy.y;
+    const currentHp = (enemy.getData("hp") as number | undefined) ?? this.config.hp;
+    const newHp = currentHp - amount;
+    enemy.setData("hp", newHp);
+
+    if (newHp <= 0) {
+      enemy.destroy();
+      return { isDead: true, x, y };
+    }
+
+    // 被弾フラッシュ演出（赤く点滅）
+    enemy.setTint(0xff5555);
+    this.scene.time.delayedCall(70, () => {
+      if (enemy.active) {
+        enemy.clearTint();
+      }
+    });
+
+    return { isDead: false, x, y };
   }
 
   /**

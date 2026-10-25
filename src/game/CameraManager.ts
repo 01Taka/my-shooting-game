@@ -39,23 +39,38 @@ export class CameraManager {
 
   /**
    * 毎フレームの視線先行（Look-ahead）オフセット計算
+   * ロックオン対象がいる場合は対象方向へ吸着、静止時は中央へ自然復帰
    */
   update(
     player: Phaser.Physics.Arcade.Image,
     isMoving: boolean,
-    isShooting: boolean,
+    isAiming: boolean,
     delta: number,
+    lockedTarget: Phaser.Physics.Arcade.Image | null = null,
   ): void {
-    // プレイヤーが現在向いている幾何角度（上向き基準画像のため -PI/2 で幾何角へ変換）
-    const currentAngle = player.rotation - Math.PI / 2;
+    let targetOffsetX: number;
+    let targetOffsetY: number;
 
-    // 操作中（移動中または射撃中）なら視線方向へカメラを先行、完全停止時は短縮
-    const lookDistanceY = isShooting || isMoving ? this.config.lookAheadDistanceY : 60;
-    const lookDistanceX = isShooting || isMoving ? this.config.lookAheadDistanceX : 15;
-
-    // 視線方向への目標オフセット（自機からの相対位置）
-    const targetOffsetX = Math.cos(currentAngle) * lookDistanceX;
-    const targetOffsetY = Math.sin(currentAngle) * lookDistanceY;
+    if (lockedTarget && lockedTarget.active) {
+      // 1. ロックオン対象が存在する場合: 対象の方向へカメラを先行吸着
+      const angleToTarget = Math.atan2(lockedTarget.y - player.y, lockedTarget.x - player.x);
+      targetOffsetX = Math.cos(angleToTarget) * this.config.lookAheadDistanceX;
+      targetOffsetY = Math.sin(angleToTarget) * this.config.lookAheadDistanceY;
+    } else if (isAiming) {
+      // 2. スティック操作中（索敵モード）: スティックの倒した方向へカメラを先行
+      const currentAngle = player.rotation - Math.PI / 2;
+      targetOffsetX = Math.cos(currentAngle) * this.config.lookAheadDistanceX;
+      targetOffsetY = Math.sin(currentAngle) * this.config.lookAheadDistanceY;
+    } else if (isMoving) {
+      // 3. 移動中: 自機の移動方向へ少しだけカメラを先行
+      const currentAngle = player.rotation - Math.PI / 2;
+      targetOffsetX = Math.cos(currentAngle) * (this.config.lookAheadDistanceX * 0.5);
+      targetOffsetY = Math.sin(currentAngle) * (this.config.lookAheadDistanceY * 0.5);
+    } else {
+      // 4. 完全静止時: オフセット (0, 0) へ戻り、プレイヤーを中央に配置
+      targetOffsetX = 0;
+      targetOffsetY = 0;
+    }
 
     const dt = delta / 1000;
     if (dt <= 0) return;

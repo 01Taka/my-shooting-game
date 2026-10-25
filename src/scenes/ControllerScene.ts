@@ -38,6 +38,7 @@ interface StickVisuals {
   knobColor: number;
   labelText: string;
   isAimStick: boolean;
+  hasExceededDeadZone: boolean;
   state: StickState;
 }
 
@@ -230,6 +231,7 @@ export class ControllerScene extends Phaser.Scene {
       knobColor,
       labelText: label,
       isAimStick,
+      hasExceededDeadZone: false,
       state: {
         x: 0,
         y: 0,
@@ -378,6 +380,7 @@ export class ControllerScene extends Phaser.Scene {
    */
   protected activateStick(stick: StickVisuals, pointer: Phaser.Input.Pointer) {
     stick.pointerId = pointer.id;
+    stick.hasExceededDeadZone = false;
 
     const isDynamic = useGameSettings.getState().joystickType === "dynamic";
 
@@ -455,6 +458,9 @@ export class ControllerScene extends Phaser.Scene {
 
     if (distance > stick.deadZone) {
       const force = Math.min(distance / stick.maxRadius, 1.0);
+      if (force >= 0.4) {
+        stick.hasExceededDeadZone = true;
+      }
       stick.state.x = Math.cos(angle) * force;
       stick.state.y = Math.sin(angle) * force;
       stick.state.active = true;
@@ -491,11 +497,20 @@ export class ControllerScene extends Phaser.Scene {
    * スティック解放時のリセット処理
    */
   protected releaseStick(stick: StickVisuals) {
+    const isTapShoot = stick === this.shootStick && !stick.hasExceededDeadZone;
     stick.pointerId = null;
     stick.state.x = 0;
     stick.state.y = 0;
     stick.state.active = false;
     stick.state.force = 0;
+    stick.hasExceededDeadZone = false;
+
+    if (isTapShoot) {
+      const gameScene = this.scene.get("GameScene");
+      if (gameScene) {
+        gameScene.events.emit("controller-tap-shoot");
+      }
+    }
 
     if (stick.aimIndicator) {
       stick.aimIndicator.setVisible(false);
