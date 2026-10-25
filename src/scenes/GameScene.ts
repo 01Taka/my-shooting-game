@@ -25,6 +25,10 @@ export class GameScene extends Phaser.Scene {
   protected lastFired = 0;
   protected enemyTimer!: Phaser.Time.TimerEvent;
 
+  // 視線先行カメラ用の相対オフセット（自機位置とは独立して補間）
+  protected currentLookOffsetX = 0;
+  protected currentLookOffsetY = 0;
+
   // バーチャルスティック入力状態
   protected virtualInput: ControllerInputPayload = {
     move: { x: 0, y: 0, active: false, angle: 0, force: 0 },
@@ -289,12 +293,18 @@ export class GameScene extends Phaser.Scene {
     const lookDistanceY = isShooting || isMoving ? params.lookAheadDistanceY : 60;
     const lookDistanceX = isShooting || isMoving ? params.lookAheadDistanceX : 15;
 
-    const desiredTargetX = this.player.x + Math.cos(currentAngle) * lookDistanceX;
-    const desiredTargetY = this.player.y + Math.sin(currentAngle) * lookDistanceY;
+    // 視線方向への目標オフセット（自機からの相対位置）
+    const targetOffsetX = Math.cos(currentAngle) * lookDistanceX;
+    const targetOffsetY = Math.sin(currentAngle) * lookDistanceY;
 
-    // 慣性（Lerp 0.06）をつけて滑らかにカメラの注視点を移動
-    this.cameraTarget.x = Phaser.Math.Linear(this.cameraTarget.x, desiredTargetX, 0.06);
-    this.cameraTarget.y = Phaser.Math.Linear(this.cameraTarget.y, desiredTargetY, 0.06);
+    // 視線オフセット（相対値）のみを慣性（Lerp 0.06）で滑らかに補間
+    this.currentLookOffsetX = Phaser.Math.Linear(this.currentLookOffsetX, targetOffsetX, 0.06);
+    this.currentLookOffsetY = Phaser.Math.Linear(this.currentLookOffsetY, targetOffsetY, 0.06);
+
+    // カメラ注視点は「自機の現在位置 ＋ 補間された視線オフセット」へ即時配置
+    // これにより自機の移動には遅延ゼロで追従し、視線の変化だけが滑らかに追従する
+    this.cameraTarget.x = this.player.x + this.currentLookOffsetX;
+    this.cameraTarget.y = this.player.y + this.currentLookOffsetY;
   }
 
   /**
@@ -369,9 +379,9 @@ export class GameScene extends Phaser.Scene {
     // ゲーム特有のオブジェクト初期化
     this.initGameObjects();
 
-    // カメラ設定: 4000x4000 の世界でカメラ境界を設定し、注視ターゲットを滑らかに追従
+    // カメラ設定: 4000x4000 の世界で境界を設定し、自機位置に即時追従（遅延ゼロ: lerp=1）
     this.cameras.main.setBounds(0, 0, this.worldSize, this.worldSize);
-    this.cameras.main.startFollow(this.cameraTarget, true, 0.08, 0.08);
+    this.cameras.main.startFollow(this.cameraTarget, false, 1, 1);
 
     // 当たり判定とタイマーの設定
     this.setupCollisions();

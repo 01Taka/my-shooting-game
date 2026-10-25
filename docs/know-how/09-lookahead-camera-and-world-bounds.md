@@ -29,23 +29,28 @@ HPバー（`UIScene`）やバーチャルパッド（`ControllerScene`）を `Ga
 自機の位置から視線方向へオフセットした「見えない注視点（`cameraTarget`）」を用意し、カメラはそのターゲットを滑らかな慣性（Lerp: 0.06〜0.08）で追従させます。
 
 ```typescript
-// 1. カメラ境界と注視ターゲットの初期化
+// 1. カメラ設定: 自機位置には 1:1 即時同期（遅延ゼロ: lerp=1）
 this.cameras.main.setBounds(0, 0, worldSize, worldSize);
-this.cameras.main.startFollow(this.cameraTarget, true, 0.08, 0.08);
+this.cameras.main.startFollow(this.cameraTarget, false, 1, 1);
 
-// 2. update() 内での注視点計算（横長16:9画面に対応した楕円Look-ahead）
+// 2. update() 内での注視点計算（自機位置と視線オフセットの分離）
 const currentAngle = this.player.rotation - Math.PI / 2; // 自機の向いている角度
 
 // 上下方向は画面端までが狭いため大きく先行(240px)、左右は余裕があるため1/4程度(60px)に抑える
-const lookDistanceY = 240;
-const lookDistanceX = 60;
+const lookDistanceY = isShooting || isMoving ? 240 : 60;
+const lookDistanceX = isShooting || isMoving ? 60 : 15;
 
-const desiredTargetX = this.player.x + Math.cos(currentAngle) * lookDistanceX;
-const desiredTargetY = this.player.y + Math.sin(currentAngle) * lookDistanceY;
+const targetOffsetX = Math.cos(currentAngle) * lookDistanceX;
+const targetOffsetY = Math.sin(currentAngle) * lookDistanceY;
 
-// 慣性（Linear Interpolation）を効かせて滑らかに移動
-this.cameraTarget.x = Phaser.Math.Linear(this.cameraTarget.x, desiredTargetX, 0.06);
-this.cameraTarget.y = Phaser.Math.Linear(this.cameraTarget.y, desiredTargetY, 0.06);
+// 視線オフセット（相対値）のみを慣性（Lerp 0.06）で滑らかに補間
+this.currentLookOffsetX = Phaser.Math.Linear(this.currentLookOffsetX, targetOffsetX, 0.06);
+this.currentLookOffsetY = Phaser.Math.Linear(this.currentLookOffsetY, targetOffsetY, 0.06);
+
+// カメラ注視点は「プレイヤー現在位置 ＋ 補間された視線オフセット」へ即時配置
+// （これにより自機の移動には遅延ゼロで追従し、視線の変化だけが滑らかに追従する）
+this.cameraTarget.x = this.player.x + this.currentLookOffsetX;
+this.cameraTarget.y = this.player.y + this.currentLookOffsetY;
 ```
 
 ### ③ マウス座標の罠: `pointer.x` ではなく `pointer.worldX`
