@@ -246,6 +246,7 @@ export class ControllerScene extends Phaser.Scene {
   protected applyModeVisuals() {
     if (this.inputMode === "pc") {
       const isCursorFollow = useGameSettings.getState().followCursor;
+      const isDynamic = useGameSettings.getState().joystickType === "dynamic";
 
       // 1. 移動スティックは非表示
       this.moveStick.container.setVisible(false);
@@ -254,9 +255,19 @@ export class ControllerScene extends Phaser.Scene {
         // カーソル追従有効時: スティック操作は無効のため攻撃スティックも非表示
         this.shootStick.container.setVisible(false);
       } else {
-        // 2. カーソル追従無効時: 中央ドットと外の円だけのシンプルなUI + 高透明度
+        // 2. カーソル追従無効時: スティック操作が有効
         this.shootStick.container.setVisible(true);
-        this.shootStick.container.setAlpha(0);
+
+        if (isDynamic) {
+          // Dynamic時: 非操作時はクリックされるまで透明にして視界を遮らない
+          this.shootStick.container.setAlpha(0);
+        } else {
+          // Fixed時: 画面右下の定位置に固定して半透明で常時表示
+          this.shootStick.baseX = this.shootStick.originX;
+          this.shootStick.baseY = this.shootStick.originY;
+          this.shootStick.container.setPosition(this.shootStick.originX, this.shootStick.originY);
+          this.shootStick.container.setAlpha(0.6);
+        }
 
         if (this.shootStick.label) {
           this.shootStick.label.setVisible(false);
@@ -370,16 +381,22 @@ export class ControllerScene extends Phaser.Scene {
 
     const isDynamic = useGameSettings.getState().joystickType === "dynamic";
 
-    // PCモード時、またはスマホでDynamicモードの場合はクリック位置を中心とする
-    if (this.inputMode === "pc" || isDynamic) {
+    // Dynamic モードの場合のみ、クリック/タップ位置を中心とする
+    if (isDynamic) {
       this.tweens.killTweensOf(stick.container);
       stick.baseX = pointer.x;
       stick.baseY = pointer.y;
       stick.container.setPosition(pointer.x, pointer.y);
+    } else {
+      // Fixed モードの場合: 常に画面定位置 (originX, originY) に固定
+      stick.baseX = stick.originX;
+      stick.baseY = stick.originY;
+      stick.container.setPosition(stick.originX, stick.originY);
     }
 
-    // PCモードでは高透明度（0.38）、スマホではしっかり表示（1.0）
-    stick.container.setAlpha(this.inputMode === "pc" ? 0.38 : 1.0);
+    // 操作中の透明度
+    const activeAlpha = this.inputMode === "pc" ? (isDynamic ? 0.45 : 0.85) : 1.0;
+    stick.container.setAlpha(activeAlpha);
     this.updateStickPosition(stick, pointer.x, pointer.y);
     this.notifyGameScene();
   }
@@ -415,9 +432,8 @@ export class ControllerScene extends Phaser.Scene {
 
     const isDynamic = useGameSettings.getState().joystickType === "dynamic";
 
-    // PCモード時、またはスマホでDynamicモードの場合、
-    // 指/マウスが最大半径を超えて移動した分だけベース中心 (baseX, baseY) を追従移動
-    if ((this.inputMode === "pc" || isDynamic) && distance > stick.maxRadius) {
+    // Dynamic モードの場合のみ、指/マウスが最大半径を超えて移動した分だけベース中心 (baseX, baseY) を追従移動
+    if (isDynamic && distance > stick.maxRadius) {
       const excess = distance - stick.maxRadius;
       stick.baseX += Math.cos(angle) * excess;
       stick.baseY += Math.sin(angle) * excess;
@@ -496,14 +512,24 @@ export class ControllerScene extends Phaser.Scene {
     });
 
     if (this.inputMode === "pc") {
-      // PCモード: 操作終了時は速やかにフェードアウト（視界を確保）
-      this.tweens.killTweensOf(stick.container);
-      this.tweens.add({
-        targets: stick.container,
-        alpha: 0,
-        duration: 150,
-        ease: Phaser.Math.Easing.Sine.Out,
-      });
+      const isDynamic = useGameSettings.getState().joystickType === "dynamic";
+      if (isDynamic) {
+        // PC × Dynamic: 操作終了時は速やかにフェードアウト（視界を確保）
+        this.tweens.killTweensOf(stick.container);
+        this.tweens.add({
+          targets: stick.container,
+          alpha: 0,
+          duration: 150,
+          ease: Phaser.Math.Easing.Sine.Out,
+        });
+      } else {
+        // PC × Fixed: 画面右下に固定したまま半透明（0.6）で常時表示
+        this.tweens.killTweensOf(stick.container);
+        stick.baseX = stick.originX;
+        stick.baseY = stick.originY;
+        stick.container.setPosition(stick.originX, stick.originY);
+        stick.container.setAlpha(0.6);
+      }
     } else {
       // スマホモード: Dynamic時は初期定位置へ滑らかに戻す
       const isDynamic = useGameSettings.getState().joystickType === "dynamic";
