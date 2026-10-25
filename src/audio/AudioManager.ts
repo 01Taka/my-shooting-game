@@ -221,7 +221,7 @@ export class AudioManager {
 
     switch (type) {
       case "laser": {
-        // ピューンと下降するレトロレーザー音
+        // ピューンと下降するレトロレーザー音（耳に刺さらないよう音量を控えめに調整）
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
 
@@ -229,7 +229,7 @@ export class AudioManager {
         osc.frequency.setValueAtTime(880, now);
         osc.frequency.exponentialRampToValueAtTime(110, now + 0.12);
 
-        gain.gain.setValueAtTime(volume * 0.4, now);
+        gain.gain.setValueAtTime(volume * 0.2, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
 
         osc.connect(gain);
