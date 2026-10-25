@@ -25,9 +25,11 @@ export class GameScene extends Phaser.Scene {
   protected lastFired = 0;
   protected enemyTimer!: Phaser.Time.TimerEvent;
 
-  // 視線先行カメラ用の相対オフセット（自機位置とは独立して補間）
+  // 視線先行カメラ用の相対オフセットおよび速度（自機位置とは独立してSmoothDamp補間）
   protected currentLookOffsetX = 0;
   protected currentLookOffsetY = 0;
+  protected currentLookVelocityX = 0;
+  protected currentLookVelocityY = 0;
 
   // バーチャルスティック入力状態
   protected virtualInput: ControllerInputPayload = {
@@ -59,8 +61,9 @@ export class GameScene extends Phaser.Scene {
       enemyDamage: 25,
       lookAheadDistanceY: 240, // 上下方向の先行オフセット距離（画面高が低いため大きく確保）
       lookAheadDistanceX: 60, // 左右方向の先行オフセット距離（上下の1/4：横長画面のため控えめに設定）
-      maxLookSpeedY: 280, // 上下の急激なエイム反転による画面の跳ね上がりを防止する最大追従速度 (px/sec)
-      maxLookSpeedX: 120, // 左右の最大追従速度 (px/sec)
+      lookAheadSmoothTime: 0.14, // 視線先行カメラが目標オフセットに到達する目安時間（秒）
+      maxLookSpeedY: 420, // 上下の急激なエイム反転による画面の跳ね上がりを防止する最大追従速度 (px/sec)
+      maxLookSpeedX: 160, // 左右の最大追従速度 (px/sec)
     };
   }
 
@@ -276,8 +279,47 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
+   * 臨界減衰スプリング（SmoothDamp）計算
+   * 加速度的な滑らかさ（Ease-in-outのS字曲線）とオーバーシュート防止を両立
+   */
+  protected smoothDamp(
+    current: number,
+    target: number,
+    currentVelocity: number,
+    smoothTime: number,
+    maxSpeed: number,
+    deltaTime: number,
+  ): { value: number; velocity: number } {
+    const safeSmoothTime = Math.max(0.0001, smoothTime);
+    const omega = 2 / safeSmoothTime;
+
+    const x = omega * deltaTime;
+    const exp = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+
+    let change = current - target;
+    const originalTo = target;
+
+    // 最大速度制限による変化量のクランプ
+    const maxChange = maxSpeed * safeSmoothTime;
+    change = Phaser.Math.Clamp(change, -maxChange, maxChange);
+    const clampedTarget = current - change;
+
+    const temp = (currentVelocity + omega * change) * deltaTime;
+    let newVelocity = (currentVelocity - omega * temp) * exp;
+    let output = clampedTarget + (change + temp) * exp;
+
+    // オーバーシュート（目標を行き過ぎての揺れ戻し）を防止
+    if (originalTo - current > 0.0 === output > originalTo) {
+      output = originalTo;
+      newVelocity = (output - originalTo) / deltaTime;
+    }
+
+    return { value: output, velocity: newVelocity };
+  }
+
+  /**
    * カメラのプレイヤー追従 ＆ 視線方向への先行オフセット（Look-ahead）更新
-   * 急激なエイム反転による画面の上下跳ねを防止するため最大追従速度でクランプ
+   * SmoothDamp（臨界減衰スプリング）を用いて加速度的に滑らかに追従
    */
   protected updateCameraLookAhead(delta: number) {
     const params = this.getGameParameters();
@@ -300,26 +342,34 @@ export class GameScene extends Phaser.Scene {
     const targetOffsetX = Math.cos(currentAngle) * lookDistanceX;
     const targetOffsetY = Math.sin(currentAngle) * lookDistanceY;
 
-    // 目標オフセットとの差分
-    const diffX = targetOffsetX - this.currentLookOffsetX;
-    const diffY = targetOffsetY - this.currentLookOffsetY;
+    // 秒単位の delta time
+    const dt = delta / 1000;
+    if (dt <= 0) return;
 
-    // 1フレームあたりの最大変化量（ミリ秒deltaを考慮したフレームレート非依存の上限）
-    const maxDeltaX = (params.maxLookSpeedX * delta) / 1000;
-    const maxDeltaY = (params.maxLookSpeedY * delta) / 1000;
+    // SmoothDamp (臨界減衰スプリング) による非線形加速度補間
+    const dampX = this.smoothDamp(
+      this.currentLookOffsetX,
+      targetOffsetX,
+      this.currentLookVelocityX,
+      params.lookAheadSmoothTime,
+      params.maxLookSpeedX,
+      dt,
+    );
+    this.currentLookOffsetX = dampX.value;
+    this.currentLookVelocityX = dampX.velocity;
 
-    // 通常のLerp変化量（0.06）
-    let stepX = diffX * 0.06;
-    let stepY = diffY * 0.06;
+    const dampY = this.smoothDamp(
+      this.currentLookOffsetY,
+      targetOffsetY,
+      this.currentLookVelocityY,
+      params.lookAheadSmoothTime,
+      params.maxLookSpeedY,
+      dt,
+    );
+    this.currentLookOffsetY = dampY.value;
+    this.currentLookVelocityY = dampY.velocity;
 
-    // 上下に急激に振っても画面が跳ね上がらないよう最大速度でクランプ
-    stepX = Phaser.Math.Clamp(stepX, -maxDeltaX, maxDeltaX);
-    stepY = Phaser.Math.Clamp(stepY, -maxDeltaY, maxDeltaY);
-
-    this.currentLookOffsetX += stepX;
-    this.currentLookOffsetY += stepY;
-
-    // カメラ注視点は「自機の現在位置 ＋ 速度制限・補間された視線オフセット」へ即時配置
+    // カメラ注視点は「自機の現在位置 ＋ SmoothDamp補間された視線オフセット」へ即時配置
     this.cameraTarget.x = this.player.x + this.currentLookOffsetX;
     this.cameraTarget.y = this.player.y + this.currentLookOffsetY;
   }

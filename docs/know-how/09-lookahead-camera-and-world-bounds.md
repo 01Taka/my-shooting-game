@@ -24,41 +24,55 @@
 HPバー（`UIScene`）やバーチャルパッド（`ControllerScene`）を `GameScene` とは別の独立したシーンとして並行起動（`this.scene.launch()`）します。
 各オーバーレイシーンは独自の固定カメラ（原点 0, 0）を持つため、`GameScene` のメインカメラがワールドのどこを駆け巡っても、UIやコントローラーの位置は画面にピタッと固定されます。
 
-### ② 視線先行（Look-ahead）カメラの補間（Lerp）計算
+### ② 視線先行（Look-ahead）カメラの加速度的補間（SmoothDamp / 臨界減衰スプリング）
 
-自機の位置から視線方向へオフセットした「見えない注視点（`cameraTarget`）」を用意し、カメラはそのターゲットを滑らかな慣性（Lerp: 0.06〜0.08）で追従させます。
+自機の位置から視線方向へオフセットした「見えない注視点（`cameraTarget`）」を用意し、カメラはそのターゲットを物理的な臨界減衰スプリング（SmoothDamp）で追従させます。
+単純な線形Lerpと異なり、初速ゼロから滑らかに加速し、オーバーシュートなしで吸い付くように目標位置へ収束するため、激しいエイム反転でもカメラ酔いが発生しません。
 
 ```typescript
 // 1. カメラ設定: 自機位置には 1:1 即時同期（遅延ゼロ: lerp=1）
 this.cameras.main.setBounds(0, 0, worldSize, worldSize);
 this.cameras.main.startFollow(this.cameraTarget, false, 1, 1);
 
-// 2. update(time, delta) 内での注視点計算（自機位置と視線オフセットの分離 ＆ 最大追従速度クランプ）
+// 2. update(time, delta) 内での注視点計算（SmoothDampによる加速度的S字補間）
 const currentAngle = this.player.rotation - Math.PI / 2; // 自機の向いている角度
 
-// 上下方向は画面端までが狭いため大きく先行(240px)、左右は余裕があるため1/4程度(60px)に抑える
+// 上下方向は画面端までが狭いため大きく先行(240px)、左右は余裕があるため1/4程度(60px)に抑える（楕円軌道）
 const lookDistanceY = isShooting || isMoving ? 240 : 60;
 const lookDistanceX = isShooting || isMoving ? 60 : 15;
 
 const targetOffsetX = Math.cos(currentAngle) * lookDistanceX;
 const targetOffsetY = Math.sin(currentAngle) * lookDistanceY;
 
-// 目標との差分
-const diffX = targetOffsetX - this.currentLookOffsetX;
-const diffY = targetOffsetY - this.currentLookOffsetY;
+// 秒単位の deltaTime
+const dt = delta / 1000;
+if (dt > 0) {
+  // SmoothDamp (臨界減衰スプリング) で位置と速度を計算
+  const dampX = this.smoothDamp(
+    this.currentLookOffsetX,
+    targetOffsetX,
+    this.currentLookVelocityX,
+    0.14, // smoothTime (約140msで自然に到達)
+    160, // maxSpeedX (左右最大速度 px/sec)
+    dt,
+  );
+  this.currentLookOffsetX = dampX.value;
+  this.currentLookVelocityX = dampX.velocity;
 
-// 1フレームあたりの最大変化量（上下急旋回時のカメラ跳ね上がりを防止）
-const maxDeltaX = (120 * delta) / 1000;
-const maxDeltaY = (280 * delta) / 1000;
+  const dampY = this.smoothDamp(
+    this.currentLookOffsetY,
+    targetOffsetY,
+    this.currentLookVelocityY,
+    0.14, // smoothTime
+    420, // maxSpeedY (上下最大速度 px/sec)
+    dt,
+  );
+  this.currentLookOffsetY = dampY.value;
+  this.currentLookVelocityY = dampY.velocity;
+}
 
-let stepX = Phaser.Math.Clamp(diffX * 0.06, -maxDeltaX, maxDeltaX);
-let stepY = Phaser.Math.Clamp(diffY * 0.06, -maxDeltaY, maxDeltaY);
-
-this.currentLookOffsetX += stepX;
-this.currentLookOffsetY += stepY;
-
-// カメラ注視点は「プレイヤー現在位置 ＋ 補間・速度制限された視線オフセット」へ即時配置
-// （自機の移動には遅延ゼロで追従し、上下を急激に振っても画面が穏やかに追従する）
+// カメラ注視点は「プレイヤー現在位置 ＋ 加速度補間された視線オフセット」へ即時配置
+// （自機の移動には遅延ゼロで追従し、視線変更は滑らかかつキビキビと追従）
 this.cameraTarget.x = this.player.x + this.currentLookOffsetX;
 this.cameraTarget.y = this.player.y + this.currentLookOffsetY;
 ```
