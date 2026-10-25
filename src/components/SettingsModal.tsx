@@ -108,7 +108,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
           <button
             type="button"
             onClick={handleClose}
-            className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white active:scale-95"
             aria-label="閉じる"
           >
             <X className="h-5 w-5" />
@@ -304,17 +304,6 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
               className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-700 accent-sky-500"
             />
           </div>
-        </div>
-
-        {/* 固定フッター閉じるボタン */}
-        <div className="mt-3 flex flex-shrink-0 justify-end border-t border-slate-800 pt-2.5 sm:pt-3">
-          <button
-            type="button"
-            onClick={handleClose}
-            className="w-full rounded-xl bg-slate-800 py-2 text-xs font-medium text-slate-200 transition-colors hover:bg-slate-700 hover:text-white active:scale-[0.99] sm:py-2.5 sm:text-sm"
-          >
-            完了
-          </button>
         </div>
       </div>
     </div>
