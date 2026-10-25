@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 
-import { type JoystickType, useGameSettings } from "../stores/useGameSettings";
+import { useGameSettings } from "../stores/useGameSettings";
+import { type InputMode, useInputMode } from "../stores/useInputMode";
 import { addCrispText } from "../utils/text";
 
 export interface StickState {
@@ -19,7 +20,9 @@ export interface ControllerInputPayload {
 interface StickVisuals {
   container: Phaser.GameObjects.Container;
   baseBg: Phaser.GameObjects.Graphics;
+  label?: Phaser.GameObjects.Text;
   knob: Phaser.GameObjects.Container;
+  knobGraphics: Phaser.GameObjects.Graphics;
   aimIndicator?: Phaser.GameObjects.Graphics;
   pointerId: number | null;
   baseX: number; // 現在のスティック中心X
@@ -28,14 +31,22 @@ interface StickVisuals {
   originY: number; // デフォルトの初期配置Y
   maxRadius: number;
   deadZone: number;
+  baseRadius: number;
+  knobRadius: number;
+  baseColor: number;
+  borderColor: number;
+  knobColor: number;
+  labelText: string;
+  isAimStick: boolean;
   state: StickState;
 }
 
 export class ControllerScene extends Phaser.Scene {
   protected moveStick!: StickVisuals;
   protected shootStick!: StickVisuals;
-  protected joystickType: JoystickType = "dynamic";
+  protected inputMode: InputMode = "mobile";
   protected unsubscribeSettings?: () => void;
+  protected unsubscribeInputMode?: () => void;
 
   constructor() {
     super("ControllerScene");
@@ -82,10 +93,14 @@ export class ControllerScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const config = this.getStickConfig();
 
-    // 設定ストアからスティックタイプを同期
-    this.joystickType = useGameSettings.getState().joystickType;
-    this.unsubscribeSettings = useGameSettings.subscribe((state) => {
-      this.joystickType = state.joystickType;
+    // 入力モード（PC vs スマホ）の初期化と購読
+    this.inputMode = useInputMode.getState().mode;
+    this.unsubscribeInputMode = useInputMode.subscribe((state) => {
+      this.handleInputModeChange(state.mode);
+    });
+
+    // スティック固定/追従設定の購読
+    this.unsubscribeSettings = useGameSettings.subscribe(() => {
       this.resetAllSticks();
     });
 
@@ -121,6 +136,9 @@ export class ControllerScene extends Phaser.Scene {
       label: config.shoot.label,
       isAimStick: true,
     });
+
+    // モードに応じた初期ビジュアルを適用
+    this.applyModeVisuals();
 
     // 入力イベント（ポインターの割り当てと追従）
     this.input.on("pointerdown", this.handlePointerDown, this);
@@ -164,19 +182,8 @@ export class ControllerScene extends Phaser.Scene {
     } = options;
 
     const container = this.add.container(originX, originY);
-    container.setAlpha(0.6);
-
-    // ベース外枠 & ガイド
     const baseBg = this.add.graphics();
-    baseBg.fillStyle(baseColor, 0.45);
-    baseBg.fillCircle(0, 0, baseRadius);
-    baseBg.lineStyle(4, borderColor, 0.7);
-    baseBg.strokeCircle(0, 0, baseRadius);
-    baseBg.lineStyle(2, borderColor, 0.3);
-    baseBg.strokeCircle(0, 0, baseRadius * 0.5);
-    baseBg.lineStyle(1.5, borderColor, 0.25);
-    baseBg.lineBetween(-baseRadius * 0.75, 0, baseRadius * 0.75, 0);
-    baseBg.lineBetween(0, -baseRadius * 0.75, 0, baseRadius * 0.75);
+    container.add(baseBg);
 
     // スティック中央テキストラベル
     const stickLabel = addCrispText(this, 0, 0, label, {
@@ -185,8 +192,7 @@ export class ControllerScene extends Phaser.Scene {
       fontStyle: "bold",
       color: "#94a3b8",
     }).setOrigin(0.5);
-
-    container.add([baseBg, stickLabel]);
+    container.add(stickLabel);
 
     // 攻撃スティック用のエイム方向インジケーター（矢印）
     let aimIndicator: Phaser.GameObjects.Graphics | undefined;
@@ -199,20 +205,15 @@ export class ControllerScene extends Phaser.Scene {
     // ノブ（スティック頭）
     const knob = this.add.container(0, 0);
     const knobGraphics = this.add.graphics();
-    knobGraphics.fillStyle(knobColor, 0.85);
-    knobGraphics.fillCircle(0, 0, knobRadius);
-    knobGraphics.lineStyle(3.5, 0xffffff, 0.9);
-    knobGraphics.strokeCircle(0, 0, knobRadius);
-    knobGraphics.fillStyle(0xffffff, 0.8);
-    knobGraphics.fillCircle(0, 0, 7);
-
     knob.add(knobGraphics);
     container.add(knob);
 
     return {
       container,
       baseBg,
+      label: stickLabel,
       knob,
+      knobGraphics,
       aimIndicator,
       pointerId: null,
       baseX: originX,
@@ -221,6 +222,13 @@ export class ControllerScene extends Phaser.Scene {
       originY,
       maxRadius,
       deadZone,
+      baseRadius,
+      knobRadius,
+      baseColor,
+      borderColor,
+      knobColor,
+      labelText: label,
+      isAimStick,
       state: {
         x: 0,
         y: 0,
@@ -231,20 +239,119 @@ export class ControllerScene extends Phaser.Scene {
     };
   }
 
+  /**
+   * PCモード / スマホモードに応じたビジュアル描画の切り替え
+   */
+  protected applyModeVisuals() {
+    if (this.inputMode === "pc") {
+      // --- PCモード ---
+      // 1. 移動スティックは非表示
+      this.moveStick.container.setVisible(false);
+
+      // 2. 攻撃スティック: 中央ドットと外の円だけのシンプルなUI + 高透明度
+      this.shootStick.container.setVisible(true);
+      // 非操作時はクリックされるまで透明にして視界を遮らない
+      this.shootStick.container.setAlpha(0);
+
+      if (this.shootStick.label) {
+        this.shootStick.label.setVisible(false);
+      }
+
+      // 外枠のシンプルな円のみ
+      this.shootStick.baseBg.clear();
+      this.shootStick.baseBg.fillStyle(0x0f172a, 0.2);
+      this.shootStick.baseBg.fillCircle(0, 0, this.shootStick.baseRadius);
+      this.shootStick.baseBg.lineStyle(2, 0xffffff, 0.35);
+      this.shootStick.baseBg.strokeCircle(0, 0, this.shootStick.baseRadius);
+
+      // 中央ドット＋シンプルな外周円のノブ
+      this.shootStick.knobGraphics.clear();
+      this.shootStick.knobGraphics.fillStyle(0xf43f5e, 0.4);
+      this.shootStick.knobGraphics.fillCircle(0, 0, 26);
+      this.shootStick.knobGraphics.lineStyle(2, 0xffffff, 0.6);
+      this.shootStick.knobGraphics.strokeCircle(0, 0, 26);
+      this.shootStick.knobGraphics.fillStyle(0xffffff, 0.85);
+      this.shootStick.knobGraphics.fillCircle(0, 0, 5);
+    } else {
+      // --- スマホモード ---
+      // 1. 移動スティックを表示・描画
+      this.moveStick.container.setVisible(true);
+      this.moveStick.container.setAlpha(0.6);
+      this.drawFullStickGraphics(this.moveStick);
+
+      // 2. 攻撃スティックを標準モバイルUIで描画
+      this.shootStick.container.setVisible(true);
+      this.shootStick.container.setAlpha(0.6);
+      this.drawFullStickGraphics(this.shootStick);
+    }
+  }
+
+  /**
+   * モバイル向けのリッチなスティック描画（装飾線・ラベル等）
+   */
+  protected drawFullStickGraphics(stick: StickVisuals) {
+    if (stick.label) {
+      stick.label.setVisible(true);
+    }
+
+    stick.baseBg.clear();
+    stick.baseBg.fillStyle(stick.baseColor, 0.45);
+    stick.baseBg.fillCircle(0, 0, stick.baseRadius);
+    stick.baseBg.lineStyle(4, stick.borderColor, 0.7);
+    stick.baseBg.strokeCircle(0, 0, stick.baseRadius);
+    stick.baseBg.lineStyle(2, stick.borderColor, 0.3);
+    stick.baseBg.strokeCircle(0, 0, stick.baseRadius * 0.5);
+    stick.baseBg.lineStyle(1.5, stick.borderColor, 0.25);
+    stick.baseBg.lineBetween(-stick.baseRadius * 0.75, 0, stick.baseRadius * 0.75, 0);
+    stick.baseBg.lineBetween(0, -stick.baseRadius * 0.75, 0, stick.baseRadius * 0.75);
+
+    stick.knobGraphics.clear();
+    stick.knobGraphics.fillStyle(stick.knobColor, 0.85);
+    stick.knobGraphics.fillCircle(0, 0, stick.knobRadius);
+    stick.knobGraphics.lineStyle(3.5, 0xffffff, 0.9);
+    stick.knobGraphics.strokeCircle(0, 0, stick.knobRadius);
+    stick.knobGraphics.fillStyle(0xffffff, 0.8);
+    stick.knobGraphics.fillCircle(0, 0, 7);
+  }
+
+  /**
+   * 入力モード（PC vs スマホ）が変化した際のハンドラ
+   */
+  protected handleInputModeChange(newMode: InputMode) {
+    if (this.inputMode === newMode) return;
+    this.inputMode = newMode;
+    this.resetAllSticks();
+    this.applyModeVisuals();
+  }
+
   // ==========================================
   // タッチ/ポインターイベント処理
   // ==========================================
 
   protected handlePointerDown(pointer: Phaser.Input.Pointer) {
-    const { width } = this.scale;
+    const nativeEvent = pointer.event as PointerEvent | undefined;
+    const pointerType = nativeEvent?.pointerType;
 
-    // 画面左半分でタップされた場合 -> 移動スティックに割り当て
-    if (pointer.x < width / 2 && this.moveStick.pointerId === null) {
-      this.activateStick(this.moveStick, pointer);
+    // ネイティブPointerEventの種別により即座にモードを更新
+    if (pointerType === "touch") {
+      useInputMode.getState().setMode("mobile");
+    } else if (pointerType === "mouse") {
+      useInputMode.getState().setMode("pc");
     }
-    // 画面右半分でタップされた場合 -> 攻撃スティックに割り当て
-    else if (pointer.x >= width / 2 && this.shootStick.pointerId === null) {
-      this.activateStick(this.shootStick, pointer);
+
+    if (this.inputMode === "pc") {
+      // PCモード: 画面のどこをクリックしても攻撃スティックとして処理
+      if (this.shootStick.pointerId === null) {
+        this.activateStick(this.shootStick, pointer);
+      }
+    } else {
+      // スマホモード: 画面左半分で移動、画面右半分で攻撃
+      const { width } = this.scale;
+      if (pointer.x < width / 2 && this.moveStick.pointerId === null) {
+        this.activateStick(this.moveStick, pointer);
+      } else if (pointer.x >= width / 2 && this.shootStick.pointerId === null) {
+        this.activateStick(this.shootStick, pointer);
+      }
     }
   }
 
@@ -254,16 +361,18 @@ export class ControllerScene extends Phaser.Scene {
   protected activateStick(stick: StickVisuals, pointer: Phaser.Input.Pointer) {
     stick.pointerId = pointer.id;
 
-    // Dynamic モードの場合、タッチした座標にスティック中心を移動
-    if (this.joystickType === "dynamic") {
+    const isDynamic = useGameSettings.getState().joystickType === "dynamic";
+
+    // PCモード時、またはスマホでDynamicモードの場合はクリック位置を中心とする
+    if (this.inputMode === "pc" || isDynamic) {
       this.tweens.killTweensOf(stick.container);
       stick.baseX = pointer.x;
       stick.baseY = pointer.y;
       stick.container.setPosition(pointer.x, pointer.y);
     }
 
-    // 操作中はくっきり表示
-    stick.container.setAlpha(1.0);
+    // PCモードでは高透明度（0.38）、スマホではしっかり表示（1.0）
+    stick.container.setAlpha(this.inputMode === "pc" ? 0.38 : 1.0);
     this.updateStickPosition(stick, pointer.x, pointer.y);
     this.notifyGameScene();
   }
@@ -297,9 +406,11 @@ export class ControllerScene extends Phaser.Scene {
     let distance = Math.hypot(dx, dy);
     let angle = Math.atan2(dy, dx);
 
-    // Dynamic モードで指が最大半径を超えて移動した場合、
-    // ベース中心 (baseX, baseY) を指の方向にスライド追従させる（Full Dynamic追従）
-    if (this.joystickType === "dynamic" && distance > stick.maxRadius) {
+    const isDynamic = useGameSettings.getState().joystickType === "dynamic";
+
+    // PCモード時、またはスマホでDynamicモードの場合、
+    // 指/マウスが最大半径を超えて移動した分だけベース中心 (baseX, baseY) を追従移動
+    if ((this.inputMode === "pc" || isDynamic) && distance > stick.maxRadius) {
       const excess = distance - stick.maxRadius;
       stick.baseX += Math.cos(angle) * excess;
       stick.baseY += Math.sin(angle) * excess;
@@ -327,8 +438,8 @@ export class ControllerScene extends Phaser.Scene {
       stick.state.angle = angle;
       stick.state.force = force;
 
-      // 照準インジケーター（矢印）の更新
-      if (stick.aimIndicator) {
+      // 照準インジケーター（矢印）の更新（スマホモード時のみ表示）
+      if (stick.aimIndicator && this.inputMode === "mobile") {
         stick.aimIndicator.clear();
         stick.aimIndicator.setVisible(true);
 
@@ -377,23 +488,35 @@ export class ControllerScene extends Phaser.Scene {
       ease: Phaser.Math.Easing.Sine.Out,
     });
 
-    // Dynamic モードの場合、ベースをデフォルトの初期位置へスムーズに戻す
-    if (this.joystickType === "dynamic") {
+    if (this.inputMode === "pc") {
+      // PCモード: 操作終了時は速やかにフェードアウト（視界を確保）
       this.tweens.killTweensOf(stick.container);
       this.tweens.add({
         targets: stick.container,
-        x: stick.originX,
-        y: stick.originY,
-        alpha: 0.6,
-        duration: 200,
+        alpha: 0,
+        duration: 150,
         ease: Phaser.Math.Easing.Sine.Out,
-        onComplete: () => {
-          stick.baseX = stick.originX;
-          stick.baseY = stick.originY;
-        },
       });
     } else {
-      stick.container.setAlpha(0.6);
+      // スマホモード: Dynamic時は初期定位置へ滑らかに戻す
+      const isDynamic = useGameSettings.getState().joystickType === "dynamic";
+      if (isDynamic) {
+        this.tweens.killTweensOf(stick.container);
+        this.tweens.add({
+          targets: stick.container,
+          x: stick.originX,
+          y: stick.originY,
+          alpha: 0.6,
+          duration: 200,
+          ease: Phaser.Math.Easing.Sine.Out,
+          onComplete: () => {
+            stick.baseX = stick.originX;
+            stick.baseY = stick.originY;
+          },
+        });
+      } else {
+        stick.container.setAlpha(0.6);
+      }
     }
   }
 
@@ -411,6 +534,10 @@ export class ControllerScene extends Phaser.Scene {
     if (this.unsubscribeSettings) {
       this.unsubscribeSettings();
       this.unsubscribeSettings = undefined;
+    }
+    if (this.unsubscribeInputMode) {
+      this.unsubscribeInputMode();
+      this.unsubscribeInputMode = undefined;
     }
     this.input.off("pointerdown", this.handlePointerDown, this);
     this.input.off("pointermove", this.handlePointerMove, this);

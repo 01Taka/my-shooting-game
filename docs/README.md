@@ -44,6 +44,7 @@ docs/
 - [04. Phaser文字がぼやける原因とスーパーサンプリング(SSAA)技法](./know-how/04-phaser-text-blurriness-and-ssaa.md)
 - [05. Reactモーダルのタップ突き抜け防止とキャプチャフェーズの罠](./know-how/05-modal-input-pass-through-and-capture-trap.md)
 - [06. ツインバーチャルスティックとマルチタッチ制御](./know-how/06-virtual-twin-stick-multi-touch.md)
+- [07. タッチ操作とマウス操作の判定とUI出し分け](./know-how/07-detect-touch-vs-mouse-pointer-type.md)
 
 ### 📙 [dev-note/ (設計思想・思考フレームワーク)](./dev-note/README.md)
 

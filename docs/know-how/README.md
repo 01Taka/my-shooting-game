@@ -14,6 +14,7 @@
 | [**04. Phaser文字がぼやける原因とスーパーサンプリング(SSAA)技法**](./04-phaser-text-blurriness-and-ssaa.md)            | `Scale.FIT` 拡大や Retina 画面で文字がぼやける根本原因と、フォントを巨大サイズで描画して縮小するスーパーサンプリング技法の実装。                           |
 | [**05. Reactモーダルのタップ突き抜け防止とキャプチャフェーズの罠**](./05-modal-input-pass-through-and-capture-trap.md) | Phaser Canvas の上に React モーダルを重ねたときのタップ突き抜け防止法と、最外層で `capture: true` を使うとボタンが押せなくなる落とし穴の解説。             |
 | [**06. ツインバーチャルスティックとマルチタッチ制御**](./06-virtual-twin-stick-multi-touch.md)                         | 左右の親指で移動と攻撃を同時に操作するツインスティック設計。ポインターIDバインド、デッドゾーン、角度補正（Rotation）の汎用実装レシピ。                     |
+| [**07. タッチ操作とマウス操作の判定とUI出し分け**](./07-detect-touch-vs-mouse-pointer-type.md)                         | `pointerType`（Pointer Events API）によるタッチ/マウス判別と、CSS `hover`/`pointer` メディアクエリによる動的UI切り替え設計パターン。                       |
 
 ---
 
@@ -25,3 +26,4 @@
 - **「Phaserの文字がぼやけて粗い」** ➔ [04. Phaser文字がぼやける原因とSSAA技法](./04-phaser-text-blurriness-and-ssaa.md)
 - **「モーダルを開いているのに後ろのゲームが動く / モーダルの閉じるボタンが押せない」** ➔ [05. Reactモーダルのタップ突き抜け防止](./05-modal-input-pass-through-and-capture-trap.md)
 - **「両手でバーチャルスティックを操作すると指が競合する・スティックが戻らない」** ➔ [06. ツインバーチャルスティックとマルチタッチ制御](./06-virtual-twin-stick-multi-touch.md)
+- **「指でタップされたかマウスでクリックされたかを判別してUIを切り替えたい / 疑似クリックを防ぎたい」** ➔ [07. タッチ操作とマウス操作の判定とUI出し分け](./07-detect-touch-vs-mouse-pointer-type.md)

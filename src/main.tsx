@@ -4,6 +4,10 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import App from "./App.tsx";
+import { setupInputModeListener } from "./stores/useInputMode";
+
+// PC/スマホ入力モードの動的自動検出リスナー
+setupInputModeListener();
 
 // iOS Safariなどのマルチタッチピンチズーム・ジェスチャ操作を防止
 window.addEventListener("gesturestart", (e) => e.preventDefault());

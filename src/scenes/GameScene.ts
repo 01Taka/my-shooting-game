@@ -6,6 +6,12 @@ import type { ControllerInputPayload } from "./ControllerScene";
 export class GameScene extends Phaser.Scene {
   protected player!: Phaser.Physics.Arcade.Image;
   protected cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+  protected wasdKeys?: {
+    W: Phaser.Input.Keyboard.Key;
+    A: Phaser.Input.Keyboard.Key;
+    S: Phaser.Input.Keyboard.Key;
+    D: Phaser.Input.Keyboard.Key;
+  };
   protected bullets!: Phaser.Physics.Arcade.Group;
   protected enemies!: Phaser.Physics.Arcade.Group;
   protected score = 0;
@@ -137,11 +143,19 @@ export class GameScene extends Phaser.Scene {
       vx = this.virtualInput.move.x * params.playerSpeed;
       vy = this.virtualInput.move.y * params.playerSpeed;
     } else {
-      // キーボード（カーソルキー）入力
-      const isLeft = Boolean(this.cursors && this.cursors.left.isDown);
-      const isRight = Boolean(this.cursors && this.cursors.right.isDown);
-      const isUp = Boolean(this.cursors && this.cursors.up.isDown);
-      const isDown = Boolean(this.cursors && this.cursors.down.isDown);
+      // キーボード（カーソルキー & WASD）入力
+      const isLeft = Boolean(
+        (this.cursors && this.cursors.left.isDown) || (this.wasdKeys && this.wasdKeys.A.isDown),
+      );
+      const isRight = Boolean(
+        (this.cursors && this.cursors.right.isDown) || (this.wasdKeys && this.wasdKeys.D.isDown),
+      );
+      const isUp = Boolean(
+        (this.cursors && this.cursors.up.isDown) || (this.wasdKeys && this.wasdKeys.W.isDown),
+      );
+      const isDown = Boolean(
+        (this.cursors && this.cursors.down.isDown) || (this.wasdKeys && this.wasdKeys.S.isDown),
+      );
 
       if (isLeft) vx -= params.playerSpeed;
       if (isRight) vx += params.playerSpeed;
@@ -266,9 +280,20 @@ export class GameScene extends Phaser.Scene {
     this.setupCollisions();
     this.setupGameTimers();
 
-    // キーボード入力初期化
+    // キーボード入力初期化（カーソルキー & WASD）
     if (this.input.keyboard) {
       this.cursors = this.input.keyboard.createCursorKeys();
+      this.wasdKeys = this.input.keyboard.addKeys({
+        W: Phaser.Input.Keyboard.KeyCodes.W,
+        A: Phaser.Input.Keyboard.KeyCodes.A,
+        S: Phaser.Input.Keyboard.KeyCodes.S,
+        D: Phaser.Input.Keyboard.KeyCodes.D,
+      }) as {
+        W: Phaser.Input.Keyboard.Key;
+        A: Phaser.Input.Keyboard.Key;
+        S: Phaser.Input.Keyboard.Key;
+        D: Phaser.Input.Keyboard.Key;
+      };
     }
 
     // ControllerScene からのイベントを受信
