@@ -73,7 +73,7 @@ export class ControllerScene extends Phaser.Scene {
         label: "MOVE",
       },
       lockOn: {
-        xOffset: 200,
+        xOffset: 380, // スティック1つ分（直径180px）画面中央寄りに配置し誤タップを防止
         yOffset: 200,
         baseRadius: 90,
         knobRadius: 42,
