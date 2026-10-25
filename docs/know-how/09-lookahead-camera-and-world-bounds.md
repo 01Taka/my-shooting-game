@@ -33,12 +33,15 @@ HPバー（`UIScene`）やバーチャルパッド（`ControllerScene`）を `Ga
 this.cameras.main.setBounds(0, 0, worldSize, worldSize);
 this.cameras.main.startFollow(this.cameraTarget, true, 0.08, 0.08);
 
-// 2. update() 内での注視点計算
+// 2. update() 内での注視点計算（横長16:9画面に対応した楕円Look-ahead）
 const currentAngle = this.player.rotation - Math.PI / 2; // 自機の向いている角度
-const lookDistance = 240; // 前方に広げる視野距離
 
-const desiredTargetX = this.player.x + Math.cos(currentAngle) * lookDistance;
-const desiredTargetY = this.player.y + Math.sin(currentAngle) * lookDistance;
+// 上下方向は画面端までが狭いため大きく先行(240px)、左右は余裕があるため1/4程度(60px)に抑える
+const lookDistanceY = 240;
+const lookDistanceX = 60;
+
+const desiredTargetX = this.player.x + Math.cos(currentAngle) * lookDistanceX;
+const desiredTargetY = this.player.y + Math.sin(currentAngle) * lookDistanceY;
 
 // 慣性（Linear Interpolation）を効かせて滑らかに移動
 this.cameraTarget.x = Phaser.Math.Linear(this.cameraTarget.x, desiredTargetX, 0.06);

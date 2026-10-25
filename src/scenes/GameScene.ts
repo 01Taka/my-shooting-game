@@ -53,7 +53,8 @@ export class GameScene extends Phaser.Scene {
       enemySpeedMax: 320,
       enemyScore: 100,
       enemyDamage: 25,
-      lookAheadDistance: 240, // 視線方向へのカメラ先行オフセット距離
+      lookAheadDistanceY: 240, // 上下方向の先行オフセット距離（画面高が低いため大きく確保）
+      lookAheadDistanceX: 60, // 左右方向の先行オフセット距離（上下の1/4：横長画面のため控えめに設定）
     };
   }
 
@@ -284,10 +285,12 @@ export class GameScene extends Phaser.Scene {
       this.virtualInput.move.active;
     const isShooting = this.virtualInput.shoot.active || this.input.activePointer.isDown;
 
-    const lookDistance = isShooting || isMoving ? params.lookAheadDistance : 60;
+    // 上下方向は大きく追従（240px）、左右方向は1/4程度（60px）に抑え、最大距離の位置が楕円軌道を描くように設定
+    const lookDistanceY = isShooting || isMoving ? params.lookAheadDistanceY : 60;
+    const lookDistanceX = isShooting || isMoving ? params.lookAheadDistanceX : 15;
 
-    const desiredTargetX = this.player.x + Math.cos(currentAngle) * lookDistance;
-    const desiredTargetY = this.player.y + Math.sin(currentAngle) * lookDistance;
+    const desiredTargetX = this.player.x + Math.cos(currentAngle) * lookDistanceX;
+    const desiredTargetY = this.player.y + Math.sin(currentAngle) * lookDistanceY;
 
     // 慣性（Lerp 0.06）をつけて滑らかにカメラの注視点を移動
     this.cameraTarget.x = Phaser.Math.Linear(this.cameraTarget.x, desiredTargetX, 0.06);
