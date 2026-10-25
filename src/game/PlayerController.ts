@@ -121,8 +121,11 @@ export class PlayerController {
     }
 
     // --- 3. 自機の向き（ローテーション）制御 ---
-    if (lockedTarget && lockedTarget.active) {
-      // ロックオン対象が存在すれば、常にその敵の方を向く
+    if (isAiming) {
+      // ロックオンスティック操作中は、ロック中の敵に関わらずスティックの方向を向く
+      player.setRotation(aimAngle + Math.PI / 2);
+    } else if (lockedTarget && lockedTarget.active) {
+      // スティックから指を離している間は、ロックオン対象の方を向く
       const angleToTarget = Phaser.Math.Angle.Between(
         player.x,
         player.y,
@@ -130,9 +133,6 @@ export class PlayerController {
         lockedTarget.y,
       );
       player.setRotation(angleToTarget + Math.PI / 2);
-    } else if (isAiming) {
-      // 索敵中はエイム方向を向く
-      player.setRotation(aimAngle + Math.PI / 2);
     } else if (isPcCursorFollow) {
       player.setRotation(aimAngle + Math.PI / 2);
     } else if (this.virtualInput.move.active) {

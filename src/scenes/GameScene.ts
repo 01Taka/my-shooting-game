@@ -296,13 +296,14 @@ export class GameScene extends Phaser.Scene {
     // 3. ロックオン維持判定 ＆ レティクルアニメーション描画
     this.lockOnManager.update(this.player, delta, this);
 
-    // 4. カメラの先行オフセット更新（ロック対象への吸着 ＆ 静止時の中央復帰）
+    // 4. カメラの先行オフセット更新（スティック操作中はスティック優先、指離し時はロック敵へ吸着、ロックなし時は中央固定）
     this.cameraManager.update(
       this.player,
       inputState.isMoving,
       inputState.isAiming,
       delta,
       this.lockOnManager.getLockedTarget(),
+      inputState.aimAngle,
     );
 
     // 5. 弾薬・敵のフレーム更新（生存距離・追従AI判定）

@@ -39,35 +39,33 @@ export class CameraManager {
 
   /**
    * 毎フレームの視線先行（Look-ahead）オフセット計算
-   * ロックオン対象がいる場合は対象方向へ吸着、静止時は中央へ自然復帰
+   * - スティック操作中: ロック中の敵に関係なくスティック方向へオフセット
+   * - 指離し時 ＆ ロックオン中: ロック対象の方向へオフセット
+   * - ロックオンされていない時: 移動中であってもオフセットなし（自機中央固定）
    */
   update(
     player: Phaser.Physics.Arcade.Image,
-    isMoving: boolean,
+    _isMoving: boolean,
     isAiming: boolean,
     delta: number,
     lockedTarget: Phaser.Physics.Arcade.Image | null = null,
+    aimAngle?: number,
   ): void {
     let targetOffsetX: number;
     let targetOffsetY: number;
 
-    if (lockedTarget && lockedTarget.active) {
-      // 1. ロックオン対象が存在する場合: 対象の方向へカメラを先行吸着
+    if (isAiming) {
+      // 1. スティック操作中: ロック中の敵に関係なく、スティックの倒した方向へオフセット
+      const angle = typeof aimAngle === "number" ? aimAngle : player.rotation - Math.PI / 2;
+      targetOffsetX = Math.cos(angle) * this.config.lookAheadDistanceX;
+      targetOffsetY = Math.sin(angle) * this.config.lookAheadDistanceY;
+    } else if (lockedTarget && lockedTarget.active) {
+      // 2. スティック非操作時 ＆ ロックオン中の敵がいる場合: 対象の方向へ先行吸着
       const angleToTarget = Math.atan2(lockedTarget.y - player.y, lockedTarget.x - player.x);
       targetOffsetX = Math.cos(angleToTarget) * this.config.lookAheadDistanceX;
       targetOffsetY = Math.sin(angleToTarget) * this.config.lookAheadDistanceY;
-    } else if (isAiming) {
-      // 2. スティック操作中（索敵モード）: スティックの倒した方向へカメラを先行
-      const currentAngle = player.rotation - Math.PI / 2;
-      targetOffsetX = Math.cos(currentAngle) * this.config.lookAheadDistanceX;
-      targetOffsetY = Math.sin(currentAngle) * this.config.lookAheadDistanceY;
-    } else if (isMoving) {
-      // 3. 移動中: 自機の移動方向へ少しだけカメラを先行
-      const currentAngle = player.rotation - Math.PI / 2;
-      targetOffsetX = Math.cos(currentAngle) * (this.config.lookAheadDistanceX * 0.5);
-      targetOffsetY = Math.sin(currentAngle) * (this.config.lookAheadDistanceY * 0.5);
     } else {
-      // 4. 完全静止時: オフセット (0, 0) へ戻り、プレイヤーを中央に配置
+      // 3. ロックオンされている敵がいなければ、移動中であってもオフセットなし（自機中央固定）
       targetOffsetX = 0;
       targetOffsetY = 0;
     }
