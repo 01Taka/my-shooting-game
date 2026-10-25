@@ -9,6 +9,7 @@ interface GameSettingsState {
   bgmMuted: boolean;
   seMuted: boolean;
   joystickType: JoystickType;
+  followCursor: boolean;
   isOpen: boolean;
 
   setBgmVolume: (volume: number) => void;
@@ -16,6 +17,8 @@ interface GameSettingsState {
   toggleBgmMute: () => void;
   toggleSeMute: () => void;
   setJoystickType: (type: JoystickType) => void;
+  setFollowCursor: (enabled: boolean) => void;
+  toggleFollowCursor: () => void;
   openSettings: () => void;
   closeSettings: () => void;
   toggleSettings: () => void;
@@ -29,6 +32,7 @@ export const useGameSettings = create<GameSettingsState>()(
       bgmMuted: false,
       seMuted: false,
       joystickType: "dynamic",
+      followCursor: true,
       isOpen: false,
 
       setBgmVolume: (volume) => set({ bgmVolume: Math.max(0, Math.min(100, volume)) }),
@@ -36,6 +40,8 @@ export const useGameSettings = create<GameSettingsState>()(
       toggleBgmMute: () => set((state) => ({ bgmMuted: !state.bgmMuted })),
       toggleSeMute: () => set((state) => ({ seMuted: !state.seMuted })),
       setJoystickType: (type) => set({ joystickType: type }),
+      setFollowCursor: (enabled) => set({ followCursor: enabled }),
+      toggleFollowCursor: () => set((state) => ({ followCursor: !state.followCursor })),
       openSettings: () => set({ isOpen: true }),
       closeSettings: () => set({ isOpen: false }),
       toggleSettings: () => set((state) => ({ isOpen: !state.isOpen })),
@@ -48,6 +54,7 @@ export const useGameSettings = create<GameSettingsState>()(
         bgmMuted: state.bgmMuted,
         seMuted: state.seMuted,
         joystickType: state.joystickType,
+        followCursor: state.followCursor,
       }),
     },
   ),

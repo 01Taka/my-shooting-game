@@ -99,9 +99,10 @@ export class ControllerScene extends Phaser.Scene {
       this.handleInputModeChange(state.mode);
     });
 
-    // スティック固定/追従設定の購読
+    // 設定（スティック固定/追従、カーソル追従）の購読
     this.unsubscribeSettings = useGameSettings.subscribe(() => {
       this.resetAllSticks();
+      this.applyModeVisuals();
     });
 
     // 複数指のマルチタッチに対応
@@ -244,34 +245,39 @@ export class ControllerScene extends Phaser.Scene {
    */
   protected applyModeVisuals() {
     if (this.inputMode === "pc") {
-      // --- PCモード ---
+      const isCursorFollow = useGameSettings.getState().followCursor;
+
       // 1. 移動スティックは非表示
       this.moveStick.container.setVisible(false);
 
-      // 2. 攻撃スティック: 中央ドットと外の円だけのシンプルなUI + 高透明度
-      this.shootStick.container.setVisible(true);
-      // 非操作時はクリックされるまで透明にして視界を遮らない
-      this.shootStick.container.setAlpha(0);
+      if (isCursorFollow) {
+        // カーソル追従有効時: スティック操作は無効のため攻撃スティックも非表示
+        this.shootStick.container.setVisible(false);
+      } else {
+        // 2. カーソル追従無効時: 中央ドットと外の円だけのシンプルなUI + 高透明度
+        this.shootStick.container.setVisible(true);
+        this.shootStick.container.setAlpha(0);
 
-      if (this.shootStick.label) {
-        this.shootStick.label.setVisible(false);
+        if (this.shootStick.label) {
+          this.shootStick.label.setVisible(false);
+        }
+
+        // 外枠のシンプルな円のみ
+        this.shootStick.baseBg.clear();
+        this.shootStick.baseBg.fillStyle(0x0f172a, 0.2);
+        this.shootStick.baseBg.fillCircle(0, 0, this.shootStick.baseRadius);
+        this.shootStick.baseBg.lineStyle(2, 0xffffff, 0.35);
+        this.shootStick.baseBg.strokeCircle(0, 0, this.shootStick.baseRadius);
+
+        // 中央ドット＋シンプルな外周円のノブ
+        this.shootStick.knobGraphics.clear();
+        this.shootStick.knobGraphics.fillStyle(0xf43f5e, 0.4);
+        this.shootStick.knobGraphics.fillCircle(0, 0, 26);
+        this.shootStick.knobGraphics.lineStyle(2, 0xffffff, 0.6);
+        this.shootStick.knobGraphics.strokeCircle(0, 0, 26);
+        this.shootStick.knobGraphics.fillStyle(0xffffff, 0.85);
+        this.shootStick.knobGraphics.fillCircle(0, 0, 5);
       }
-
-      // 外枠のシンプルな円のみ
-      this.shootStick.baseBg.clear();
-      this.shootStick.baseBg.fillStyle(0x0f172a, 0.2);
-      this.shootStick.baseBg.fillCircle(0, 0, this.shootStick.baseRadius);
-      this.shootStick.baseBg.lineStyle(2, 0xffffff, 0.35);
-      this.shootStick.baseBg.strokeCircle(0, 0, this.shootStick.baseRadius);
-
-      // 中央ドット＋シンプルな外周円のノブ
-      this.shootStick.knobGraphics.clear();
-      this.shootStick.knobGraphics.fillStyle(0xf43f5e, 0.4);
-      this.shootStick.knobGraphics.fillCircle(0, 0, 26);
-      this.shootStick.knobGraphics.lineStyle(2, 0xffffff, 0.6);
-      this.shootStick.knobGraphics.strokeCircle(0, 0, 26);
-      this.shootStick.knobGraphics.fillStyle(0xffffff, 0.85);
-      this.shootStick.knobGraphics.fillCircle(0, 0, 5);
     } else {
       // --- スマホモード ---
       // 1. 移動スティックを表示・描画
@@ -340,8 +346,9 @@ export class ControllerScene extends Phaser.Scene {
     }
 
     if (this.inputMode === "pc") {
-      // PCモード: 画面のどこをクリックしても攻撃スティックとして処理
-      if (this.shootStick.pointerId === null) {
+      const isCursorFollow = useGameSettings.getState().followCursor;
+      // PCモードかつカーソル追従有効時はGameSceneが直接マウスクリックを処理するためスティックは無視
+      if (!isCursorFollow && this.shootStick.pointerId === null) {
         this.activateStick(this.shootStick, pointer);
       }
     } else {

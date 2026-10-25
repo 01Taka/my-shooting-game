@@ -2,6 +2,7 @@ import { Maximize2, Minimize2, Settings, Volume2, VolumeX, X } from "lucide-reac
 import React, { useEffect, useState } from "react";
 
 import { useGameSettings } from "../stores/useGameSettings";
+import { useInputMode } from "../stores/useInputMode";
 
 interface SettingsModalProps {
   onClose?: () => void;
@@ -9,7 +10,16 @@ interface SettingsModalProps {
 
 export function SettingsModal({ onClose }: SettingsModalProps) {
   const settings = useGameSettings();
+  const inputMode = useInputMode((s) => s.mode);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // スマホ版では「カーソルを追従」はONのままdisabled
+  const isMobile = inputMode === "mobile";
+  const cursorFollowActive = isMobile ? true : settings.followCursor;
+  const cursorFollowDisabled = isMobile;
+
+  // PC版かつカーソル追従が有効な場合、スティック操作はdisabled
+  const joystickDisabled = inputMode === "pc" && settings.followCursor;
 
   // ==========================================
   // ゲーム特有の設定画面カスタマイズ定義
@@ -134,10 +144,66 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
             </button>
           </div>
 
+          {/* カーソルを追従設定（PC版設定） */}
+          <div
+            className={`rounded-xl border border-slate-700/50 bg-slate-800/60 p-3 transition-opacity ${
+              cursorFollowDisabled ? "opacity-60" : ""
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-slate-200">カーソルを追従</span>
+                  {isMobile && (
+                    <span className="rounded bg-slate-700 px-1.5 py-0.5 text-[10px] text-slate-300">
+                      スマホ版（無効）
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-slate-400">
+                  {cursorFollowActive ? "マウス位置へ直接エイム" : "マウス操作スティックを使用"}
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={cursorFollowDisabled}
+                onClick={settings.toggleFollowCursor}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  cursorFollowActive ? "bg-sky-600" : "bg-slate-700"
+                } ${cursorFollowDisabled ? "cursor-not-allowed opacity-75" : "cursor-pointer"}`}
+                aria-label="カーソルを追従の切り替え"
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    cursorFollowActive ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+            <div className="mt-1.5 text-[11px] text-slate-400">
+              {isMobile
+                ? "※ スマホ版では常に左右のバーチャルスティック操作が優先されます。"
+                : cursorFollowActive
+                  ? "マウスポインターの位置へ自機が直接エイムし、クリックで射撃します。"
+                  : "マウスクリックでバーチャルスティックを倒して操作します。"}
+            </div>
+          </div>
+
           {/* スティック操作形式切り替え */}
-          <div className="rounded-xl border border-slate-700/50 bg-slate-800/60 p-3">
+          <div
+            className={`rounded-xl border border-slate-700/50 bg-slate-800/60 p-3 transition-opacity ${
+              joystickDisabled ? "opacity-50" : ""
+            }`}
+          >
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-200">スティック操作</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-slate-200">スティック操作</span>
+                {joystickDisabled && (
+                  <span className="rounded bg-slate-700 px-1.5 py-0.5 text-[10px] text-slate-300">
+                    無効（カーソル追従中）
+                  </span>
+                )}
+              </div>
               <span className="text-xs text-slate-400">
                 {settings.joystickType === "dynamic" ? "指の位置に追従" : "画面端に固定"}
               </span>
@@ -145,31 +211,35 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
+                disabled={joystickDisabled}
                 onClick={() => settings.setJoystickType("dynamic")}
                 className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${
                   settings.joystickType === "dynamic"
                     ? "bg-sky-600 text-white shadow"
                     : "bg-slate-700/60 text-slate-300 hover:bg-slate-700 hover:text-white"
-                }`}
+                } ${joystickDisabled ? "cursor-not-allowed" : ""}`}
               >
                 追従（Dynamic）
               </button>
               <button
                 type="button"
+                disabled={joystickDisabled}
                 onClick={() => settings.setJoystickType("fixed")}
                 className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${
                   settings.joystickType === "fixed"
                     ? "bg-sky-600 text-white shadow"
                     : "bg-slate-700/60 text-slate-300 hover:bg-slate-700 hover:text-white"
-                }`}
+                } ${joystickDisabled ? "cursor-not-allowed" : ""}`}
               >
                 固定（Fixed）
               </button>
             </div>
             <div className="mt-1.5 text-[11px] text-slate-400">
-              {settings.joystickType === "dynamic"
-                ? "タッチした位置からスティックが始まり、指の移動に合わせてベースが追従します。"
-                : "画面下部の定位置にあるスティックを操作します。"}
+              {joystickDisabled
+                ? "※ カーソル追従がONのため、スティック操作設定は無効化されています。"
+                : settings.joystickType === "dynamic"
+                  ? "タッチした位置からスティックが始まり、指の移動に合わせてベースが追従します。"
+                  : "画面下部の定位置にあるスティックを操作します。"}
             </div>
           </div>
 

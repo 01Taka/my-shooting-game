@@ -1,6 +1,8 @@
 import Phaser from "phaser";
 
 import { EventBus } from "../EventBus";
+import { useGameSettings } from "../stores/useGameSettings";
+import { useInputMode } from "../stores/useInputMode";
 import type { ControllerInputPayload } from "./ControllerScene";
 
 export class GameScene extends Phaser.Scene {
@@ -171,9 +173,17 @@ export class GameScene extends Phaser.Scene {
 
     this.player.setVelocity(vx, vy);
 
+    const isPcCursorFollow =
+      useInputMode.getState().mode === "pc" && useGameSettings.getState().followCursor;
+
     // --- 2. 自機の向き（ローテーション）制御 ---
-    // 攻撃スティックが倒されている場合はその向きを優先、なければ移動方向を向く
-    if (this.virtualInput.shoot.active) {
+    if (isPcCursorFollow) {
+      const pointer = this.input.activePointer;
+      if (pointer && (pointer.x !== 0 || pointer.y !== 0)) {
+        const aimAngle = Math.atan2(pointer.y - this.player.y, pointer.x - this.player.x);
+        this.player.setRotation(aimAngle + Math.PI / 2);
+      }
+    } else if (this.virtualInput.shoot.active) {
       // 自機画像は上向き(0度=右に対して-90度)を基準に作成されているため +PI/2 で補正
       this.player.setRotation(this.virtualInput.shoot.angle + Math.PI / 2);
     } else if (this.virtualInput.move.active) {
@@ -186,11 +196,20 @@ export class GameScene extends Phaser.Scene {
     // --- 3. 射撃制御 ---
     const isKeyboardShoot = Boolean(this.cursors && this.cursors.space.isDown);
     const isVirtualShoot = this.virtualInput.shoot.active;
+    const isMouseShoot = isPcCursorFollow && Boolean(this.input.activePointer.isDown);
 
-    if ((isVirtualShoot || isKeyboardShoot) && time > this.lastFired) {
-      const shootAngle = isVirtualShoot
-        ? this.virtualInput.shoot.angle
-        : this.player.rotation - Math.PI / 2;
+    if ((isVirtualShoot || isKeyboardShoot || isMouseShoot) && time > this.lastFired) {
+      let shootAngle: number;
+      if (isMouseShoot) {
+        shootAngle = Math.atan2(
+          this.input.activePointer.y - this.player.y,
+          this.input.activePointer.x - this.player.x,
+        );
+      } else if (isVirtualShoot) {
+        shootAngle = this.virtualInput.shoot.angle;
+      } else {
+        shootAngle = this.player.rotation - Math.PI / 2;
+      }
 
       this.fireBullet(shootAngle, params.bulletSpeed);
       this.lastFired = time + params.fireRateMs;
