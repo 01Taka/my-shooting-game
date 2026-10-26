@@ -9,6 +9,12 @@ import {
   ATTACK_PAD_INNER_RING_RATIO,
   ATTACK_PAD_LABEL_OFFSET,
   ATTACK_PAD_RADIUS,
+  BLINK_PAD_COLOR,
+  BLINK_PAD_DEPTH,
+  BLINK_PAD_DISABLED_COLOR,
+  BLINK_PAD_INNER_RING_RATIO,
+  BLINK_PAD_LABEL_OFFSET,
+  BLINK_PAD_RADIUS,
   CONTROLLER_MAX_POINTERS,
   LOCKON_STICK_BASE_COLOR,
   LOCKON_STICK_BASE_RADIUS,
@@ -104,6 +110,15 @@ export class ControllerScene extends Phaser.Scene {
   protected attackPadBg!: Phaser.GameObjects.Graphics;
   protected attackPadLabel!: Phaser.GameObjects.Text;
   protected readonly attackPadRadius = ATTACK_PAD_RADIUS; // 画面右下の角を中心とする攻撃扇形の半径
+
+  // 画面右上の1/4円ブリンクパッド
+  protected blinkPadContainer!: Phaser.GameObjects.Container;
+  protected blinkPadBg!: Phaser.GameObjects.Graphics;
+  protected blinkPadLabel!: Phaser.GameObjects.Text;
+  protected readonly blinkPadRadius = BLINK_PAD_RADIUS; // 画面右上の角を中心とするブリンク扇形の半径
+  protected blinkPointerIds = new Set<number>();
+  protected isBlinkReady = true;
+
   protected stickTouchStartTime = 0;
 
   constructor() {
@@ -180,6 +195,15 @@ export class ControllerScene extends Phaser.Scene {
 
     // --- 画面右下: 1/4円の攻撃パッド ---
     this.createAttackPad(width, height);
+
+    // --- 画面右上: 1/4円のブリンクパッド ---
+    this.createBlinkPad(width, height);
+
+    // GameScene からのブリンク可能状態通知を受信
+    const gameScene = this.scene.get("GameScene");
+    if (gameScene) {
+      gameScene.events.on("blink-state-updated", this.handleBlinkStateUpdate, this);
+    }
 
     // --- 左側: 移動バーチャルスティック ---
     this.moveStick = this.createVirtualStick({
@@ -303,6 +327,85 @@ export class ControllerScene extends Phaser.Scene {
   }
 
   /**
+   * 画面右上の1/4円ブリンクパッドの生成
+   */
+  protected createBlinkPad(width: number, _height: number) {
+    this.blinkPadContainer = this.add.container(0, 0);
+    this.blinkPadContainer.setDepth(BLINK_PAD_DEPTH);
+
+    this.blinkPadBg = this.add.graphics();
+    this.blinkPadContainer.add(this.blinkPadBg);
+
+    // 「BLINK」ラベルテキスト
+    this.blinkPadLabel = addCrispText(
+      this,
+      width - BLINK_PAD_LABEL_OFFSET,
+      BLINK_PAD_LABEL_OFFSET,
+      "BLINK",
+      {
+        fontFamily: "monospace",
+        fontSize: "20px",
+        color: "#ffffff",
+        fontStyle: "bold",
+      },
+    ).setOrigin(0.5);
+    this.blinkPadContainer.add(this.blinkPadLabel);
+
+    this.drawBlinkPadGraphics(false);
+  }
+
+  /**
+   * ブリンクパッドの扇形グラフィック描画
+   */
+  protected drawBlinkPadGraphics(isPressed: boolean) {
+    const { width } = this.scale;
+    this.blinkPadBg.clear();
+
+    const canBlink = this.isBlinkReady;
+    const baseColor = canBlink ? BLINK_PAD_COLOR : BLINK_PAD_DISABLED_COLOR;
+    const fillAlpha = isPressed ? 0.65 : canBlink ? 0.35 : 0.15;
+    const strokeAlpha = isPressed ? 0.95 : canBlink ? 0.75 : 0.3;
+
+    this.blinkPadBg.fillStyle(baseColor, fillAlpha);
+    this.blinkPadBg.lineStyle(4, baseColor, strokeAlpha);
+
+    // 右上の角 (width, 0) を中心とする 1/4 円（Math.PI * 0.5 〜 Math.PI）
+    this.blinkPadBg.beginPath();
+    this.blinkPadBg.moveTo(width, 0);
+    this.blinkPadBg.arc(width, 0, this.blinkPadRadius, Math.PI * 0.5, Math.PI);
+    this.blinkPadBg.closePath();
+    this.blinkPadBg.fillPath();
+    this.blinkPadBg.strokePath();
+
+    // 内側の装飾アークライン
+    this.blinkPadBg.lineStyle(2, 0xffffff, isPressed ? 0.8 : canBlink ? 0.45 : 0.18);
+    this.blinkPadBg.beginPath();
+    this.blinkPadBg.arc(
+      width,
+      0,
+      this.blinkPadRadius * BLINK_PAD_INNER_RING_RATIO,
+      Math.PI * 0.5,
+      Math.PI,
+    );
+    this.blinkPadBg.strokePath();
+
+    if (this.blinkPadLabel) {
+      this.blinkPadLabel.setColor(canBlink ? "#ffffff" : "#94a3b8");
+      this.blinkPadLabel.setAlpha(canBlink ? 1.0 : 0.5);
+    }
+  }
+
+  /**
+   * ブリンク可能状態（メーター1/2以上）の変化を受け取ってビジュアルを更新
+   */
+  protected handleBlinkStateUpdate(ready: boolean) {
+    if (this.isBlinkReady !== ready) {
+      this.isBlinkReady = ready;
+      this.drawBlinkPadGraphics(this.blinkPointerIds.size > 0);
+    }
+  }
+
+  /**
    * バーチャルスティック表示オブジェクトの生成
    */
   protected createVirtualStick(options: {
@@ -405,7 +508,12 @@ export class ControllerScene extends Phaser.Scene {
       const isCursorFollow = useGameSettings.getState().followCursor;
 
       this.moveStick.container.setVisible(false);
-      this.attackPadContainer.setVisible(false);
+      this.attackPadContainer.setVisible(true);
+      this.attackPadContainer.setAlpha(0.65);
+      this.blinkPadContainer.setVisible(true);
+      this.blinkPadContainer.setAlpha(0.65);
+      this.drawAttackPadGraphics(this.attackPointerIds.size > 0);
+      this.drawBlinkPadGraphics(this.blinkPointerIds.size > 0);
 
       if (isCursorFollow) {
         this.lockOnStick.container.setVisible(false);
@@ -438,9 +546,15 @@ export class ControllerScene extends Phaser.Scene {
       // --- スマホモード ---
       // 1. 右下攻撃パッドを表示
       this.attackPadContainer.setVisible(true);
+      this.attackPadContainer.setAlpha(1.0);
       this.drawAttackPadGraphics(this.attackPointerIds.size > 0);
 
-      // 2. 移動スティックを表示
+      // 2. 右上ブリンクパッドを表示
+      this.blinkPadContainer.setVisible(true);
+      this.blinkPadContainer.setAlpha(1.0);
+      this.drawBlinkPadGraphics(this.blinkPointerIds.size > 0);
+
+      // 3. 移動スティックを表示
       this.moveStick.container.setVisible(true);
       this.moveStick.container.setAlpha(0.6);
       this.drawFullStickGraphics(this.moveStick);
@@ -519,7 +633,19 @@ export class ControllerScene extends Phaser.Scene {
       useInputMode.getState().setMode("pc");
     }
 
-    // --- 武器選択スティックのタップ判定（優先度最高） ---
+    const { width, height } = this.scale;
+    const distFromTopRight = Math.hypot(width - pointer.x, pointer.y);
+    const distFromBottomRight = Math.hypot(width - pointer.x, height - pointer.y);
+
+    // 画面右上の1/4円: ブリンク発動（PC / スマホ共通でクリック/タップ可能）
+    if (distFromTopRight <= this.blinkPadRadius) {
+      this.blinkPointerIds.add(pointer.id);
+      this.drawBlinkPadGraphics(true);
+      this.triggerBlink();
+      return;
+    }
+
+    // --- 武器選択スティックのタップ判定 ---
     const distToWeaponStick = Math.hypot(
       pointer.x - this.weaponStick.originX,
       pointer.y - this.weaponStick.originY,
@@ -533,6 +659,13 @@ export class ControllerScene extends Phaser.Scene {
     }
 
     if (this.inputMode === "pc") {
+      if (distFromBottomRight <= this.attackPadRadius) {
+        this.attackPointerIds.add(pointer.id);
+        this.drawAttackPadGraphics(true);
+        this.notifyGameScene();
+        return;
+      }
+
       const isCursorFollow = useGameSettings.getState().followCursor;
       if (!isCursorFollow && this.lockOnStick.pointerId === null) {
         this.activateStick(this.lockOnStick, pointer);
@@ -543,13 +676,10 @@ export class ControllerScene extends Phaser.Scene {
       // - 画面右半分:
       //   - 右下1/4円の内側: 攻撃パッド（タップ/長押し連射）
       //   - 右下1/4円の外側: ダイナミック・ロックオンスティック
-      const { width, height } = this.scale;
       if (pointer.x < width / 2 && this.moveStick.pointerId === null) {
         this.activateStick(this.moveStick, pointer);
       } else if (pointer.x >= width / 2) {
-        const distFromCorner = Math.hypot(width - pointer.x, height - pointer.y);
-
-        if (distFromCorner <= this.attackPadRadius) {
+        if (distFromBottomRight <= this.attackPadRadius) {
           // 1/4円の内側: 攻撃発動
           this.attackPointerIds.add(pointer.id);
           this.drawAttackPadGraphics(true);
@@ -618,7 +748,18 @@ export class ControllerScene extends Phaser.Scene {
       this.attackPointerIds.delete(pointer.id);
       this.drawAttackPadGraphics(this.attackPointerIds.size > 0);
       this.notifyGameScene();
+    } else if (this.blinkPointerIds.has(pointer.id)) {
+      this.blinkPointerIds.delete(pointer.id);
+      this.drawBlinkPadGraphics(this.blinkPointerIds.size > 0);
     }
+  }
+
+  /**
+   * ブリンク発動イベントをGameSceneへ通知
+   */
+  protected triggerBlink() {
+    const gameScene = this.scene.get("GameScene");
+    gameScene?.events.emit("controller-blink");
   }
 
   /**
@@ -815,11 +956,17 @@ export class ControllerScene extends Phaser.Scene {
     if (this.lockOnStick) this.releaseStick(this.lockOnStick);
     this.attackPointerIds.clear();
     this.drawAttackPadGraphics(false);
+    this.blinkPointerIds.clear();
+    this.drawBlinkPadGraphics(false);
     this.notifyGameScene();
   }
 
   protected cleanup() {
     this.resetAllSticks();
+    const gameScene = this.scene.get("GameScene");
+    if (gameScene) {
+      gameScene.events.off("blink-state-updated", this.handleBlinkStateUpdate, this);
+    }
     if (this.unsubscribeSettings) {
       this.unsubscribeSettings();
       this.unsubscribeSettings = undefined;
