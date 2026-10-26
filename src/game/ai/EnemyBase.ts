@@ -236,6 +236,14 @@ export abstract class EnemyBase extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
+  /**
+   * HPがゼロになった（撃破された）際に呼ばれるフック
+   * @returns true を返すと即時 destroy() を保留し、自爆や死亡アニメ等の後処理を自身で制御する
+   */
+  public handleDeath(): boolean {
+    return false;
+  }
+
   /** アイスメーターの自然減衰と timeScale の更新（減衰自体は実時間 delta で進む） */
   private updateIceMeter(delta: number): void {
     if (this.iceMeter > 0) {

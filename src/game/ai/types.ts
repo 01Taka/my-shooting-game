@@ -27,6 +27,8 @@ export interface GameContext {
   damageZoneManager?: DamageZoneManager;
   trapManager?: TrapManager;
   scene?: Phaser.Scene;
+  /** 生存中の全敵オブジェクトを取得するコールバック（射線遮蔽判定等で使用） */
+  getEnemies?: () => Phaser.GameObjects.GameObject[];
   [key: string]: unknown;
 }
 

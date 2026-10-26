@@ -27,7 +27,12 @@ import {
   SHADOW_COLOR,
 } from "../constants";
 import { EventBus } from "../EventBus";
-import { generatePredatorTextures } from "../game/ai";
+import {
+  generateBipedalWolfTextures,
+  generateBomberTextures,
+  generatePredatorTextures,
+  generateRangerTextures,
+} from "../game/ai";
 import { addCrispText } from "../utils/text";
 
 export class PreloadScene extends Phaser.Scene {
@@ -300,6 +305,9 @@ export class PreloadScene extends Phaser.Scene {
     // 4. 生物クリーチャー敵グラフィック（Predator敵モジュールから一括生成）
     // ----------------------------------------------------
     generatePredatorTextures(this);
+    generateBomberTextures(this);
+    generateBipedalWolfTextures(this);
+    generateRangerTextures(this);
 
     // ----------------------------------------------------
     // 6. プロシージャル土の地面テクスチャ（シームレスタイリング）

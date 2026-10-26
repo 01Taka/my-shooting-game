@@ -19,7 +19,13 @@ import {
   type CharacterDirection,
   type DirectionalMode,
 } from "../utils/directionalSprite";
-import { createPredatorEnemy, Enemy, EnemyBase } from "./ai";
+import {
+  createBipedalWolfEnemy,
+  createBomberEnemy,
+  createRangerEnemy,
+  Enemy,
+  EnemyBase,
+} from "./ai";
 import type { BulletManager } from "./BulletManager";
 import type { DamageZoneManager } from "./damageZone/DamageZoneManager";
 import type { TrapManager } from "./trap/TrapManager";
@@ -113,24 +119,46 @@ export class EnemyManager {
     shadow.setDepth(DEPTH_SHADOW);
 
     const mode: DirectionalMode = this.config.directionalMode ?? "horizontal2";
-    const initialTexture = mode === "horizontal2" ? "enemy_right" : "enemy_front_right";
     const initialDir: CharacterDirection = mode === "horizontal2" ? "right" : "front_right";
 
-    // マイクロステートマシン × 耐性システム対応の Predator 敵を生成
-    const enemy = createPredatorEnemy(
-      this.scene,
-      clampedX,
-      clampedY,
-      { stunResistance: 20, slowResistance: 15 },
-      initialTexture,
-    );
+    // マイクロステートマシン × 耐性システム対応の敵を均等確率でスポーン
+    // Bomber (自爆特攻), BipedalWolf (大一歩旋回制限攻撃), Ranger (狙撃・射線迂回・近接カウンター)
+    const roll = Math.random();
+    let enemy: EnemyBase;
+    if (roll < 0.34) {
+      enemy = createBomberEnemy(
+        this.scene,
+        clampedX,
+        clampedY,
+        { stunResistance: 10, slowResistance: 10 },
+        "bomber_right",
+      );
+      enemy.directionalMode = "horizontal2";
+      enemy.direction = "right";
+    } else if (roll < 0.67) {
+      enemy = createBipedalWolfEnemy(
+        this.scene,
+        clampedX,
+        clampedY,
+        { stunResistance: 30, slowResistance: 25 },
+        "wolf_right",
+      );
+      enemy.directionalMode = "horizontal2";
+      enemy.direction = "right";
+    } else {
+      enemy = createRangerEnemy(
+        this.scene,
+        clampedX,
+        clampedY,
+        { stunResistance: 15, slowResistance: 20 },
+        "ranger_right",
+      );
+      enemy.directionalMode = "horizontal2";
+      enemy.direction = "right";
+    }
     this.enemies.add(enemy);
 
     if (enemy) {
-      if (enemy instanceof EnemyBase) {
-        enemy.directionalMode = mode;
-        enemy.direction = initialDir;
-      }
       const speed = Phaser.Math.Between(this.config.speedMin, this.config.speedMax);
       enemy.setData("speed", speed);
       enemy.setData("hp", this.config.hp);
@@ -164,11 +192,21 @@ export class EnemyManager {
   ): { isDead: boolean; x: number; y: number } {
     const x = enemy.x;
     const y = enemy.y;
+
+    // すでに死亡処理中（自爆シーケンス中等）の敵は追撃を受け付けない
+    if (enemy.getData("isDying")) {
+      return { isDead: false, x, y };
+    }
+
     const currentHp = (enemy.getData("hp") as number | undefined) ?? this.config.hp;
     const newHp = currentHp - amount;
     enemy.setData("hp", newHp);
 
     if (newHp <= 0) {
+      // 死亡時フック（自爆シーケンス等）が存在し true を返した場合は即時 destroy を委任
+      if (enemy instanceof EnemyBase && enemy.handleDeath()) {
+        return { isDead: true, x, y };
+      }
       // 影は enemy の destroy リスナーで自動削除される
       enemy.destroy();
       return { isDead: true, x, y };
@@ -237,6 +275,7 @@ export class EnemyManager {
               damageZoneManager: this.damageZoneManager,
               trapManager: this.trapManager,
               scene: this.scene,
+              getEnemies: () => this.enemies.getChildren(),
             },
             delta,
           );

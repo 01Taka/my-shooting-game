@@ -76,8 +76,12 @@ export class ActionEffectSprite {
     y: number,
     initialTexture: string,
     resolver?: ActionAnimResolver,
+    origin?: { x: number; y: number },
   ) {
     this.image = scene.add.image(x, y, initialTexture);
+    if (origin) {
+      this.image.setOrigin(origin.x, origin.y);
+    }
     this.resolver = resolver;
     this.currentTextureKey = initialTexture;
   }
