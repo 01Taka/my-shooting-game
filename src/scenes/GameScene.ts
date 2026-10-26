@@ -272,6 +272,7 @@ export class GameScene extends Phaser.Scene {
   // ==========================================
 
   create() {
+    this.physics.resume();
     const params = this.getGameParameters();
 
     this.score = 0;

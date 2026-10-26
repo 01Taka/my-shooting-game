@@ -139,7 +139,7 @@ export class UIScene extends Phaser.Scene {
 
     EventBus.on("score-updated", onScoreUpdate);
 
-    this.events.on("shutdown", () => {
+    this.events.once("shutdown", () => {
       EventBus.off("score-updated", onScoreUpdate);
     });
   }

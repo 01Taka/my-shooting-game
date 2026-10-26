@@ -261,7 +261,7 @@ export class ControllerScene extends Phaser.Scene {
 
     // ポーズや非表示時のリセット
     this.events.on("pause", this.resetAllSticks, this);
-    this.events.on("shutdown", this.cleanup, this);
+    this.events.once("shutdown", this.cleanup, this);
   }
 
   /**
@@ -296,6 +296,7 @@ export class ControllerScene extends Phaser.Scene {
    * 攻撃パッドの扇形グラフィック描画
    */
   protected drawAttackPadGraphics(isPressed: boolean) {
+    if (!this.sys || !this.sys.isActive() || !this.attackPadBg) return;
     const { width, height } = this.scale;
     this.attackPadBg.clear();
 
@@ -358,6 +359,7 @@ export class ControllerScene extends Phaser.Scene {
    * ブリンクパッドの扇形グラフィック描画
    */
   protected drawBlinkPadGraphics(isPressed: boolean) {
+    if (!this.sys || !this.sys.isActive() || !this.blinkPadBg) return;
     const { width } = this.scale;
     this.blinkPadBg.clear();
 
@@ -389,7 +391,13 @@ export class ControllerScene extends Phaser.Scene {
     );
     this.blinkPadBg.strokePath();
 
-    if (this.blinkPadLabel) {
+    if (
+      this.blinkPadLabel &&
+      this.blinkPadLabel.scene &&
+      this.blinkPadLabel.active &&
+      this.sys &&
+      this.sys.isActive()
+    ) {
       this.blinkPadLabel.setColor(canBlink ? "#ffffff" : "#94a3b8");
       this.blinkPadLabel.setAlpha(canBlink ? 1.0 : 0.5);
     }
@@ -949,6 +957,8 @@ export class ControllerScene extends Phaser.Scene {
    * 全スティックのリセット
    */
   protected resetAllSticks() {
+    if (!this.sys || !this.sys.isActive()) return;
+
     if (this.weaponStick && this.weaponStick.pointerId !== null) {
       this.releaseWeaponStick();
     }
@@ -962,7 +972,12 @@ export class ControllerScene extends Phaser.Scene {
   }
 
   protected cleanup() {
-    this.resetAllSticks();
+    this.attackPointerIds.clear();
+    this.blinkPointerIds.clear();
+    if (this.weaponStick) this.weaponStick.pointerId = null;
+    if (this.moveStick) this.moveStick.pointerId = null;
+    if (this.lockOnStick) this.lockOnStick.pointerId = null;
+
     const gameScene = this.scene.get("GameScene");
     if (gameScene) {
       gameScene.events.off("blink-state-updated", this.handleBlinkStateUpdate, this);
