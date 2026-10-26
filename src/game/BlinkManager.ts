@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 
 import { AudioManager } from "../audio/AudioManager";
-import { PLAYER_TEXTURE_SIZE } from "../constants";
+import { DEPTH_EFFECTS, DEPTH_OBJECT, PLAYER_TEXTURE_SIZE } from "../constants";
 import type { PlayerController } from "./PlayerController";
 import type { PlayerStatusHUD } from "./PlayerStatusHUD";
 import type { BlinkConfig } from "./types";
@@ -147,6 +147,7 @@ export class BlinkManager {
   ): void {
     // 1. 出発地点の残像（アフターイメージ）
     const ghost = this.scene.add.image(startX, startY, "player");
+    ghost.setDepth(DEPTH_OBJECT);
     ghost.setRotation(playerRotation);
     ghost.setTint(0xd946ef);
     ghost.setAlpha(0.7);
@@ -162,6 +163,7 @@ export class BlinkManager {
 
     // 2. テレポート軌跡（高速ワープライン）
     const warpLine = this.scene.add.graphics();
+    warpLine.setDepth(DEPTH_EFFECTS);
     warpLine.lineStyle(4, 0xf43f5e, 0.85);
     warpLine.lineBetween(startX, startY, targetX, targetY);
     warpLine.lineStyle(2, 0xffffff, 0.95);
@@ -176,6 +178,7 @@ export class BlinkManager {
 
     // 3. 到達地点のショックウェーブリング
     const ring = this.scene.add.graphics();
+    ring.setDepth(DEPTH_EFFECTS);
     ring.lineStyle(3, 0xd946ef, 0.9);
     ring.strokeCircle(targetX, targetY, 20);
     this.scene.tweens.add({

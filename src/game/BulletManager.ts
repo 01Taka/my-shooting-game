@@ -6,6 +6,7 @@ import {
   BULLET_DETUNE_RANGE,
   BULLET_MAX_DISTANCE,
   BULLET_SPAWN_OFFSET,
+  DEPTH_BULLET,
   WEAPON_DEFINITIONS,
 } from "../constants";
 import type { BulletConfig, WeaponDefinition, WeaponType } from "./types";
@@ -92,6 +93,7 @@ export class BulletManager {
     if (bullet) {
       bullet.setActive(true);
       bullet.setVisible(true);
+      bullet.setDepth(DEPTH_BULLET);
       bullet.setScale(scale);
       bullet.setTint(tintColor);
       bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);

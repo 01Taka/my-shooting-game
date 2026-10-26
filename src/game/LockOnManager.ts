@@ -19,6 +19,9 @@ import {
   LOCKON_SECONDARY_ALPHA,
   LOCKON_SECONDARY_COLOR,
   LOCKON_STABLE_SAMPLE_OFFSET_MS,
+  SHADOW_OFFSET_X,
+  SHADOW_OFFSET_Y,
+  SHADOW_SCALE_Y,
 } from "../constants";
 import type { LockOnConfig } from "./types";
 
@@ -320,68 +323,63 @@ export class LockOnManager {
     // レティクルの回転アニメーション
     this.animAngle += (delta / 1000) * LOCKON_ROTATION_SPEED;
 
-    // --- ターゲットレティクル描画 ---
-    const tx = target.x;
-    const ty = target.y;
-    const size = LOCKON_RETICLE_SIZE;
+    // --- 疑似2.5次元 地面設置型ターゲットレティクル描画 ---
+    // 敵本体の中心ではなく、敵の足元（地面の接地位置）を基準に描画
+    const gx = target.x + SHADOW_OFFSET_X;
+    const gy = target.y + SHADOW_OFFSET_Y;
+    const rx = LOCKON_RETICLE_SIZE;
+    const ry = rx * SHADOW_SCALE_Y; // 斜め見下ろし（2.5D）の扁平楕円
 
-    // 1. 赤〜オレンジのサイバー系照準枠
+    // 1. 地面のロックオン楕円リング（外周パルス枠）
     this.reticleGraphics.lineStyle(LOCKON_LINE_WIDTH, LOCKON_PRIMARY_COLOR, LOCKON_PRIMARY_ALPHA);
+    this.reticleGraphics.strokeEllipse(gx, gy, rx * 2, ry * 2);
 
-    // 四隅のコーナーブラケット [ ]
+    // 2. 地面リング上の回転ブラケット（4つのサイバーコーナーマーク）
     const bracketLen = LOCKON_BRACKET_LENGTH;
-    // 左上
-    this.reticleGraphics.strokeLineShape(
-      new Phaser.Geom.Line(tx - size, ty - size + bracketLen, tx - size, ty - size),
-    );
-    this.reticleGraphics.strokeLineShape(
-      new Phaser.Geom.Line(tx - size, ty - size, tx - size + bracketLen, ty - size),
-    );
-    // 右上
-    this.reticleGraphics.strokeLineShape(
-      new Phaser.Geom.Line(tx + size, ty - size + bracketLen, tx + size, ty - size),
-    );
-    this.reticleGraphics.strokeLineShape(
-      new Phaser.Geom.Line(tx + size, ty - size, tx + size - bracketLen, ty - size),
-    );
-    // 左下
-    this.reticleGraphics.strokeLineShape(
-      new Phaser.Geom.Line(tx - size, ty + size - bracketLen, tx - size, ty + size),
-    );
-    this.reticleGraphics.strokeLineShape(
-      new Phaser.Geom.Line(tx - size, ty + size, tx - size + bracketLen, ty + size),
-    );
-    // 右下
-    this.reticleGraphics.strokeLineShape(
-      new Phaser.Geom.Line(tx + size, ty + size - bracketLen, tx + size, ty + size),
-    );
-    this.reticleGraphics.strokeLineShape(
-      new Phaser.Geom.Line(tx + size, ty + size, tx + size - bracketLen, ty + size),
-    );
+    for (let i = 0; i < 4; i++) {
+      const angle = this.animAngle + (i * Math.PI) / 2;
+      const cornerX = gx + Math.cos(angle) * (rx + 4);
+      const cornerY = gy + Math.sin(angle) * (ry + 3);
+      // 楕円接線方向と法線方向のL字グラウンドマーカー
+      const tangentX = -Math.sin(angle) * (bracketLen * 0.7);
+      const tangentY = Math.cos(angle) * (bracketLen * 0.7 * SHADOW_SCALE_Y);
+      this.reticleGraphics.strokeLineShape(
+        new Phaser.Geom.Line(cornerX, cornerY, cornerX + tangentX, cornerY + tangentY),
+      );
+    }
 
-    // 2. 中央の回転ドット/十字インジケーター
+    // 3. 地面の内側回転インジケーター（同心楕円 ＋ 4方向の目盛り）
     this.reticleGraphics.lineStyle(
       LOCKON_INNER_LINE_WIDTH,
       LOCKON_SECONDARY_COLOR,
       LOCKON_SECONDARY_ALPHA,
     );
-    const innerRadius = LOCKON_INNER_RADIUS;
+    const innerRx = LOCKON_INNER_RADIUS;
+    const innerRy = innerRx * SHADOW_SCALE_Y;
+    this.reticleGraphics.strokeEllipse(gx, gy, innerRx * 2, innerRy * 2);
+
     for (let i = 0; i < 4; i++) {
-      const a = this.animAngle + (i * Math.PI) / 2;
-      const x1 = tx + Math.cos(a) * LOCKON_INNER_OFFSET;
-      const y1 = ty + Math.sin(a) * LOCKON_INNER_OFFSET;
-      const x2 = tx + Math.cos(a) * innerRadius;
-      const y2 = ty + Math.sin(a) * innerRadius;
+      const a = -this.animAngle + (i * Math.PI) / 2;
+      const x1 = gx + Math.cos(a) * (LOCKON_INNER_OFFSET * 0.8);
+      const y1 = gy + Math.sin(a) * (LOCKON_INNER_OFFSET * 0.8 * SHADOW_SCALE_Y);
+      const x2 = gx + Math.cos(a) * innerRx;
+      const y2 = gy + Math.sin(a) * innerRy;
       this.reticleGraphics.strokeLineShape(new Phaser.Geom.Line(x1, y1, x2, y2));
     }
 
-    // 3. プレイヤーからターゲットへのガイドレーザー点線（薄いライン）
+    // 4. 地面マーカーから敵本体（空中）への垂直ホログラムビーム（2.5Dの高低差を強調）
+    this.reticleGraphics.lineStyle(1.5, LOCKON_PRIMARY_COLOR, 0.4);
+    this.reticleGraphics.strokeLineShape(new Phaser.Geom.Line(gx, gy, target.x, target.y));
+
+    // 5. プレイヤーから敵へのガイドレーザーライン（足元の接地点と本体の両方へ接続）
     this.reticleGraphics.lineStyle(
       LOCKON_GUIDE_LINE_WIDTH,
       LOCKON_PRIMARY_COLOR,
       LOCKON_GUIDE_ALPHA,
     );
-    this.reticleGraphics.strokeLineShape(new Phaser.Geom.Line(player.x, player.y, tx, ty));
+    this.reticleGraphics.strokeLineShape(
+      new Phaser.Geom.Line(player.x, player.y, target.x, target.y),
+    );
   }
 
   /**

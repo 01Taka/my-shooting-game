@@ -18,6 +18,9 @@ import {
   CAMERA_MAX_LOOK_SPEED_Y,
   CAMERA_SHAKE_DURATION_MS,
   CAMERA_SHAKE_INTENSITY,
+  DEPTH_GROUND,
+  DEPTH_OBJECT,
+  DEPTH_SHADOW,
   ENEMY_DAMAGE,
   ENEMY_HP,
   ENEMY_SCORE,
@@ -30,6 +33,8 @@ import {
   LOCKON_SECTOR_ANGLE_DEG,
   PLAYER_INITIAL_HP,
   PLAYER_SPEED,
+  SHADOW_OFFSET_X,
+  SHADOW_OFFSET_Y,
   WORLD_BORDER_ALPHA,
   WORLD_BORDER_COLOR,
   WORLD_BORDER_WIDTH,
@@ -53,8 +58,9 @@ import type { ControllerInputPayload } from "./ControllerScene";
 const WEAPON_ORDER: WeaponType[] = ["spread", "normal", "heavy", "rapid"];
 
 export class GameScene extends Phaser.Scene {
-  protected readonly worldSize = WORLD_SIZE; // 広大な宇宙空間
+  protected readonly worldSize = WORLD_SIZE; // 広大なワールドマップ
   protected player!: Phaser.Physics.Arcade.Image;
+  protected playerShadow!: Phaser.GameObjects.Image; // 疑似2.5次元 プレイヤーの影
 
   // 分割された責任マネージャー群
   protected cameraManager!: CameraManager;
@@ -133,16 +139,27 @@ export class GameScene extends Phaser.Scene {
     const params = this.getGameParameters();
     const center = this.worldSize / 2;
 
-    // 宇宙空間背景の敷き詰め
-    this.add.tileSprite(center, center, this.worldSize, this.worldSize, "starfield");
+    // 土の地面背景の敷き詰め（シームレスタイリング）
+    const ground = this.add.tileSprite(center, center, this.worldSize, this.worldSize, "ground");
+    ground.setDepth(DEPTH_GROUND);
 
-    // ワールド境界の可視フェンス（世界の果てを示すボーダー線）
+    // ワールド境界の可視フェンス（世界の果てを示す境界線）
     const border = this.add.graphics();
+    border.setDepth(DEPTH_GROUND + 1);
     border.lineStyle(WORLD_BORDER_WIDTH, WORLD_BORDER_COLOR, WORLD_BORDER_ALPHA);
     border.strokeRect(0, 0, this.worldSize, this.worldSize);
 
+    // 疑似2.5次元 自機（プレイヤー）の影を作成（地面に投影）
+    this.playerShadow = this.add.image(
+      center + SHADOW_OFFSET_X,
+      center + SHADOW_OFFSET_Y,
+      "player_shadow",
+    );
+    this.playerShadow.setDepth(DEPTH_SHADOW);
+
     // プレイヤー作成 (中央スタート 2000, 2000)
     this.player = this.physics.add.image(center, center, "player");
+    this.player.setDepth(DEPTH_OBJECT);
     this.player.setCollideWorldBounds(true);
 
     // カメラマネージャーの初期化（自機即時追従 ＋ SmoothDamp視線先行）
@@ -264,7 +281,7 @@ export class GameScene extends Phaser.Scene {
     } else if (typeof shootAngle === "number") {
       finalAngle = shootAngle;
     } else {
-      finalAngle = this.player.rotation - Math.PI / 2;
+      finalAngle = this.playerController ? this.playerController.getFacingAngle() : 0;
     }
 
     this.bulletManager.fire(this.player.x, this.player.y, finalAngle);
@@ -397,6 +414,7 @@ export class GameScene extends Phaser.Scene {
 
     // シーン破棄時のクリーンアップ（1度だけ実行）
     this.events.once("shutdown", () => {
+      this.playerShadow?.destroy();
       this.enemyManager?.destroy();
       this.bulletManager?.destroy();
       this.cameraManager?.destroy();
@@ -438,6 +456,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   protected gameOver() {
+    this.playerShadow?.setVisible(false);
     this.enemyManager.pause();
     this.physics.pause();
 
@@ -502,9 +521,25 @@ export class GameScene extends Phaser.Scene {
       inputState.aimAngle,
     );
 
-    // 5. 弾薬・敵のフレーム更新（生存距離・追従AI判定）
+    // 5. 弾薬・敵のフレーム更新（生存距離・追従AI判定・2.5次元影とホバリング）
     this.bulletManager.update(this.player.x, this.player.y, this.worldSize);
-    this.enemyManager.update(this.player);
+    this.enemyManager.update(this.player, time);
+
+    // 疑似2.5次元 プレイヤーのホバリング浮遊 ＆ 影の追従・スケール連動
+    const playerBob = Math.sin(time * 0.005) * 2.5;
+    this.player.setDisplayOrigin(this.player.width / 2, this.player.height / 2 - playerBob);
+
+    if (this.playerShadow && this.playerShadow.active) {
+      this.playerShadow.setPosition(
+        this.player.x + SHADOW_OFFSET_X,
+        this.player.y + SHADOW_OFFSET_Y,
+      );
+      this.playerShadow.setRotation(0);
+      const bobFactor = 1.0 - (playerBob / 2.5) * 0.06;
+      const shadowScale = this.player.scaleX * bobFactor;
+      this.playerShadow.setScale(shadowScale, shadowScale * 0.85);
+      this.playerShadow.setAlpha(0.44 - (playerBob / 2.5) * 0.05);
+    }
 
     // 6. ブリンクメーターの更新（時間経過自動回復＆HUD同期）
     this.blinkManager.update(delta, this.playerStatusHUD);

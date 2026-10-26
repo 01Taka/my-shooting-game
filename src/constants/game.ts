@@ -5,13 +5,28 @@
 // 画面解像度・背景
 export const GAME_WIDTH = 1600;
 export const GAME_HEIGHT = 900;
-export const GAME_BACKGROUND_COLOR = "#0f172a";
+export const GAME_BACKGROUND_COLOR = "#23180f";
 
 // ワールド設定
 export const WORLD_SIZE = 4000;
 export const WORLD_BORDER_WIDTH = 8;
-export const WORLD_BORDER_COLOR = 0x38bdf8;
+export const WORLD_BORDER_COLOR = 0x8d5c32;
 export const WORLD_BORDER_ALPHA = 0.7;
+
+// レイヤー深度（疑似2.5次元用 Zオーダー）
+export const DEPTH_GROUND = 0;
+export const DEPTH_SHADOW = 2;
+export const DEPTH_LOCKON_GROUND = 4;
+export const DEPTH_OBJECT = 10;
+export const DEPTH_BULLET = 20;
+export const DEPTH_EFFECTS = 30;
+
+// 疑似2.5次元・影パラメータ
+export const SHADOW_OFFSET_X = 10;
+export const SHADOW_OFFSET_Y = 20;
+export const SHADOW_ALPHA = 0.45;
+export const SHADOW_COLOR = 0x140c06;
+export const SHADOW_SCALE_Y = 0.55;
 
 // 自機（プレイヤー）設定
 export const PLAYER_INITIAL_HP = 100;
@@ -133,12 +148,12 @@ export const LOCKON_OUT_OF_SCREEN_BREAK_DISTANCE = 1000;
 export const LOCKON_FLICK_THRESHOLD_MS = 160;
 export const LOCKON_HISTORY_CUTOFF_MS = 160;
 export const LOCKON_STABLE_SAMPLE_OFFSET_MS = 70;
-export const LOCKON_DEPTH = 50;
+export const LOCKON_DEPTH = DEPTH_LOCKON_GROUND;
 export const LOCKON_ROTATION_SPEED = 2.5;
-export const LOCKON_RETICLE_SIZE = 32;
+export const LOCKON_RETICLE_SIZE = 34;
 export const LOCKON_BRACKET_LENGTH = 10;
-export const LOCKON_INNER_RADIUS = 14;
-export const LOCKON_INNER_OFFSET = 6;
+export const LOCKON_INNER_RADIUS = 16;
+export const LOCKON_INNER_OFFSET = 7;
 export const LOCKON_PRIMARY_COLOR = 0xf43f5e;
 export const LOCKON_PRIMARY_ALPHA = 0.9;
 export const LOCKON_SECONDARY_COLOR = 0xfb7185;
@@ -148,9 +163,19 @@ export const LOCKON_LINE_WIDTH = 2.5;
 export const LOCKON_INNER_LINE_WIDTH = 1.5;
 export const LOCKON_GUIDE_LINE_WIDTH = 1;
 
-// スターフィールド背景設定
-export const STARFIELD_TEXTURE_SIZE = 512;
-export const STARFIELD_BG_COLOR = 0x090d16;
+// 土の地面背景設定（シームレス・プロシージャル）
+export const GROUND_TEXTURE_SIZE = 512;
+export const DIRT_BASE_COLOR = 0x4f3622;
+export const DIRT_PATCH_COUNT = 36;
+export const DIRT_PEBBLE_COUNT = 90;
+export const DIRT_GRAIN_COUNT = 350;
+export const DIRT_CRACK_COUNT = 8;
+export const DIRT_PATCH_COLORS = [0x422d1b, 0x5a3f2b, 0x3b2615, 0x664933, 0x4b3421];
+export const DIRT_PEBBLE_COLORS = [0x28190d, 0x7a5b3f, 0x332012, 0x8f6d4d, 0x1e1208];
+
+// 後方互換用スターフィールド定数
+export const STARFIELD_TEXTURE_SIZE = GROUND_TEXTURE_SIZE;
+export const STARFIELD_BG_COLOR = DIRT_BASE_COLOR;
 export const STARFIELD_STAR_COUNT = 90;
 export const STAR_RADIUS_MIN = 0.8;
 export const STAR_RADIUS_MAX = 2.2;
@@ -158,5 +183,5 @@ export const STAR_ALPHA_MIN = 0.3;
 export const STAR_ALPHA_MAX = 0.95;
 export const STAR_COLORS = [0xffffff, 0x38bdf8, 0x818cf8, 0xf472b6];
 export const STARFIELD_GRID_WIDTH = 1;
-export const STARFIELD_GRID_COLOR = 0x1e293b;
-export const STARFIELD_GRID_ALPHA = 0.4;
+export const STARFIELD_GRID_COLOR = 0x3b2818;
+export const STARFIELD_GRID_ALPHA = 0.2;

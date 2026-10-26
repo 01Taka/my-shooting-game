@@ -1,3 +1,5 @@
+import type { DirectionalMode } from "../utils/directionalSprite";
+
 export interface CameraConfig {
   lookAheadDistanceX: number;
   lookAheadDistanceY: number;
@@ -38,11 +40,13 @@ export interface EnemyConfig {
   damage: number;
   score: number;
   hp: number; // 敵の耐久HP（例: 30 = 3発分）
+  directionalMode?: DirectionalMode; // "diagonal4" (斜め4方向) または "horizontal2" (左右2方向)
 }
 
 export interface PlayerConfig {
   speed: number;
   initialHp: number;
+  directionalMode?: DirectionalMode; // "diagonal4" (斜め4方向) または "horizontal2" (左右2方向)
 }
 
 export interface LockOnConfig {

@@ -2,6 +2,11 @@ import Phaser from "phaser";
 
 import type { ControllerInputPayload } from "../scenes/ControllerScene";
 import { getControlMode } from "../stores/useInputMode";
+import {
+  applyDirectionalTexture,
+  type CharacterDirection,
+  type DirectionalMode,
+} from "../utils/directionalSprite";
 import type { PlayerConfig } from "./types";
 
 export interface PlayerInputState {
@@ -30,6 +35,10 @@ export class PlayerController {
     lockOn: { x: 0, y: 0, active: false, angle: 0, force: 0 },
     attack: false,
   };
+
+  protected currentBank = 0; // 左右バンク（ロール）補間値 (-1.0 ~ 1.0)
+  protected currentDirection?: CharacterDirection = "right";
+  protected lastFacingAngle = 0; // 初期向き（右向き: 0°）
 
   constructor(config: PlayerConfig) {
     this.config = config;
@@ -126,31 +135,39 @@ export class PlayerController {
       aimAngle = this.virtualInput.lockOn.angle;
     }
 
-    // --- 3. 自機の向き（ローテーション）制御 ---
+    // --- 3. 2次元スプライト方式（斜め4方向または左右2方向）テクスチャ切り替え ＆ 微小バンク ---
+    let facingAngle = this.lastFacingAngle;
+
     if (isKeyboardMouse) {
-      // キーボード&マウスモード：常にカーソル方向を向く
-      player.setRotation(aimAngle + Math.PI / 2);
+      facingAngle = aimAngle;
     } else {
-      // スマホモードまたはPCスマホモード
       if (isAiming) {
-        // ロックオンスティック操作中は、スティックの方向を向く
-        player.setRotation(aimAngle + Math.PI / 2);
+        facingAngle = aimAngle;
       } else if (lockedTarget && lockedTarget.active) {
-        // スティックから指を離している間は、ロックオン対象の方を向く
-        const angleToTarget = Phaser.Math.Angle.Between(
-          player.x,
-          player.y,
-          lockedTarget.x,
-          lockedTarget.y,
-        );
-        player.setRotation(angleToTarget + Math.PI / 2);
+        facingAngle = Phaser.Math.Angle.Between(player.x, player.y, lockedTarget.x, lockedTarget.y);
       } else if (this.virtualInput.move.active) {
-        player.setRotation(this.virtualInput.move.angle + Math.PI / 2);
+        facingAngle = this.virtualInput.move.angle;
       } else if (vx !== 0 || vy !== 0) {
-        const moveAngle = Math.atan2(vy, vx);
-        player.setRotation(moveAngle + Math.PI / 2);
+        facingAngle = Math.atan2(vy, vx);
       }
     }
+    this.lastFacingAngle = facingAngle;
+
+    const mode: DirectionalMode = this.config.directionalMode ?? "horizontal2";
+    this.currentDirection = applyDirectionalTexture(
+      player,
+      "player",
+      mode,
+      facingAngle,
+      this.currentDirection,
+    );
+
+    // 360度回転は行わず、水平移動時の微小ティルト（約3度）のみ付与
+    const targetBank = Phaser.Math.Clamp(vx / this.config.speed, -1, 1);
+    this.currentBank = Phaser.Math.Linear(this.currentBank, targetBank, 0.15);
+    const subtleTilt = this.currentBank * 0.05;
+    player.setRotation(subtleTilt);
+    player.setScale(1.0, 1.0);
 
     // --- 4. 攻撃判定（タップまたは長押し連射） ---
     if (isKeyboardMouse) {
@@ -242,6 +259,13 @@ export class PlayerController {
       isMoving,
       angle,
     };
+  }
+
+  /**
+   * 現在プレイヤーが向いている方向角（ラジアン）を取得
+   */
+  getFacingAngle(): number {
+    return this.lastFacingAngle;
   }
 
   /**
