@@ -1,5 +1,12 @@
 import Phaser from "phaser";
 
+import { ENEMY_FLASH_COLOR, ENEMY_FLASH_DURATION_MS } from "../../constants";
+import {
+  type CharacterDirection,
+  type DirectionalMode,
+  resolveCharacterDirection,
+} from "../../utils/directionalSprite";
+import type { ActionAnimResolver } from "./actions/utils/animation";
 import {
   calcEffectiveStunDuration,
   meterToTimeScale,
@@ -28,6 +35,15 @@ export abstract class EnemyBase extends Phaser.Physics.Arcade.Sprite {
   /** 直近の applyStun で確定した実効スタン時間(ms) */
   public pendingStunDurationMs = 0;
 
+  // --- 描画・アニメーション・向き管理 ---
+  public directionalMode: DirectionalMode = "horizontal2";
+  public direction: CharacterDirection = "right";
+  public defaultBaseTextureKey = "enemy";
+
+  private desiredFacingAngle?: number;
+  private currentAnimBaseKey?: string;
+  private hitFlashTimerMs = 0;
+
   private baseVelocity = new Phaser.Math.Vector2();
   private cooldowns: Record<string, number> = {};
 
@@ -45,6 +61,11 @@ export abstract class EnemyBase extends Phaser.Physics.Arcade.Sprite {
     this.stunResistance = Phaser.Math.Clamp(resistances.stunResistance ?? 0, 0, 100);
     this.slowResistance = Phaser.Math.Clamp(resistances.slowResistance ?? 0, 0, 100);
     this.slowProfile = resolveSlowProfile(this.slowResistance);
+
+    this.defaultBaseTextureKey = texture.replace(
+      /_(right|left|front_right|front_left|back_right|back_left)$/,
+      "",
+    );
   }
 
   // =====================================================================
@@ -101,12 +122,96 @@ export abstract class EnemyBase extends Phaser.Physics.Arcade.Sprite {
   }
 
   // =====================================================================
-  // 3. 毎フレームの更新処理
+  // 3. 描画・アニメーション・向き・被弾演出API
+  // =====================================================================
+
+  /** 行動中に特定の方向を向かせたい場合の角度（ラジアン）を指定 */
+  public faceAngle(angleRad: number): void {
+    this.desiredFacingAngle = angleRad;
+  }
+
+  /** 指定角度を解除し、デフォルトのプレイヤー向きへ戻す */
+  public clearFacingAngle(): void {
+    this.desiredFacingAngle = undefined;
+  }
+
+  /** 表示するベースフレームテクスチャキーを設定 */
+  public setAnimFrame(baseKey: string): void {
+    this.currentAnimBaseKey = baseKey;
+  }
+
+  /** アニメーションリゾルバから現在のフレームを解決して反映 */
+  public applyAnim(
+    resolver: ActionAnimResolver | undefined,
+    elapsedMs: number,
+    durationMs?: number,
+  ): void {
+    if (!resolver) return;
+    const baseKey = resolver({
+      elapsedMs,
+      durationMs,
+      direction: this.direction,
+    });
+    if (baseKey) {
+      this.setAnimFrame(baseKey);
+    }
+  }
+
+  /** 被弾フラッシュを発生させる（実時間でタイマー消化） */
+  public triggerHitFlash(durationMs: number = ENEMY_FLASH_DURATION_MS): void {
+    this.hitFlashTimerMs = Math.max(this.hitFlashTimerMs, durationMs);
+  }
+
+  /** 向き・テクスチャ・Tintを一元的に反映 */
+  public updateVisuals(defaultAngleToPlayer: number, isStunned: boolean): void {
+    // 1. 向きの決定（faceAngle指定優先、なければプレイヤー方向）
+    const targetAngle = this.desiredFacingAngle ?? defaultAngleToPlayer;
+    this.direction = resolveCharacterDirection(this.directionalMode, targetAngle, this.direction);
+
+    // 2. テクスチャの適用
+    const baseKey = this.currentAnimBaseKey ?? this.defaultBaseTextureKey;
+    const directionalKey = `${baseKey}_${this.direction}`;
+    const fallbackDirectionalKey = `${this.defaultBaseTextureKey}_${this.direction}`;
+
+    if (this.scene?.textures?.exists(directionalKey)) {
+      if (this.texture.key !== directionalKey) {
+        this.setTexture(directionalKey);
+      }
+    } else if (this.scene?.textures?.exists(baseKey)) {
+      if (this.texture.key !== baseKey) {
+        this.setTexture(baseKey);
+      }
+    } else if (this.scene?.textures?.exists(fallbackDirectionalKey)) {
+      if (this.texture.key !== fallbackDirectionalKey) {
+        this.setTexture(fallbackDirectionalKey);
+      }
+    }
+
+    // 3. Tint（色調）の優先度反映
+    // 優先度: 被弾フラッシュ > 凍結 > スタン > スロウ > 通常
+    if (this.hitFlashTimerMs > 0) {
+      this.setTint(ENEMY_FLASH_COLOR);
+    } else if (this.timeScale <= 0) {
+      this.setTint(0x66ccff);
+    } else if (isStunned) {
+      this.setTint(0xffff66);
+    } else if (this.iceMeter > 0) {
+      this.setTint(0x99ddff);
+    } else {
+      this.clearTint();
+    }
+  }
+
+  // =====================================================================
+  // 4. 毎フレームの更新処理
   // =====================================================================
 
   /** 毎フレーム冒頭に呼ぶ。timeScale 適用後の delta (ミリ秒) を返す */
   protected tickBase(delta: number): number {
     this.updateIceMeter(delta);
+    if (this.hitFlashTimerMs > 0) {
+      this.hitFlashTimerMs = Math.max(0, this.hitFlashTimerMs - delta);
+    }
     const scaledDelta = delta * this.timeScale;
 
     // クールダウンは scaledDelta で進行（凍結中は進まない、スロウ中は遅く進む）

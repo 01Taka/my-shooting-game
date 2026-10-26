@@ -204,8 +204,6 @@ describe("07 ステートマシン・アクションサブルーチン・AIロ�
 
     it("dashClawAttackAction: DASHステップからRECOVERYステップを経てdoneになり、クールダウンを開始すること", () => {
       const cooldowns: Record<string, number> = {};
-      let tintSet: number | null = null;
-      let tintCleared = false;
       let stopped = false;
 
       const mockEnemy = {
@@ -216,12 +214,6 @@ describe("07 ステートマシン・アクションサブルーチン・AIロ�
           stopped = true;
         },
         setRotation: () => {},
-        setTint: (c: number) => {
-          tintSet = c;
-        },
-        clearTint: () => {
-          tintCleared = true;
-        },
         startCooldown: (k: string, ms: number) => {
           cooldowns[k] = ms;
         },
@@ -246,7 +238,6 @@ describe("07 ステートマシン・アクションサブルーチン・AIロ�
       // +150ms突進 (350ms >= 300ms) -> 爪攻撃判定、RECOVERYへ
       bound.update(mockEnemy, ctx, data, 150);
       expect(data.step).toBe("RECOVERY");
-      expect(tintSet).toBe(0xff0055);
       expect(stopped).toBe(true);
 
       // 後隙 400ms
@@ -259,13 +250,10 @@ describe("07 ステートマシン・アクションサブルーチン・AIロ�
 
       // onReset
       bound.onReset?.(mockEnemy, data);
-      expect(tintCleared).toBe(true);
       expect(cooldowns.claw).toBe(1500);
     });
 
-    it("stunAction: pendingStunDurationMs 分だけ硬直して done になり、色を戻すこと", () => {
-      let tintSet: number | null = null;
-      let tintCleared = false;
+    it("stunAction: pendingStunDurationMs 分だけ硬直して done になること", () => {
       let stopped = false;
 
       const mockEnemy = {
@@ -273,18 +261,11 @@ describe("07 ステートマシン・アクションサブルーチン・AIロ�
         stopMoving: () => {
           stopped = true;
         },
-        setTint: (c: number) => {
-          tintSet = c;
-        },
-        clearTint: () => {
-          tintCleared = true;
-        },
       } as any;
 
       const action = stunAction();
       const bound = action;
       const data = bound.init(mockEnemy, { player: { x: 0, y: 0 } });
-      expect(tintSet).toBe(0xffff66);
       expect(stopped).toBe(true);
 
       // 500ms経過
@@ -292,9 +273,6 @@ describe("07 ステートマシン・アクションサブルーチン・AIロ�
 
       // さらに300ms経過 (計800ms)
       expect(bound.update(mockEnemy, {} as any, data, 300)).toBe("done");
-
-      bound.onReset?.(mockEnemy, data);
-      expect(tintCleared).toBe(true);
     });
   });
 });

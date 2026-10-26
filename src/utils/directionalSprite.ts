@@ -85,6 +85,23 @@ export function resolveHorizontal2Direction(
 }
 
 /**
+ * 角度とモードから方向を解決
+ */
+export function resolveCharacterDirection(
+  mode: DirectionalMode,
+  angleRad: number,
+  currentDirection?: CharacterDirection,
+): CharacterDirection {
+  if (mode === "horizontal2") {
+    return resolveHorizontal2Direction(
+      angleRad,
+      currentDirection as Horizontal2Direction | undefined,
+    );
+  }
+  return resolveDiagonal4Direction(angleRad, currentDirection as Diagonal4Direction | undefined);
+}
+
+/**
  * 角度とモードからテクスチャキーと方向を解決
  */
 export function getDirectionalTextureInfo(
@@ -93,19 +110,7 @@ export function getDirectionalTextureInfo(
   angleRad: number,
   currentDirection?: CharacterDirection,
 ): { textureKey: string; direction: CharacterDirection } {
-  let direction: CharacterDirection;
-
-  if (mode === "horizontal2") {
-    direction = resolveHorizontal2Direction(
-      angleRad,
-      currentDirection as Horizontal2Direction | undefined,
-    );
-  } else {
-    direction = resolveDiagonal4Direction(
-      angleRad,
-      currentDirection as Diagonal4Direction | undefined,
-    );
-  }
+  const direction = resolveCharacterDirection(mode, angleRad, currentDirection);
 
   return {
     textureKey: `${baseKey}_${direction}`,

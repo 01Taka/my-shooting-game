@@ -173,7 +173,7 @@ export class GameScene extends Phaser.Scene {
     this.bulletManager.init(this);
 
     // ダメージゾーンマネージャーの初期化（近接攻撃・範囲ダメージ判定）
-    this.damageZoneManager = new DamageZoneManager(this, true);
+    this.damageZoneManager = new DamageZoneManager(this, false);
     this.damageZoneManager.init(this);
 
     // 敵マネージャーの初期化（全周囲360度スポーン ＆ 追従AI）

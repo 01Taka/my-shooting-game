@@ -75,6 +75,10 @@ export interface DamageZoneConfig {
   /** 追従時のオフセット（前方への距離など） */
   attachOffsetDistance?: number;
 
+  /** 発動主（敵・プレイヤー等）。生存状態や timeScale を連動させる */
+  owner?: { active: boolean; timeScale?: number };
+
   /** このゾーン個別のデバッグ描画フラグ */
+
   debug?: boolean;
 }

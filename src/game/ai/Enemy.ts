@@ -77,6 +77,9 @@ export class Enemy<K extends string> extends EnemyBase {
     // 前の状態のクリーンアップ（正常完了でも強制遷移でも必ず呼ばれる）
     this.table[this.currentState]?.run.onReset?.(this, this.stateData);
 
+    this.clearFacingAngle();
+    this.setAnimFrame(this.defaultBaseTextureKey);
+
     // 新状態への切り替え＆専用データの生成（進入処理もここで走る）
     this.currentState = next;
     this.stateData = this.table[next].run.init(this, context);
@@ -89,6 +92,13 @@ export class Enemy<K extends string> extends EnemyBase {
     // 凍結中はアクションもWatcherも止める。stateData は保持されるので、解除後に続きから再開する
     if (this.timeScale <= 0) {
       this.applyVelocity();
+      const angleToPlayer = Phaser.Math.Angle.Between(
+        this.x,
+        this.y,
+        context.player.x,
+        context.player.y,
+      );
+      this.updateVisuals(angleToPlayer, this.currentState === this.stunStateKey);
       return;
     }
 
@@ -120,5 +130,19 @@ export class Enemy<K extends string> extends EnemyBase {
 
     // 3. 基準速度 × timeScale を反映
     this.applyVelocity();
+
+    // 4. 向き・テクスチャ・Tintの一元反映
+    const angleToPlayer = Phaser.Math.Angle.Between(
+      this.x,
+      this.y,
+      context.player.x,
+      context.player.y,
+    );
+    this.updateVisuals(angleToPlayer, this.currentState === this.stunStateKey);
+  }
+
+  public override destroy(fromScene?: boolean): void {
+    this.table[this.currentState]?.run.onReset?.(this, this.stateData);
+    super.destroy(fromScene);
   }
 }

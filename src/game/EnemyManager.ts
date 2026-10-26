@@ -123,6 +123,10 @@ export class EnemyManager {
     this.enemies.add(enemy);
 
     if (enemy) {
+      if (enemy instanceof EnemyBase) {
+        enemy.directionalMode = mode;
+        enemy.direction = initialDir;
+      }
       const speed = Phaser.Math.Between(this.config.speedMin, this.config.speedMax);
       enemy.setData("speed", speed);
       enemy.setData("hp", this.config.hp);
@@ -174,17 +178,19 @@ export class EnemyManager {
       if (cc?.stunDurationMs && cc.stunDurationMs > 0) {
         enemy.applyStun(cc.stunDurationMs);
       }
+      // EnemyBase は内部でタイマー式被弾フラッシュを一元管理
+      enemy.triggerHitFlash(ENEMY_FLASH_DURATION_MS);
+    } else {
+      // レガシー画像スプライト向けのフォールバック被弾フラッシュ演出
+      enemy.setData("isFlashing", true);
+      enemy.setTint(ENEMY_FLASH_COLOR);
+      this.scene.time.delayedCall(ENEMY_FLASH_DURATION_MS, () => {
+        if (enemy.active) {
+          enemy.setData("isFlashing", false);
+          this.restoreEnemyVisuals(enemy);
+        }
+      });
     }
-
-    // 被弾フラッシュ演出（赤く点滅）
-    enemy.setData("isFlashing", true);
-    enemy.setTint(ENEMY_FLASH_COLOR);
-    this.scene.time.delayedCall(ENEMY_FLASH_DURATION_MS, () => {
-      if (enemy.active) {
-        enemy.setData("isFlashing", false);
-        this.restoreEnemyVisuals(enemy);
-      }
-    });
 
     return { isDead: false, x, y };
   }
@@ -233,27 +239,33 @@ export class EnemyManager {
           // 従来の直線追従移動フォールバック
           const speed = (enemy.getData("speed") as number) || ENEMY_DEFAULT_SPEED;
           this.scene.physics.moveToObject(enemy, player, speed);
-        }
 
-        // デバフ状態のビジュアル反映（被弾フラッシュ中でない場合）
-        if (!enemy.getData("isFlashing") && enemy instanceof EnemyBase) {
-          if (enemy.timeScale <= 0) {
-            enemy.setTint(0x66ccff);
-          } else if (enemy.iceMeter > 0) {
-            enemy.setTint(0x99ddff);
+          // レガシー画像スプライト向けのデバフTint反映
+          if (!enemy.getData("isFlashing") && enemy instanceof EnemyBase) {
+            if (enemy.timeScale <= 0) {
+              enemy.setTint(0x66ccff);
+            } else if (enemy.iceMeter > 0) {
+              enemy.setTint(0x99ddff);
+            }
           }
+
+          // 2次元スプライト方式：汎用ヘルパーで方向スプライトを切り替える
+          const angleToPlayer = Phaser.Math.Angle.Between(enemy.x, enemy.y, player.x, player.y);
+          const mode =
+            (enemy.getData("directionalMode") as DirectionalMode | undefined) ??
+            this.config.directionalMode ??
+            "horizontal2";
+          const currentDir = enemy.getData("direction") as CharacterDirection | undefined;
+
+          const updatedDir = applyDirectionalTexture(
+            enemy,
+            "enemy",
+            mode,
+            angleToPlayer,
+            currentDir,
+          );
+          enemy.setData("direction", updatedDir);
         }
-
-        // 2次元スプライト方式：360度回転させず、汎用ヘルパーで方向スプライトを切り替える
-        const angleToPlayer = Phaser.Math.Angle.Between(enemy.x, enemy.y, player.x, player.y);
-        const mode =
-          (enemy.getData("directionalMode") as DirectionalMode | undefined) ??
-          this.config.directionalMode ??
-          "horizontal2";
-        const currentDir = enemy.getData("direction") as CharacterDirection | undefined;
-
-        const updatedDir = applyDirectionalTexture(enemy, "enemy", mode, angleToPlayer, currentDir);
-        enemy.setData("direction", updatedDir);
 
         // 水平移動に応じた極小のティルト（傾き約2度）
         const speed = (enemy.getData("speed") as number) || ENEMY_DEFAULT_SPEED;

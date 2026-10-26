@@ -2,12 +2,16 @@ import Phaser from "phaser";
 
 import {
   dashClawAttackAction,
+  loopFrames,
   m,
   roamOrChaseAction,
+  sequenceFrames,
+  staticFrame,
   stunAction,
   tripleShotAction,
 } from "../../actions";
 import type { StateTable, Watcher } from "../../types";
+import { PREDATOR_ANIM_KEYS } from "./graphics";
 
 export type PredatorState = "MOVE" | "TRIPLE_SHOT" | "DASH_CLAW" | "STUN";
 
@@ -21,6 +25,7 @@ export const PREDATOR_TABLE: StateTable<PredatorState> = {
       chaseThresholdDistance: m(7),
       minDurationMs: 1000,
       maxDurationMs: 3000,
+      anim: loopFrames([PREDATOR_ANIM_KEYS.MOVE_0, PREDATOR_ANIM_KEYS.MOVE_1], 180),
     }),
     // 確率分岐：75% で 3連射、25% でもう一度移動（weight 省略 = 1）
     onDone: [
@@ -29,7 +34,15 @@ export const PREDATOR_TABLE: StateTable<PredatorState> = {
     ],
   },
   TRIPLE_SHOT: {
-    run: tripleShotAction({ totalShots: 3, intervalMs: 250, postDelayMs: 400 }),
+    run: tripleShotAction({
+      totalShots: 3,
+      intervalMs: 250,
+      postDelayMs: 400,
+      anims: {
+        windup: sequenceFrames([PREDATOR_ANIM_KEYS.SHOOT_0, PREDATOR_ANIM_KEYS.SHOOT_1]),
+        recovery: staticFrame(PREDATOR_ANIM_KEYS.MOVE_0),
+      },
+    }),
     onDone: "MOVE",
   },
   DASH_CLAW: {
@@ -38,11 +51,22 @@ export const PREDATOR_TABLE: StateTable<PredatorState> = {
       dashDurationMs: 300,
       recoveryDurationMs: 450,
       cooldownMs: 1500,
+      anims: {
+        dash: loopFrames([PREDATOR_ANIM_KEYS.DASH_0, PREDATOR_ANIM_KEYS.DASH_1], 80),
+        slash: sequenceFrames([PREDATOR_ANIM_KEYS.SLASH_0, PREDATOR_ANIM_KEYS.SLASH_1]),
+      },
+      clawEffectAnim: sequenceFrames([
+        PREDATOR_ANIM_KEYS.CLAW_FX_0,
+        PREDATOR_ANIM_KEYS.CLAW_FX_1,
+        PREDATOR_ANIM_KEYS.CLAW_FX_2,
+      ]),
     }),
     onDone: "MOVE",
   },
   STUN: {
-    run: stunAction(), // 時間は enemy.pendingStunDurationMs から動的に取得
+    run: stunAction({
+      anim: staticFrame(PREDATOR_ANIM_KEYS.STUN_0),
+    }),
     onDone: "MOVE",
   },
 };

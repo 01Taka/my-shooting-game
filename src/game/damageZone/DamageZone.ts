@@ -36,6 +36,7 @@ export class DamageZone {
   public readonly durationMs: number;
   public readonly effect: HitEffectPayload;
   public readonly debug: boolean;
+  public readonly owner?: { active: boolean; timeScale?: number };
 
   private attachTo?: AttachSource;
   private attachOffsetDistance: number;
@@ -59,6 +60,7 @@ export class DamageZone {
     this.attachTo = config.attachTo;
     this.attachOffsetDistance = config.attachOffsetDistance ?? 0;
     this.debug = config.debug ?? false;
+    this.owner = config.owner;
 
     // 初期化時にアタッチ元の座標があれば即座に同期
     this.syncAttachment();
@@ -90,7 +92,14 @@ export class DamageZone {
   public update(delta: number): boolean {
     if (!this.isActive) return false;
 
-    this.elapsedMs += delta;
+    // オーナーが存在し、既に破棄/非アクティブ化されていたら即座に破棄
+    if (this.owner && !this.owner.active) {
+      this.destroy();
+      return false;
+    }
+
+    const scaledDelta = delta * (this.owner?.timeScale ?? 1);
+    this.elapsedMs += scaledDelta;
 
     // 持続時間判定（-1 以外で超過したら終了）
     if (this.durationMs >= 0 && this.elapsedMs >= this.durationMs) {
@@ -106,7 +115,7 @@ export class DamageZone {
   /**
    * 指定ターゲットがこのゾーンにヒット可能か判定
    */
-  public canHit(target: unknown, currentTime: number): boolean {
+  public canHit(target: unknown, currentTime?: number): boolean {
     if (!this.isActive) return false;
 
     const record = this.targetRecords.get(target);
@@ -117,8 +126,9 @@ export class DamageZone {
       return false;
     }
 
-    // ダメージ間隔（tick）チェック
-    if (this.damageIntervalMs > 0 && currentTime < record.nextAllowedTime) {
+    // ダメージ間隔（tick）チェック: currentTime 未指定時は自身の elapsedMs を基準とする
+    const time = currentTime ?? this.elapsedMs;
+    if (this.damageIntervalMs > 0 && time < record.nextAllowedTime) {
       return false;
     }
 
@@ -133,14 +143,15 @@ export class DamageZone {
   /**
    * ヒット成功の記録と次回到達時刻の更新
    */
-  public recordHit(target: unknown, currentTime: number): void {
+  public recordHit(target: unknown, currentTime?: number): void {
     let record = this.targetRecords.get(target);
     if (!record) {
       record = { count: 0, nextAllowedTime: 0 };
       this.targetRecords.set(target, record);
     }
+    const time = currentTime ?? this.elapsedMs;
     record.count++;
-    record.nextAllowedTime = currentTime + Math.max(0, this.damageIntervalMs);
+    record.nextAllowedTime = time + Math.max(0, this.damageIntervalMs);
     this.isCurrentlyHitting = true;
   }
 

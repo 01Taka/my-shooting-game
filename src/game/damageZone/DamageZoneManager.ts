@@ -72,7 +72,7 @@ export class DamageZoneManager {
   /**
    * 毎フレームの更新・当たり判定解決・デバッグ描画
    */
-  public update(delta: number, context: TargetContext, currentTime = performance.now()): void {
+  public update(delta: number, context: TargetContext, currentTime?: number): void {
     if (this.zones.length === 0) return;
 
     // 1. 各ゾーンの更新と生存チェック
@@ -83,8 +83,8 @@ export class DamageZoneManager {
         continue;
       }
 
-      // 2. ターゲットとの当たり判定チェック
-      this.processHitsForZone(zone, context, currentTime);
+      // 2. ターゲットとの当たり判定チェック（未指定時は zone.elapsedMs を基準とする）
+      this.processHitsForZone(zone, context, currentTime ?? zone.elapsedMs);
     }
 
     // 3. デバッグ描画
