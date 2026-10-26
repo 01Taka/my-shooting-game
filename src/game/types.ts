@@ -6,6 +6,24 @@ export interface CameraConfig {
   maxLookSpeedY: number;
 }
 
+export type WeaponDirection = "up" | "right" | "down" | "left";
+export type WeaponType = "spread" | "normal" | "heavy" | "rapid";
+
+export interface WeaponDefinition {
+  type: WeaponType;
+  direction: WeaponDirection;
+  name: string;
+  shortName: string;
+  description: string;
+  damage: number;
+  speed: number;
+  fireRateMs: number;
+  bulletColor: number;
+  bulletScale: number;
+  themeColor: number;
+  spreadAngleRad?: number;
+}
+
 export interface BulletConfig {
   speed: number;
   fireRateMs: number;
@@ -34,10 +52,19 @@ export interface LockOnConfig {
   breakDistance: number; // ロック解除距離（例: 1300px）
 }
 
+export interface BlinkConfig {
+  distance: number;
+  maxMeter: number;
+  cost: number;
+  recoveryPerSecond: number;
+  cooldownMs: number;
+}
+
 export interface GameParameters {
   player: PlayerConfig;
   bullet: BulletConfig;
   enemy: EnemyConfig;
   camera: CameraConfig;
   lockOn: LockOnConfig;
+  blink: BlinkConfig;
 }

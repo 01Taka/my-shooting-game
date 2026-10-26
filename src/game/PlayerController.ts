@@ -24,6 +24,7 @@ export class PlayerController {
     S: Phaser.Input.Keyboard.Key;
     D: Phaser.Input.Keyboard.Key;
   };
+  protected shiftKey?: Phaser.Input.Keyboard.Key;
 
   protected virtualInput: ControllerInputPayload = {
     move: { x: 0, y: 0, active: false, angle: 0, force: 0 },
@@ -52,6 +53,7 @@ export class PlayerController {
         S: Phaser.Input.Keyboard.Key;
         D: Phaser.Input.Keyboard.Key;
       };
+      this.shiftKey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
     }
   }
 
@@ -63,13 +65,14 @@ export class PlayerController {
   }
 
   /**
-   * 毎フレームの移動入力受付、移動速度更新、機体向き更新、射撃トリガー
+   * 毎フレームの移動入力受付、移動速度更新、機体向き更新、射撃トリガー、ブリンクトリガー
    */
   update(
     scene: Phaser.Scene,
     player: Phaser.Physics.Arcade.Image,
     lockedTarget: Phaser.Physics.Arcade.Image | null,
     onShoot: (shootAngle: number) => void,
+    onBlink?: () => void,
   ): PlayerInputState {
     let vx = 0;
     let vy = 0;
@@ -156,6 +159,11 @@ export class PlayerController {
       onShoot(shootAngle);
     }
 
+    // --- 5. キーボード（Shiftキー）ブリンク判定 ---
+    if (this.shiftKey && Phaser.Input.Keyboard.JustDown(this.shiftKey)) {
+      onBlink?.();
+    }
+
     const isMoving =
       Boolean(player.body && (player.body.velocity.x !== 0 || player.body.velocity.y !== 0)) ||
       this.virtualInput.move.active;
@@ -164,6 +172,60 @@ export class PlayerController {
       isMoving,
       isAiming,
       aimAngle,
+    };
+  }
+
+  /**
+   * 現在の移動方向ベクトル（正規化済み）と移動中フラグを取得
+   */
+  getMovementVector(player: Phaser.Physics.Arcade.Image): {
+    x: number;
+    y: number;
+    isMoving: boolean;
+    angle: number;
+  } {
+    let vx = 0;
+    let vy = 0;
+
+    if (this.virtualInput.move.active) {
+      vx = this.virtualInput.move.x;
+      vy = this.virtualInput.move.y;
+    } else {
+      const isLeft = Boolean(
+        (this.cursors && this.cursors.left.isDown) || (this.wasdKeys && this.wasdKeys.A.isDown),
+      );
+      const isRight = Boolean(
+        (this.cursors && this.cursors.right.isDown) || (this.wasdKeys && this.wasdKeys.D.isDown),
+      );
+      const isUp = Boolean(
+        (this.cursors && this.cursors.up.isDown) || (this.wasdKeys && this.wasdKeys.W.isDown),
+      );
+      const isDown = Boolean(
+        (this.cursors && this.cursors.down.isDown) || (this.wasdKeys && this.wasdKeys.S.isDown),
+      );
+
+      if (isLeft) vx -= 1;
+      if (isRight) vx += 1;
+      if (isUp) vy -= 1;
+      if (isDown) vy += 1;
+    }
+
+    if (vx === 0 && vy === 0 && player.body) {
+      vx = player.body.velocity.x;
+      vy = player.body.velocity.y;
+    }
+
+    const length = Math.hypot(vx, vy);
+    const isMoving = length > 0.01;
+    const angle = isMoving ? Math.atan2(vy, vx) : 0;
+    const normX = isMoving ? vx / length : 0;
+    const normY = isMoving ? vy / length : 0;
+
+    return {
+      x: normX,
+      y: normY,
+      isMoving,
+      angle,
     };
   }
 

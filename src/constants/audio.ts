@@ -51,4 +51,3 @@ export const SYNTH_BLINK_FREQ_PEAK = 960;
 export const SYNTH_BLINK_FREQ_END = 480;
 export const SYNTH_BLINK_DURATION = 0.14;
 export const SYNTH_BLINK_VOLUME_SCALE = 0.45;
-

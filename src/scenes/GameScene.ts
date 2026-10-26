@@ -2,6 +2,11 @@ import Phaser from "phaser";
 
 import { AudioManager } from "../audio/AudioManager";
 import {
+  BLINK_COOLDOWN_MS,
+  BLINK_COST,
+  BLINK_DISTANCE,
+  BLINK_METER_MAX,
+  BLINK_RECOVERY_PER_SECOND,
   BULLET_DAMAGE,
   BULLET_FIRE_RATE_MS,
   BULLET_MAX_COUNT,
@@ -32,12 +37,14 @@ import {
 } from "../constants";
 import { EventBus } from "../EventBus";
 import {
+  BlinkManager,
   BulletManager,
   CameraManager,
   EnemyManager,
   LockOnManager,
   PlayerController,
   PlayerStatusHUD,
+  WeaponSelectHUD,
 } from "../game";
 import type { GameParameters } from "../game/types";
 import type { ControllerInputPayload } from "./ControllerScene";
@@ -53,6 +60,9 @@ export class GameScene extends Phaser.Scene {
   protected lockOnManager!: LockOnManager;
   protected playerController!: PlayerController;
   protected playerStatusHUD!: PlayerStatusHUD;
+  protected blinkManager!: BlinkManager;
+  protected weaponSelectHUD!: WeaponSelectHUD;
+  protected weaponKeys?: { [key: string]: Phaser.Input.Keyboard.Key };
 
   // ゲーム状態
   protected score = 0;
@@ -103,6 +113,13 @@ export class GameScene extends Phaser.Scene {
         chainRadius: LOCKON_CHAIN_RADIUS,
         breakDistance: LOCKON_BREAK_DISTANCE,
       },
+      blink: {
+        distance: BLINK_DISTANCE,
+        maxMeter: BLINK_METER_MAX,
+        cost: BLINK_COST,
+        recoveryPerSecond: BLINK_RECOVERY_PER_SECOND,
+        cooldownMs: BLINK_COOLDOWN_MS,
+      },
     };
   }
 
@@ -152,6 +169,25 @@ export class GameScene extends Phaser.Scene {
     this.playerStatusHUD = new PlayerStatusHUD();
     this.playerStatusHUD.init(this);
     this.playerStatusHUD.setHp(this.hp, this.maxHp);
+
+    // ブリンクマネージャーの初期化
+    this.blinkManager = new BlinkManager(params.blink);
+    this.blinkManager.init(this);
+    this.playerStatusHUD.setBlink(this.blinkManager.getMeter(), params.blink.maxMeter, 2);
+
+    // プレイヤー周囲の武器選択HUD初期化
+    this.weaponSelectHUD = new WeaponSelectHUD();
+    this.weaponSelectHUD.init(this);
+
+    // PCキーボードによる武器切り替えショートカット（数字キー1〜4）
+    if (this.input.keyboard) {
+      this.weaponKeys = {
+        ONE: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ONE),
+        TWO: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.TWO),
+        THREE: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.THREE),
+        FOUR: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.FOUR),
+      };
+    }
   }
 
   /**
@@ -294,6 +330,37 @@ export class GameScene extends Phaser.Scene {
       },
     );
 
+    // ControllerScene またはキーボード入力からのブリンク発動リスナー
+    this.events.on("controller-blink", () => {
+      this.blinkManager.execute(
+        this.player,
+        this.playerController,
+        this.worldSize,
+        this.playerStatusHUD,
+      );
+    });
+
+    // 武器選択スティックのタッチ開始リスナー
+    this.events.on("weapon-stick-start", () => {
+      this.weaponSelectHUD.open(this.bulletManager.getWeapon(), this.player.x, this.player.y);
+    });
+
+    // 武器選択スティックの傾き更新リスナー
+    this.events.on(
+      "weapon-stick-move",
+      (data: { angle: number; force: number; isDeadZone: boolean }) => {
+        this.weaponSelectHUD.updateStickInput(data.angle, data.force, data.isDeadZone);
+      },
+    );
+
+    // 武器選択スティックの指離し（確定またはキャンセル）リスナー
+    this.events.on("weapon-stick-release", () => {
+      const selectedWeapon = this.weaponSelectHUD.closeAndSelect();
+      if (selectedWeapon) {
+        this.bulletManager.setWeapon(selectedWeapon);
+      }
+    });
+
     // シーン破棄時のクリーンアップ（1度だけ実行）
     this.events.once("shutdown", () => {
       this.enemyManager?.destroy();
@@ -302,10 +369,16 @@ export class GameScene extends Phaser.Scene {
       this.lockOnManager?.destroy();
       this.playerController?.destroy();
       this.playerStatusHUD?.destroy();
+      this.blinkManager?.destroy();
+      this.weaponSelectHUD?.destroy();
       this.events.off("controller-input");
       this.events.off("controller-lockon-start");
       this.events.off("controller-lockon-tap");
       this.events.off("controller-lockon-release");
+      this.events.off("controller-blink");
+      this.events.off("weapon-stick-start");
+      this.events.off("weapon-stick-move");
+      this.events.off("weapon-stick-release");
     });
   }
 
@@ -348,9 +421,19 @@ export class GameScene extends Phaser.Scene {
 
     const lockedTarget = this.lockOnManager.getLockedTarget();
 
-    // 1. プレイヤー入力受付・移動・向き制御（射撃コールバック含む）
-    const inputState = this.playerController.update(this, this.player, lockedTarget, (angle) =>
-      this.shoot(angle),
+    // 1. プレイヤー入力受付・移動・向き制御（射撃コールバック、ブリンクコールバック含む）
+    const inputState = this.playerController.update(
+      this,
+      this.player,
+      lockedTarget,
+      (angle) => this.shoot(angle),
+      () =>
+        this.blinkManager.execute(
+          this.player,
+          this.playerController,
+          this.worldSize,
+          this.playerStatusHUD,
+        ),
     );
 
     // 2. スティック倒し中（索敵モード）なら60°扇形で敵をサーチ＆ロックオン
@@ -380,7 +463,30 @@ export class GameScene extends Phaser.Scene {
     this.bulletManager.update(this.player.x, this.player.y, this.worldSize);
     this.enemyManager.update(this.player);
 
-    // 6. プレイヤー頭上追従HUDの更新
+    // 6. ブリンクメーターの更新（時間経過自動回復＆HUD同期）
+    this.blinkManager.update(delta, this.playerStatusHUD);
+
+    // 7. プレイヤー頭上追従HUDの更新
     this.playerStatusHUD.update(this.player, delta);
+
+    // 8. 武器選択HUDの位置追従
+    this.weaponSelectHUD.updatePosition(this.player.x, this.player.y);
+
+    // 9. PCキーボードショートカット（数字キー1〜4）での武器切り替え
+    if (this.weaponKeys) {
+      if (Phaser.Input.Keyboard.JustDown(this.weaponKeys.ONE)) {
+        this.bulletManager.setWeapon("spread");
+        this.weaponSelectHUD.showQuickSwitchFeedback("spread", this.player.x, this.player.y);
+      } else if (Phaser.Input.Keyboard.JustDown(this.weaponKeys.TWO)) {
+        this.bulletManager.setWeapon("normal");
+        this.weaponSelectHUD.showQuickSwitchFeedback("normal", this.player.x, this.player.y);
+      } else if (Phaser.Input.Keyboard.JustDown(this.weaponKeys.THREE)) {
+        this.bulletManager.setWeapon("heavy");
+        this.weaponSelectHUD.showQuickSwitchFeedback("heavy", this.player.x, this.player.y);
+      } else if (Phaser.Input.Keyboard.JustDown(this.weaponKeys.FOUR)) {
+        this.bulletManager.setWeapon("rapid");
+        this.weaponSelectHUD.showQuickSwitchFeedback("rapid", this.player.x, this.player.y);
+      }
+    }
   }
 }

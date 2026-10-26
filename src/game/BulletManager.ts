@@ -6,17 +6,19 @@ import {
   BULLET_DETUNE_RANGE,
   BULLET_MAX_DISTANCE,
   BULLET_SPAWN_OFFSET,
+  WEAPON_DEFINITIONS,
 } from "../constants";
-import type { BulletConfig } from "./types";
+import type { BulletConfig, WeaponDefinition, WeaponType } from "./types";
 
 /**
  * 弾薬管理マネージャー
- * 弾丸の生成プール、発射制御、生存可能距離・画面外の自動クリーンアップを担当
+ * 弾丸の生成プール、発射制御、武器別挙動（3-Way、連射、ヘビー等）、自動クリーンアップを担当
  */
 export class BulletManager {
   protected config: BulletConfig;
   protected bullets!: Phaser.Physics.Arcade.Group;
   protected lastFired = 0;
+  protected currentWeapon: WeaponType = "normal";
 
   constructor(config: BulletConfig) {
     this.config = config;
@@ -30,6 +32,27 @@ export class BulletManager {
       defaultKey: "bullet",
       maxSize: this.config.maxBullets,
     });
+  }
+
+  /**
+   * 現在の武器タイプを取得
+   */
+  getWeapon(): WeaponType {
+    return this.currentWeapon;
+  }
+
+  /**
+   * 現在の武器定義を取得
+   */
+  getWeaponDefinition(): WeaponDefinition {
+    return WEAPON_DEFINITIONS[this.currentWeapon];
+  }
+
+  /**
+   * 武器タイプを変更
+   */
+  setWeapon(weapon: WeaponType): void {
+    this.currentWeapon = weapon;
   }
 
   /**
@@ -47,12 +70,17 @@ export class BulletManager {
   }
 
   /**
-   * 指定したプレイヤー座標と幾何角度へ弾を発射
+   * 1発の弾丸をスポーンさせて物理挙動を設定
    */
-  fire(playerX: number, playerY: number, angle: number, time?: number): boolean {
-    const currentTime = time ?? performance.now();
-    if (!this.canFire(currentTime)) return false;
-
+  protected spawnBullet(
+    playerX: number,
+    playerY: number,
+    angle: number,
+    speed: number,
+    damage: number,
+    scale: number,
+    tintColor: number,
+  ): Phaser.Physics.Arcade.Image | null {
     const spawnOffsetX = Math.cos(angle) * BULLET_SPAWN_OFFSET;
     const spawnOffsetY = Math.sin(angle) * BULLET_SPAWN_OFFSET;
 
@@ -64,15 +92,107 @@ export class BulletManager {
     if (bullet) {
       bullet.setActive(true);
       bullet.setVisible(true);
-      bullet.setVelocity(Math.cos(angle) * this.config.speed, Math.sin(angle) * this.config.speed);
+      bullet.setScale(scale);
+      bullet.setTint(tintColor);
+      bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
       bullet.setRotation(angle + Math.PI / 2);
-      bullet.setData("damage", this.config.damage);
+      bullet.setData("damage", damage);
+    }
 
+    return bullet;
+  }
+
+  /**
+   * 指定したプレイヤー座標と幾何角度へ弾を発射（武器タイプに応じた弾道・威力・SE）
+   */
+  fire(playerX: number, playerY: number, angle: number, time?: number): boolean {
+    const currentTime = time ?? performance.now();
+    if (!this.canFire(currentTime)) return false;
+
+    const weapon = this.getWeaponDefinition();
+    let fired: boolean;
+
+    if (weapon.type === "spread") {
+      // 3-WAY 拡散弾
+      const spreadAngle = weapon.spreadAngleRad ?? 0.24;
+      const b1 = this.spawnBullet(
+        playerX,
+        playerY,
+        angle - spreadAngle,
+        weapon.speed,
+        weapon.damage,
+        weapon.bulletScale,
+        weapon.bulletColor,
+      );
+      const b2 = this.spawnBullet(
+        playerX,
+        playerY,
+        angle,
+        weapon.speed,
+        weapon.damage,
+        weapon.bulletScale,
+        weapon.bulletColor,
+      );
+      const b3 = this.spawnBullet(
+        playerX,
+        playerY,
+        angle + spreadAngle,
+        weapon.speed,
+        weapon.damage,
+        weapon.bulletScale,
+        weapon.bulletColor,
+      );
+      fired = Boolean(b1 || b2 || b3);
+      AudioManager.getInstance().playSE("laser", { detune: 120 });
+    } else if (weapon.type === "rapid") {
+      // 超高速連射
+      const bullet = this.spawnBullet(
+        playerX,
+        playerY,
+        angle,
+        weapon.speed,
+        weapon.damage,
+        weapon.bulletScale,
+        weapon.bulletColor,
+      );
+      fired = Boolean(bullet);
+      AudioManager.getInstance().playSE("laser", {
+        detune: Phaser.Math.Between(200, 350),
+      });
+    } else if (weapon.type === "heavy") {
+      // 重量キャノン弾
+      const bullet = this.spawnBullet(
+        playerX,
+        playerY,
+        angle,
+        weapon.speed,
+        weapon.damage,
+        weapon.bulletScale,
+        weapon.bulletColor,
+      );
+      fired = Boolean(bullet);
+      AudioManager.getInstance().playSE("laser", {
+        detune: -350,
+      });
+    } else {
+      // 標準ブラスター
+      const bullet = this.spawnBullet(
+        playerX,
+        playerY,
+        angle,
+        weapon.speed,
+        weapon.damage,
+        weapon.bulletScale,
+        weapon.bulletColor,
+      );
+      fired = Boolean(bullet);
       AudioManager.getInstance().playSE("laser", {
         detune: Phaser.Math.Between(-BULLET_DETUNE_RANGE, BULLET_DETUNE_RANGE),
       });
+    }
 
-      this.lastFired = currentTime + this.config.fireRateMs;
+    if (fired) {
+      this.lastFired = currentTime + weapon.fireRateMs;
       return true;
     }
 

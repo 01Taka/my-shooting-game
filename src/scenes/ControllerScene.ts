@@ -36,6 +36,15 @@ import {
   STICK_KNOB_RESET_DURATION_MS,
   STICK_LABEL_OFFSET_Y,
   STICK_TAP_MAX_DURATION_MS,
+  WEAPON_STICK_BASE_COLOR,
+  WEAPON_STICK_BASE_RADIUS,
+  WEAPON_STICK_BORDER_COLOR,
+  WEAPON_STICK_DEAD_ZONE,
+  WEAPON_STICK_KNOB_COLOR,
+  WEAPON_STICK_KNOB_RADIUS,
+  WEAPON_STICK_MAX_RADIUS,
+  WEAPON_STICK_SPACING_FROM_FIRE_RADIUS,
+  WEAPON_STICK_X_OFFSET,
 } from "../constants";
 import { useGameSettings } from "../stores/useGameSettings";
 import { type InputMode, useInputMode } from "../stores/useInputMode";
@@ -84,6 +93,7 @@ interface StickVisuals {
 export class ControllerScene extends Phaser.Scene {
   protected moveStick!: StickVisuals;
   protected lockOnStick!: StickVisuals;
+  protected weaponStick!: StickVisuals;
   protected attackPointerIds = new Set<number>();
   protected inputMode: InputMode = "mobile";
   protected unsubscribeSettings?: () => void;
@@ -129,6 +139,18 @@ export class ControllerScene extends Phaser.Scene {
         borderColor: LOCKON_STICK_BORDER_COLOR,
         knobColor: LOCKON_STICK_KNOB_COLOR,
         label: "LOCK-ON",
+      },
+      weapon: {
+        xOffset: WEAPON_STICK_X_OFFSET,
+        yOffset: ATTACK_PAD_RADIUS + WEAPON_STICK_SPACING_FROM_FIRE_RADIUS,
+        baseRadius: WEAPON_STICK_BASE_RADIUS,
+        knobRadius: WEAPON_STICK_KNOB_RADIUS,
+        deadZone: WEAPON_STICK_DEAD_ZONE,
+        maxRadius: WEAPON_STICK_MAX_RADIUS,
+        baseColor: WEAPON_STICK_BASE_COLOR,
+        borderColor: WEAPON_STICK_BORDER_COLOR,
+        knobColor: WEAPON_STICK_KNOB_COLOR,
+        label: "WEAPON",
       },
     };
   }
@@ -187,6 +209,21 @@ export class ControllerScene extends Phaser.Scene {
       knobColor: config.lockOn.knobColor,
       label: config.lockOn.label,
       isAimStick: true,
+    });
+
+    // --- 右側上部: 武器選択バーチャルスティック (Fire半径 + 定数スペースの高さに固定配置) ---
+    this.weaponStick = this.createVirtualStick({
+      originX: width - config.weapon.xOffset,
+      originY: height - config.weapon.yOffset,
+      baseRadius: config.weapon.baseRadius,
+      knobRadius: config.weapon.knobRadius,
+      maxRadius: config.weapon.maxRadius,
+      deadZone: config.weapon.deadZone,
+      baseColor: config.weapon.baseColor,
+      borderColor: config.weapon.borderColor,
+      knobColor: config.weapon.knobColor,
+      label: config.weapon.label,
+      isAimStick: false,
     });
 
     // モードに応じた初期ビジュアルを適用
@@ -420,6 +457,14 @@ export class ControllerScene extends Phaser.Scene {
       }
       this.drawFullStickGraphics(this.lockOnStick);
     }
+
+    // 武器選択スティックの表示（常に定数位置に表示）
+    this.weaponStick.container.setVisible(true);
+    this.weaponStick.baseX = this.weaponStick.originX;
+    this.weaponStick.baseY = this.weaponStick.originY;
+    this.weaponStick.container.setPosition(this.weaponStick.originX, this.weaponStick.originY);
+    this.weaponStick.container.setAlpha(0.7);
+    this.drawFullStickGraphics(this.weaponStick);
   }
 
   /**
@@ -472,6 +517,19 @@ export class ControllerScene extends Phaser.Scene {
       useInputMode.getState().setMode("mobile");
     } else if (pointerType === "mouse") {
       useInputMode.getState().setMode("pc");
+    }
+
+    // --- 武器選択スティックのタップ判定（優先度最高） ---
+    const distToWeaponStick = Math.hypot(
+      pointer.x - this.weaponStick.originX,
+      pointer.y - this.weaponStick.originY,
+    );
+    if (
+      distToWeaponStick <= this.weaponStick.baseRadius * 1.5 &&
+      this.weaponStick.pointerId === null
+    ) {
+      this.activateWeaponStick(pointer);
+      return;
     }
 
     if (this.inputMode === "pc") {
@@ -536,7 +594,9 @@ export class ControllerScene extends Phaser.Scene {
   }
 
   protected handlePointerMove(pointer: Phaser.Input.Pointer) {
-    if (pointer.id === this.moveStick.pointerId) {
+    if (pointer.id === this.weaponStick.pointerId) {
+      this.updateWeaponStickPosition(pointer.x, pointer.y);
+    } else if (pointer.id === this.moveStick.pointerId) {
       this.updateStickPosition(this.moveStick, pointer.x, pointer.y);
       this.notifyGameScene();
     } else if (pointer.id === this.lockOnStick.pointerId) {
@@ -546,7 +606,9 @@ export class ControllerScene extends Phaser.Scene {
   }
 
   protected handlePointerUp(pointer: Phaser.Input.Pointer) {
-    if (pointer.id === this.moveStick.pointerId) {
+    if (pointer.id === this.weaponStick.pointerId) {
+      this.releaseWeaponStick();
+    } else if (pointer.id === this.moveStick.pointerId) {
       this.releaseStick(this.moveStick);
       this.notifyGameScene();
     } else if (pointer.id === this.lockOnStick.pointerId) {
@@ -688,9 +750,67 @@ export class ControllerScene extends Phaser.Scene {
   }
 
   /**
+   * 武器選択スティックのタッチ開始
+   */
+  protected activateWeaponStick(pointer: Phaser.Input.Pointer) {
+    this.weaponStick.pointerId = pointer.id;
+    this.weaponStick.container.setAlpha(1.0);
+
+    const gameScene = this.scene.get("GameScene");
+    gameScene?.events.emit("weapon-stick-start");
+
+    this.updateWeaponStickPosition(pointer.x, pointer.y);
+  }
+
+  /**
+   * 武器選択スティックの位置・傾き更新
+   */
+  protected updateWeaponStickPosition(pointerX: number, pointerY: number) {
+    const dx = pointerX - this.weaponStick.baseX;
+    const dy = pointerY - this.weaponStick.baseY;
+    const distance = Math.hypot(dx, dy);
+    const angle = Math.atan2(dy, dx);
+
+    const clampedDist = Math.min(distance, this.weaponStick.maxRadius);
+    const knobX = Math.cos(angle) * clampedDist;
+    const knobY = Math.sin(angle) * clampedDist;
+
+    this.weaponStick.knob.setPosition(knobX, knobY);
+
+    const isDeadZone = distance <= this.weaponStick.deadZone;
+    const force = isDeadZone ? 0 : Math.min(distance / this.weaponStick.maxRadius, 1.0);
+
+    const gameScene = this.scene.get("GameScene");
+    gameScene?.events.emit("weapon-stick-move", { angle, force, isDeadZone });
+  }
+
+  /**
+   * 武器選択スティックの指離し（武器選択確定またはキャンセル）
+   */
+  protected releaseWeaponStick() {
+    this.weaponStick.pointerId = null;
+    this.weaponStick.container.setAlpha(0.7);
+
+    this.tweens.killTweensOf(this.weaponStick.knob);
+    this.tweens.add({
+      targets: this.weaponStick.knob,
+      x: 0,
+      y: 0,
+      duration: STICK_KNOB_RESET_DURATION_MS,
+      ease: Phaser.Math.Easing.Sine.Out,
+    });
+
+    const gameScene = this.scene.get("GameScene");
+    gameScene?.events.emit("weapon-stick-release");
+  }
+
+  /**
    * 全スティックのリセット
    */
   protected resetAllSticks() {
+    if (this.weaponStick && this.weaponStick.pointerId !== null) {
+      this.releaseWeaponStick();
+    }
     if (this.moveStick) this.releaseStick(this.moveStick);
     if (this.lockOnStick) this.releaseStick(this.lockOnStick);
     this.attackPointerIds.clear();

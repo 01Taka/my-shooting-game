@@ -26,11 +26,10 @@ export const BLINK_COST = 0.5; // 1回あたり1/2消費
 export const BLINK_RECOVERY_PER_SECOND = 0.2; // 5秒で全快（2.5秒で1回分回復）
 export const BLINK_COOLDOWN_MS = 150; // 連打誤動作防止の最小間隔
 
-
 // 弾丸設定
 export const BULLET_SPEED = 1050;
 export const BULLET_FIRE_RATE_MS = 140;
-export const BULLET_MAX_COUNT = 60;
+export const BULLET_MAX_COUNT = 100;
 export const BULLET_DAMAGE = 10;
 export const BULLET_SPAWN_OFFSET = 32;
 export const BULLET_MAX_DISTANCE = 1400;
@@ -39,6 +38,64 @@ export const BULLET_DETUNE_RANGE = 30;
 export const BULLET_TEXTURE_SIZE = 16;
 export const BULLET_TEXTURE_RADIUS = 8;
 export const BULLET_COLOR = 0xfacc15;
+
+// 武器プリセット定義
+export const WEAPON_DEFINITIONS = {
+  spread: {
+    type: "spread" as const,
+    direction: "up" as const,
+    name: "3-WAY",
+    shortName: "3-WAY",
+    description: "前方3方向に広がる拡散弾",
+    damage: 8,
+    speed: 980,
+    fireRateMs: 200,
+    bulletColor: 0x38bdf8,
+    bulletScale: 0.95,
+    themeColor: 0x38bdf8,
+    spreadAngleRad: 0.24, // 約14度
+  },
+  normal: {
+    type: "normal" as const,
+    direction: "right" as const,
+    name: "BLASTER",
+    shortName: "BLAST",
+    description: "バランス型の標準ブラスター",
+    damage: 10,
+    speed: 1050,
+    fireRateMs: 140,
+    bulletColor: 0xfacc15,
+    bulletScale: 1.0,
+    themeColor: 0xfacc15,
+  },
+  heavy: {
+    type: "heavy" as const,
+    direction: "down" as const,
+    name: "CANNON",
+    shortName: "HEAVY",
+    description: "高威力の重量弾",
+    damage: 32,
+    speed: 820,
+    fireRateMs: 380,
+    bulletColor: 0xf43f5e,
+    bulletScale: 1.6,
+    themeColor: 0xf43f5e,
+  },
+  rapid: {
+    type: "rapid" as const,
+    direction: "left" as const,
+    name: "RAPID",
+    shortName: "RAPID",
+    description: "超高速の連射マシンガン",
+    damage: 5,
+    speed: 1250,
+    fireRateMs: 70,
+    bulletColor: 0x4ede82,
+    bulletScale: 0.75,
+    themeColor: 0x4ede82,
+  },
+};
+export type WeaponKey = keyof typeof WEAPON_DEFINITIONS;
 
 // 敵キャラクター設定
 export const ENEMY_SPAWN_INTERVAL_MS = 800;

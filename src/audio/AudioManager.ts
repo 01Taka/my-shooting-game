@@ -4,6 +4,11 @@ import {
   MAX_VOLUME,
   MIN_VOLUME,
   SE_DEFAULT_COOLDOWN_MS,
+  SYNTH_BLINK_DURATION,
+  SYNTH_BLINK_FREQ_END,
+  SYNTH_BLINK_FREQ_PEAK,
+  SYNTH_BLINK_FREQ_START,
+  SYNTH_BLINK_VOLUME_SCALE,
   SYNTH_CLICK_DURATION,
   SYNTH_CLICK_FREQ_CHANGE_TIME,
   SYNTH_CLICK_FREQ_MID,
@@ -25,16 +30,10 @@ import {
   SYNTH_LASER_FREQ_START,
   SYNTH_LASER_VOLUME_SCALE,
   SYNTH_RAMP_MIN_GAIN,
-  SYNTH_BLINK_DURATION,
-  SYNTH_BLINK_FREQ_END,
-  SYNTH_BLINK_FREQ_PEAK,
-  SYNTH_BLINK_FREQ_START,
-  SYNTH_BLINK_VOLUME_SCALE,
 } from "../constants";
 import { useGameSettings } from "../stores/useGameSettings";
 
 export type SynthSoundType = "laser" | "explosion" | "hit" | "click" | "gameover" | "blink";
-
 
 export interface SoundPlayOptions {
   volume?: number; // 個別音量倍率 (0.0 - 1.0, デフォルト: 1.0)

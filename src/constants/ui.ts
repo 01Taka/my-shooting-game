@@ -105,7 +105,6 @@ export const BLINK_PAD_COLOR = 0xd946ef;
 export const BLINK_PAD_DISABLED_COLOR = 0x64748b;
 export const BLINK_PAD_INNER_RING_RATIO = 0.55;
 
-
 export const STICK_CONTAINER_DEPTH = 100;
 export const STICK_LABEL_OFFSET_Y = 14;
 
@@ -132,6 +131,28 @@ export const LOCKON_STICK_KNOB_COLOR = 0xe11d48;
 export const PC_STICK_KNOB_RADIUS = 26;
 export const PC_STICK_CENTER_DOT_RADIUS = 5;
 export const STICK_CENTER_DOT_RADIUS = 7;
+
+// 武器選択スティック
+export const WEAPON_STICK_X_OFFSET = 120; // 画面右端からの距離
+export const WEAPON_STICK_SPACING_FROM_FIRE_RADIUS = 75; // Fireの半径に加える固定スペース
+export const WEAPON_STICK_BASE_RADIUS = 54;
+export const WEAPON_STICK_KNOB_RADIUS = 25;
+export const WEAPON_STICK_MAX_RADIUS = 44;
+export const WEAPON_STICK_DEAD_ZONE = 12;
+export const WEAPON_STICK_BASE_COLOR = 0x0f172a;
+export const WEAPON_STICK_BORDER_COLOR = 0xf59e0b;
+export const WEAPON_STICK_KNOB_COLOR = 0xd97706;
+
+// 武器選択HUD（自機周囲）
+export const WEAPON_HUD_DISTANCE = 115; // プレイヤー中心からの距離
+export const WEAPON_HUD_ITEM_RADIUS = 30; // 各武器サークルの半径
+export const WEAPON_HUD_DEPTH = 35; // プレイヤー・弾より手前
+export const WEAPON_HUD_NORMAL_SCALE = 1.0;
+export const WEAPON_HUD_SELECTED_SCALE = 1.28;
+export const WEAPON_HUD_POP_SCALE = 1.42;
+export const WEAPON_HUD_POP_HOLD_MS = 130; // 選択武器のポップ強調維持時間
+export const WEAPON_HUD_FADE_OUT_DURATION_MS = 180; // 選択武器のフェードアウト速度
+export const WEAPON_HUD_UNSELECTED_FADE_OUT_DURATION_MS = 70; // 非選択HUDの高速フェードアウト速度
 
 export const AIM_ARROW_TIP_OFFSET = 22;
 export const AIM_ARROW_BASE_OFFSET = 6;
