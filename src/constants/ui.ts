@@ -92,9 +92,9 @@ export const PAUSE_MENU_TITLE_COLOR = 0xd97706;
 
 // バーチャルスティック・タッチコントローラー
 export const CONTROLLER_MAX_POINTERS = 4;
-export const ATTACK_PAD_RADIUS = 240;
+export const ATTACK_PAD_RADIUS = 290;
 export const ATTACK_PAD_DEPTH = 40;
-export const ATTACK_PAD_LABEL_OFFSET = 90;
+export const ATTACK_PAD_LABEL_OFFSET = 110;
 export const ATTACK_PAD_COLOR = 0xf43f5e;
 export const ATTACK_PAD_INNER_RING_RATIO = 0.55;
 
