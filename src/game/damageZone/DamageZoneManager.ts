@@ -2,31 +2,9 @@ import type Phaser from "phaser";
 
 import { EnemyBase } from "../ai";
 import { DamageZone } from "./DamageZone";
-import type { DamageZoneConfig } from "./types";
+import type { DamageZoneConfig, TargetContext } from "./types";
 
-export interface TargetContext {
-  player?: {
-    x: number;
-    y: number;
-    width?: number;
-    height?: number;
-    damage?: (amount: number) => void;
-  };
-  enemies?: Array<{
-    x: number;
-    y: number;
-    active: boolean;
-    width?: number;
-    height?: number;
-  }>;
-  onDamagePlayer?: (amount: number, zone: DamageZone) => void;
-  onDamageEnemy?: (
-    enemy: unknown,
-    amount: number,
-    cc?: { stunDurationMs?: number; slowAmount?: number },
-    zone?: DamageZone,
-  ) => void;
-}
+export type { TargetContext };
 
 /**
  * ダメージゾーン管理マネージャー (DamageZoneManager)

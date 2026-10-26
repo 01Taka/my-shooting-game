@@ -45,11 +45,14 @@ import {
   BlinkManager,
   BulletManager,
   CameraManager,
+  createLandmineConfig,
+  createPoisonSwampConfig,
   DamageZoneManager,
   EnemyManager,
   LockOnManager,
   PlayerController,
   PlayerStatusHUD,
+  TrapManager,
   WeaponSelectHUD,
 } from "../game";
 import type { GameParameters, WeaponType } from "../game/types";
@@ -67,6 +70,7 @@ export class GameScene extends Phaser.Scene {
   protected cameraManager!: CameraManager;
   protected bulletManager!: BulletManager;
   protected damageZoneManager!: DamageZoneManager;
+  protected trapManager!: TrapManager;
   protected enemyManager!: EnemyManager;
   protected lockOnManager!: LockOnManager;
   protected playerController!: PlayerController;
@@ -176,6 +180,9 @@ export class GameScene extends Phaser.Scene {
     this.damageZoneManager = new DamageZoneManager(this, false);
     this.damageZoneManager.init(this);
 
+    // トラップマネージャーの初期化（設置型トラップ・毒沼・地雷）
+    this.trapManager = new TrapManager(this, this.damageZoneManager);
+
     // 敵マネージャーの初期化（全周囲360度スポーン ＆ 追従AI）
     this.enemyManager = new EnemyManager(params.enemy);
     this.enemyManager.init(
@@ -187,6 +194,7 @@ export class GameScene extends Phaser.Scene {
       }),
       this.bulletManager,
       this.damageZoneManager,
+      this.trapManager,
     );
 
     // スマートロックオンマネージャーの初期化
@@ -483,6 +491,7 @@ export class GameScene extends Phaser.Scene {
       this.enemyManager?.destroy();
       this.bulletManager?.destroy();
       this.damageZoneManager?.destroy();
+      this.trapManager?.destroy();
       this.cameraManager?.destroy();
       this.lockOnManager?.destroy();
       this.playerController?.destroy();
@@ -620,6 +629,12 @@ export class GameScene extends Phaser.Scene {
       time,
     );
 
+    // 5.6 設置型トラップの更新（毒沼・地雷の索敵/起爆・消滅）
+    this.trapManager.update(delta, {
+      player: this.player,
+      enemies: this.enemyManager.getGroup().getChildren() as Phaser.Physics.Arcade.Image[],
+    });
+
     // 疑似2.5次元 プレイヤーのホバリング浮遊 ＆ 影の追従・スケール連動
     const playerBob = Math.sin(time * 0.005) * 2.5;
     this.player.setDisplayOrigin(this.player.width / 2, this.player.height / 2 - playerBob);
@@ -661,5 +676,27 @@ export class GameScene extends Phaser.Scene {
         this.weaponSelectHUD.showWheelSwitch("rapid", this.player.x, this.player.y);
       }
     }
+  }
+
+  /**
+   * 毒沼トラップを生成する（テストや外部呼び出し用）
+   */
+  public createPoisonSwamp(
+    x: number,
+    y: number,
+    options?: Parameters<typeof createPoisonSwampConfig>[2],
+  ) {
+    return this.trapManager.createTrap(createPoisonSwampConfig(x, y, options));
+  }
+
+  /**
+   * 感知地雷トラップを生成する（テストや外部呼び出し用）
+   */
+  public createLandmine(
+    x: number,
+    y: number,
+    options?: Parameters<typeof createLandmineConfig>[2],
+  ) {
+    return this.trapManager.createTrap(createLandmineConfig(x, y, options));
   }
 }

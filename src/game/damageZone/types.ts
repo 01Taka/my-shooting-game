@@ -36,6 +36,31 @@ export interface ShapeContext {
   elapsedMs: number;
 }
 
+/** ヒット判定時に渡されるターゲット群およびダメージコールバック */
+export interface TargetContext {
+  player?: {
+    x: number;
+    y: number;
+    width?: number;
+    height?: number;
+    damage?: (amount: number) => void;
+  };
+  enemies?: Array<{
+    x: number;
+    y: number;
+    active: boolean;
+    width?: number;
+    height?: number;
+  }>;
+  onDamagePlayer?: (amount: number, zone: DamageZone) => void;
+  onDamageEnemy?: (
+    enemy: unknown,
+    amount: number,
+    cc?: { stunDurationMs?: number; slowAmount?: number },
+    zone?: DamageZone,
+  ) => void;
+}
+
 /** 座標・向きの追従ソース（オブジェクトまたは関数） */
 export type AttachSource =
   | { x: number; y: number; rotation?: number; angle?: number }

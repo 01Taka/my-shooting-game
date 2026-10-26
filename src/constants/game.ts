@@ -16,6 +16,7 @@ export const WORLD_BORDER_ALPHA = 0.7;
 // レイヤー深度（疑似2.5次元用 Zオーダー）
 export const DEPTH_GROUND = 0;
 export const DEPTH_SHADOW = 2;
+export const DEPTH_TRAP = 3;
 export const DEPTH_LOCKON_GROUND = 4;
 export const DEPTH_OBJECT = 10;
 export const DEPTH_BULLET = 20;

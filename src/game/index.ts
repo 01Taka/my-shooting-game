@@ -7,5 +7,6 @@ export * from "./EnemyManager";
 export * from "./LockOnManager";
 export * from "./PlayerController";
 export * from "./PlayerStatusHUD";
+export * from "./trap";
 export * from "./types";
 export * from "./WeaponSelectHUD";

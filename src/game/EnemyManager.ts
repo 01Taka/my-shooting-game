@@ -22,6 +22,7 @@ import {
 import { createPredatorEnemy, Enemy, EnemyBase } from "./ai";
 import type { BulletManager } from "./BulletManager";
 import type { DamageZoneManager } from "./damageZone/DamageZoneManager";
+import type { TrapManager } from "./trap/TrapManager";
 import type { EnemyConfig } from "./types";
 
 /**
@@ -37,6 +38,7 @@ export class EnemyManager {
   protected getPlayerPosition!: () => { x: number; y: number };
   protected bulletManager?: BulletManager;
   protected damageZoneManager?: DamageZoneManager;
+  protected trapManager?: TrapManager;
 
   constructor(config: EnemyConfig) {
     this.config = config;
@@ -51,12 +53,14 @@ export class EnemyManager {
     getPlayerPosition: () => { x: number; y: number },
     bulletManager?: BulletManager,
     damageZoneManager?: DamageZoneManager,
+    trapManager?: TrapManager,
   ): void {
     this.scene = scene;
     this.worldSize = worldSize;
     this.getPlayerPosition = getPlayerPosition;
     this.bulletManager = bulletManager;
     this.damageZoneManager = damageZoneManager;
+    this.trapManager = trapManager;
 
     this.enemies = scene.physics.add.group();
 
@@ -231,6 +235,7 @@ export class EnemyManager {
               player,
               bulletManager: this.bulletManager,
               damageZoneManager: this.damageZoneManager,
+              trapManager: this.trapManager,
               scene: this.scene,
             },
             delta,
