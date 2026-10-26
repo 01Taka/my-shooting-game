@@ -14,13 +14,12 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   const inputMode = useInputMode((s) => s.mode);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // スマホ版では「カーソルを追従」はDisabled（元の設定値は維持）
   const isMobile = inputMode === "mobile";
-  const cursorFollowActive = settings.followCursor;
-  const cursorFollowDisabled = isMobile;
+  const keyboardMouseActive = settings.keyboardMouseMode;
+  const keyboardMouseDisabled = isMobile;
 
-  // PC版かつカーソル追従が有効な場合、スティック操作はdisabled
-  const joystickDisabled = inputMode === "pc" && settings.followCursor;
+  // PC版かつキーボード&マウスモードが有効な場合、スティック操作はdisabled
+  const joystickDisabled = inputMode === "pc" && settings.keyboardMouseMode;
 
   // ==========================================
   // ゲーム特有の設定画面カスタマイズ定義
@@ -145,16 +144,18 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
             </button>
           </div>
 
-          {/* カーソルを追従設定（PC版設定） */}
+          {/* キーボード&マウスモード設定（PC版設定） */}
           <div
             className={`rounded-xl border border-slate-700/50 bg-slate-800/60 p-3 transition-opacity ${
-              cursorFollowDisabled ? "opacity-60" : ""
+              keyboardMouseDisabled ? "opacity-60" : ""
             }`}
           >
             <div className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-slate-200">カーソルを追従</span>
+                  <span className="text-sm font-medium text-slate-200">
+                    キーボード&マウスモード
+                  </span>
                   {isMobile && (
                     <span className="rounded bg-slate-700 px-1.5 py-0.5 text-[10px] text-slate-300">
                       スマホ版（無効）
@@ -162,21 +163,23 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                   )}
                 </div>
                 <div className="text-xs text-slate-400">
-                  {cursorFollowActive ? "マウス位置へ直接エイム" : "マウス操作スティックを使用"}
+                  {keyboardMouseActive
+                    ? "PC専用モード（UI非表示・直接エイム）"
+                    : "PCスマホモード（スマホUI・クリック操作）"}
                 </div>
               </div>
               <button
                 type="button"
-                disabled={cursorFollowDisabled}
-                onClick={settings.toggleFollowCursor}
+                disabled={keyboardMouseDisabled}
+                onClick={settings.toggleKeyboardMouseMode}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  cursorFollowActive ? "bg-sky-600" : "bg-slate-700"
-                } ${cursorFollowDisabled ? "cursor-not-allowed opacity-75" : "cursor-pointer"}`}
-                aria-label="カーソルを追従の切り替え"
+                  keyboardMouseActive ? "bg-sky-600" : "bg-slate-700"
+                } ${keyboardMouseDisabled ? "cursor-not-allowed opacity-75" : "cursor-pointer"}`}
+                aria-label="キーボード&マウスモードの切り替え"
               >
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    cursorFollowActive ? "translate-x-6" : "translate-x-1"
+                    keyboardMouseActive ? "translate-x-6" : "translate-x-1"
                   }`}
                 />
               </button>
@@ -184,9 +187,9 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
             <div className="mt-1.5 text-[11px] text-slate-400">
               {isMobile
                 ? "※ スマホ版では常に左右のバーチャルスティック操作が優先されます。"
-                : cursorFollowActive
-                  ? "マウスポインターの位置へ自機が直接エイムし、クリックで射撃します。"
-                  : "マウスクリックでバーチャルスティックを倒して操作します。"}
+                : keyboardMouseActive
+                  ? "WASD移動、マウス方向へ常時エイム、左クリック射撃、Shiftブリンク、マウスホイールで武器を切り替えます（UI非表示・ロックオン無効）。"
+                  : "PCスマホモード：WASD移動、右側のスマホUI（射撃パッド・ブリンクパッド・武器スティック・ロックオン）をマウス左クリックで操作します。"}
             </div>
           </div>
 
@@ -201,7 +204,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                 <span className="text-sm font-medium text-slate-200">スティック操作</span>
                 {joystickDisabled && (
                   <span className="rounded bg-slate-700 px-1.5 py-0.5 text-[10px] text-slate-300">
-                    無効（カーソル追従中）
+                    無効（キーボード&マウスモード中）
                   </span>
                 )}
               </div>
@@ -237,9 +240,9 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
             </div>
             <div className="mt-1.5 text-[11px] text-slate-400">
               {joystickDisabled
-                ? "※ カーソル追従がONのため、スティック操作設定は無効化されています。"
+                ? "※ キーボード&マウスモードがONのため、スティック操作設定は無効化されています。"
                 : settings.joystickType === "dynamic"
-                  ? "タッチした位置からスティックが始まり、指の移動に合わせてベースが追従します。"
+                  ? "タッチまたはクリックした位置からスティックが始まり、指・カーソルの移動に合わせてベースが追従します。"
                   : "画面下部の定位置にあるスティックを操作します。"}
             </div>
           </div>

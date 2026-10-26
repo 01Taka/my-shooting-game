@@ -1,6 +1,27 @@
 import { create } from "zustand";
 
+import { useGameSettings } from "./useGameSettings";
+
 export type InputMode = "pc" | "mobile";
+
+/**
+ * 操作モードの3つの状態
+ * - mobile: スマホモード（タッチデバイス・現在のスマホモードそのまま）
+ * - keyboardMouse: キーボード&マウスモード（PC向け・UI非表示・常時カーソル向き・クリック発射・ホイール武器切替・Shiftブリンク・ロックオン無効）
+ * - pcMobile: PCスマホモード（PCでスマホUI表示・WASD移動・右側スマホUIクリック操作・Shiftブリンクやホイールは無効）
+ */
+export type ControlMode = "mobile" | "keyboardMouse" | "pcMobile";
+
+/**
+ * 現在の操作モードを取得
+ */
+export function getControlMode(): ControlMode {
+  const inputMode = useInputMode.getState().mode;
+  if (inputMode === "mobile") {
+    return "mobile";
+  }
+  return useGameSettings.getState().keyboardMouseMode ? "keyboardMouse" : "pcMobile";
+}
 
 interface InputModeState {
   mode: InputMode;

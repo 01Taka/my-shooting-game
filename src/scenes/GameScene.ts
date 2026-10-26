@@ -46,8 +46,11 @@ import {
   PlayerStatusHUD,
   WeaponSelectHUD,
 } from "../game";
-import type { GameParameters } from "../game/types";
+import type { GameParameters, WeaponType } from "../game/types";
+import { getControlMode } from "../stores/useInputMode";
 import type { ControllerInputPayload } from "./ControllerScene";
+
+const WEAPON_ORDER: WeaponType[] = ["spread", "normal", "heavy", "rapid"];
 
 export class GameScene extends Phaser.Scene {
   protected readonly worldSize = WORLD_SIZE; // 広大な宇宙空間
@@ -308,11 +311,13 @@ export class GameScene extends Phaser.Scene {
 
     // ロックオンスティック操作開始（フリック用セッション履歴の初期化）
     this.events.on("controller-lockon-start", () => {
+      if (getControlMode() === "keyboardMouse") return;
       this.lockOnManager.startAimSession();
     });
 
     // ロックオンスティックのタップによる最寄り敵オートロックオン
     this.events.on("controller-lockon-tap", () => {
+      if (getControlMode() === "keyboardMouse") return;
       this.lockOnManager.lockNearestEnemy(this.player, this.enemyManager.getGroup(), this);
     });
 
@@ -320,6 +325,7 @@ export class GameScene extends Phaser.Scene {
     this.events.on(
       "controller-lockon-release",
       (releaseTime: number, touchDuration?: number, releaseAngle?: number) => {
+        if (getControlMode() === "keyboardMouse") return;
         this.lockOnManager.confirmReleaseTarget(
           releaseTime,
           touchDuration,
@@ -362,6 +368,33 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
+    // マウスホイールでの武器切り替え（キーボード&マウスモードのみ有効、PCスマホモードでは無効化）
+    this.input.on(
+      "wheel",
+      (
+        _pointer: Phaser.Input.Pointer,
+        _gameObjects: unknown[],
+        _deltaX: number,
+        deltaY: number,
+      ) => {
+        if (getControlMode() !== "keyboardMouse") return;
+        if (this.hp <= 0) return;
+
+        const currentWeapon = this.bulletManager.getWeapon();
+        const currentIndex = WEAPON_ORDER.indexOf(currentWeapon);
+        if (currentIndex === -1) return;
+
+        // 下スクロール(deltaY > 0)で次、上スクロール(deltaY < 0)で前の武器
+        const step = deltaY > 0 ? 1 : -1;
+        const nextIndex = (currentIndex + step + WEAPON_ORDER.length) % WEAPON_ORDER.length;
+        const nextWeapon = WEAPON_ORDER[nextIndex];
+
+        this.bulletManager.setWeapon(nextWeapon);
+        this.weaponSelectHUD.showQuickSwitchFeedback(nextWeapon, this.player.x, this.player.y);
+        AudioManager.getInstance().playSE("click");
+      },
+    );
+
     // シーン破棄時のクリーンアップ（1度だけ実行）
     this.events.once("shutdown", () => {
       this.enemyManager?.destroy();
@@ -380,6 +413,7 @@ export class GameScene extends Phaser.Scene {
       this.events.off("weapon-stick-start");
       this.events.off("weapon-stick-move");
       this.events.off("weapon-stick-release");
+      this.input.off("wheel");
     });
   }
 
@@ -420,7 +454,13 @@ export class GameScene extends Phaser.Scene {
   update(time: number, delta: number) {
     if (this.hp <= 0) return;
 
-    const lockedTarget = this.lockOnManager.getLockedTarget();
+    const isKeyboardMouse = getControlMode() === "keyboardMouse";
+    if (isKeyboardMouse) {
+      // キーボード&マウスモードではロックオン機能は無効
+      this.lockOnManager.clearLock();
+    }
+
+    const lockedTarget = isKeyboardMouse ? null : this.lockOnManager.getLockedTarget();
 
     // 1. プレイヤー入力受付・移動・向き制御（射撃コールバック、ブリンクコールバック含む）
     const inputState = this.playerController.update(
@@ -437,8 +477,8 @@ export class GameScene extends Phaser.Scene {
         ),
     );
 
-    // 2. スティック倒し中（索敵モード）なら60°扇形で敵をサーチ＆ロックオン
-    if (inputState.isAiming) {
+    // 2. スティック倒し中（索敵モード）なら60°扇形で敵をサーチ＆ロックオン（キーボード&マウスモードでは無効）
+    if (!isKeyboardMouse && inputState.isAiming) {
       this.lockOnManager.searchAndLock(
         this.player,
         this.enemyManager.getGroup(),
@@ -447,8 +487,10 @@ export class GameScene extends Phaser.Scene {
       );
     }
 
-    // 3. ロックオン維持判定 ＆ レティクルアニメーション描画 ＆ 履歴バッファ記録
-    this.lockOnManager.update(this.player, delta, this, time);
+    // 3. ロックオン維持判定 ＆ レティクルアニメーション描画 ＆ 履歴バッファ記録（キーボード&マウスモードでは無効）
+    if (!isKeyboardMouse) {
+      this.lockOnManager.update(this.player, delta, this, time);
+    }
 
     // 4. カメラの先行オフセット更新（スティック操作中はスティック優先、指離し時はロック敵へ吸着、ロックなし時は中央固定）
     this.cameraManager.update(
@@ -456,7 +498,7 @@ export class GameScene extends Phaser.Scene {
       inputState.isMoving,
       inputState.isAiming,
       delta,
-      this.lockOnManager.getLockedTarget(),
+      lockedTarget,
       inputState.aimAngle,
     );
 
@@ -473,8 +515,8 @@ export class GameScene extends Phaser.Scene {
     // 8. 武器選択HUDの位置追従
     this.weaponSelectHUD.updatePosition(this.player.x, this.player.y);
 
-    // 9. PCキーボードショートカット（数字キー1〜4）での武器切り替え
-    if (this.weaponKeys) {
+    // 9. PCキーボードショートカット（数字キー1〜4）での武器切り替え（キーボード&マウスモードのみ有効）
+    if (isKeyboardMouse && this.weaponKeys) {
       if (Phaser.Input.Keyboard.JustDown(this.weaponKeys.ONE)) {
         this.bulletManager.setWeapon("spread");
         this.weaponSelectHUD.showQuickSwitchFeedback("spread", this.player.x, this.player.y);

@@ -34,8 +34,6 @@ import {
   MOVE_STICK_MAX_RADIUS,
   MOVE_STICK_X_OFFSET,
   MOVE_STICK_Y_OFFSET,
-  PC_STICK_CENTER_DOT_RADIUS,
-  PC_STICK_KNOB_RADIUS,
   STICK_CENTER_DOT_RADIUS,
   STICK_CONTAINER_DEPTH,
   STICK_CONTAINER_FADE_DURATION_MS,
@@ -53,7 +51,7 @@ import {
   WEAPON_STICK_X_OFFSET,
 } from "../constants";
 import { useGameSettings } from "../stores/useGameSettings";
-import { type InputMode, useInputMode } from "../stores/useInputMode";
+import { getControlMode, type InputMode, useInputMode } from "../stores/useInputMode";
 import { addCrispText } from "../utils/text";
 
 export interface StickState {
@@ -507,51 +505,26 @@ export class ControllerScene extends Phaser.Scene {
   }
 
   /**
-   * PCモード / スマホモードに応じたビジュアル描画の切り替え
+   * 操作モードに応じたビジュアル描画の切り替え
+   * - keyboardMouse (キーボード&マウスモード): 全コントローラーUIを完全非表示
+   * - mobile / pcMobile (スマホモード / PCスマホモード): スマホUIを表示
    */
   protected applyModeVisuals() {
+    const controlMode = getControlMode();
     const isDynamic = useGameSettings.getState().joystickType === "dynamic";
 
-    if (this.inputMode === "pc") {
-      const isCursorFollow = useGameSettings.getState().followCursor;
-
+    if (controlMode === "keyboardMouse") {
+      // --- キーボード&マウスモード ---
+      // バーチャルスティック、攻撃パッド、ブリンクパッド等のUIは一切非表示
       this.moveStick.container.setVisible(false);
-      this.attackPadContainer.setVisible(true);
-      this.attackPadContainer.setAlpha(0.65);
-      this.blinkPadContainer.setVisible(true);
-      this.blinkPadContainer.setAlpha(0.65);
-      this.drawAttackPadGraphics(this.attackPointerIds.size > 0);
-      this.drawBlinkPadGraphics(this.blinkPointerIds.size > 0);
-
-      if (isCursorFollow) {
-        this.lockOnStick.container.setVisible(false);
-      } else {
-        this.lockOnStick.container.setVisible(true);
-        this.lockOnStick.baseX = this.lockOnStick.originX;
-        this.lockOnStick.baseY = this.lockOnStick.originY;
-        this.lockOnStick.container.setPosition(this.lockOnStick.originX, this.lockOnStick.originY);
-        this.lockOnStick.container.setAlpha(0.6);
-
-        if (this.lockOnStick.label) {
-          this.lockOnStick.label.setVisible(false);
-        }
-
-        this.lockOnStick.baseBg.clear();
-        this.lockOnStick.baseBg.fillStyle(0x0f172a, 0.2);
-        this.lockOnStick.baseBg.fillCircle(0, 0, this.lockOnStick.baseRadius);
-        this.lockOnStick.baseBg.lineStyle(2, 0xffffff, 0.35);
-        this.lockOnStick.baseBg.strokeCircle(0, 0, this.lockOnStick.baseRadius);
-
-        this.lockOnStick.knobGraphics.clear();
-        this.lockOnStick.knobGraphics.fillStyle(0xf43f5e, 0.4);
-        this.lockOnStick.knobGraphics.fillCircle(0, 0, PC_STICK_KNOB_RADIUS);
-        this.lockOnStick.knobGraphics.lineStyle(2, 0xffffff, 0.6);
-        this.lockOnStick.knobGraphics.strokeCircle(0, 0, PC_STICK_KNOB_RADIUS);
-        this.lockOnStick.knobGraphics.fillStyle(0xffffff, 0.85);
-        this.lockOnStick.knobGraphics.fillCircle(0, 0, PC_STICK_CENTER_DOT_RADIUS);
-      }
+      this.lockOnStick.container.setVisible(false);
+      this.weaponStick.container.setVisible(false);
+      this.attackPadContainer.setVisible(false);
+      this.blinkPadContainer.setVisible(false);
     } else {
-      // --- スマホモード ---
+      // --- スマホモード または PCスマホモード ---
+      // スマホモードと完全に同一のUIを表示・描画
+
       // 1. 右下攻撃パッドを表示
       this.attackPadContainer.setVisible(true);
       this.attackPadContainer.setAlpha(1.0);
@@ -567,7 +540,7 @@ export class ControllerScene extends Phaser.Scene {
       this.moveStick.container.setAlpha(0.6);
       this.drawFullStickGraphics(this.moveStick);
 
-      // 3. ロックオンスティックの表示（Dynamic時は非操作時は非表示にして視界を遮らない）
+      // 4. ロックオンスティックの表示（Dynamic時は非操作時は非表示、Fixed時は常時半透明表示）
       this.lockOnStick.container.setVisible(true);
       if (isDynamic) {
         this.lockOnStick.container.setAlpha(0);
@@ -578,15 +551,15 @@ export class ControllerScene extends Phaser.Scene {
         this.lockOnStick.container.setAlpha(0.6);
       }
       this.drawFullStickGraphics(this.lockOnStick);
-    }
 
-    // 武器選択スティックの表示（常に定数位置に表示）
-    this.weaponStick.container.setVisible(true);
-    this.weaponStick.baseX = this.weaponStick.originX;
-    this.weaponStick.baseY = this.weaponStick.originY;
-    this.weaponStick.container.setPosition(this.weaponStick.originX, this.weaponStick.originY);
-    this.weaponStick.container.setAlpha(0.7);
-    this.drawFullStickGraphics(this.weaponStick);
+      // 5. 武器選択スティックの表示
+      this.weaponStick.container.setVisible(true);
+      this.weaponStick.baseX = this.weaponStick.originX;
+      this.weaponStick.baseY = this.weaponStick.originY;
+      this.weaponStick.container.setPosition(this.weaponStick.originX, this.weaponStick.originY);
+      this.weaponStick.container.setAlpha(0.7);
+      this.drawFullStickGraphics(this.weaponStick);
+    }
   }
 
   /**
@@ -641,11 +614,18 @@ export class ControllerScene extends Phaser.Scene {
       useInputMode.getState().setMode("pc");
     }
 
+    const controlMode = getControlMode();
+    // キーボード&マウスモード時はコントローラーUIは非表示のため、ポインターイベントを消費しない
+    if (controlMode === "keyboardMouse") {
+      return;
+    }
+
+    // --- スマホモード & PCスマホモード（マウス左クリックが指と完全に同じシステムで動作） ---
     const { width, height } = this.scale;
     const distFromTopRight = Math.hypot(width - pointer.x, pointer.y);
     const distFromBottomRight = Math.hypot(width - pointer.x, height - pointer.y);
 
-    // 画面右上の1/4円: ブリンク発動（PC / スマホ共通でクリック/タップ可能）
+    // 1. 画面右上の1/4円: ブリンク発動（指タップ または マウスクリック）
     if (distFromTopRight <= this.blinkPadRadius) {
       this.blinkPointerIds.add(pointer.id);
       this.drawBlinkPadGraphics(true);
@@ -653,7 +633,7 @@ export class ControllerScene extends Phaser.Scene {
       return;
     }
 
-    // --- 武器選択スティックのタップ判定 ---
+    // 2. 武器選択スティックのタップ/クリック判定
     const distToWeaponStick = Math.hypot(
       pointer.x - this.weaponStick.originX,
       pointer.y - this.weaponStick.originY,
@@ -666,36 +646,19 @@ export class ControllerScene extends Phaser.Scene {
       return;
     }
 
-    if (this.inputMode === "pc") {
+    // 3. 画面左半分: 移動スティック操作
+    if (pointer.x < width / 2 && this.moveStick.pointerId === null) {
+      this.activateStick(this.moveStick, pointer);
+    } else if (pointer.x >= width / 2) {
+      // 4. 画面右半分:
+      //   - 右下1/4円の内側: 攻撃パッド（タップ/長押し連射）
+      //   - 右下1/4円の外側: ロックオンスティック
       if (distFromBottomRight <= this.attackPadRadius) {
         this.attackPointerIds.add(pointer.id);
         this.drawAttackPadGraphics(true);
         this.notifyGameScene();
-        return;
-      }
-
-      const isCursorFollow = useGameSettings.getState().followCursor;
-      if (!isCursorFollow && this.lockOnStick.pointerId === null) {
+      } else if (this.lockOnStick.pointerId === null) {
         this.activateStick(this.lockOnStick, pointer);
-      }
-    } else {
-      // スマホモード:
-      // - 画面左半分: 移動スティック
-      // - 画面右半分:
-      //   - 右下1/4円の内側: 攻撃パッド（タップ/長押し連射）
-      //   - 右下1/4円の外側: ダイナミック・ロックオンスティック
-      if (pointer.x < width / 2 && this.moveStick.pointerId === null) {
-        this.activateStick(this.moveStick, pointer);
-      } else if (pointer.x >= width / 2) {
-        if (distFromBottomRight <= this.attackPadRadius) {
-          // 1/4円の内側: 攻撃発動
-          this.attackPointerIds.add(pointer.id);
-          this.drawAttackPadGraphics(true);
-          this.notifyGameScene();
-        } else if (this.lockOnStick.pointerId === null) {
-          // 1/4円の外側: ロックオンスティック操作
-          this.activateStick(this.lockOnStick, pointer);
-        }
       }
     }
   }

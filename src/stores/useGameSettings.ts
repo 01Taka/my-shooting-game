@@ -11,7 +11,8 @@ interface GameSettingsState {
   bgmMuted: boolean;
   seMuted: boolean;
   joystickType: JoystickType;
-  followCursor: boolean;
+  keyboardMouseMode: boolean; // キーボード&マウスモード (旧 followCursor)
+  followCursor: boolean; // 互換性プロパティ
   isOpen: boolean;
 
   setBgmVolume: (volume: number) => void;
@@ -19,6 +20,9 @@ interface GameSettingsState {
   toggleBgmMute: () => void;
   toggleSeMute: () => void;
   setJoystickType: (type: JoystickType) => void;
+  setKeyboardMouseMode: (enabled: boolean) => void;
+  toggleKeyboardMouseMode: () => void;
+  // 下位互換メソッド
   setFollowCursor: (enabled: boolean) => void;
   toggleFollowCursor: () => void;
   openSettings: () => void;
@@ -34,6 +38,7 @@ export const useGameSettings = create<GameSettingsState>()(
       bgmMuted: false,
       seMuted: false,
       joystickType: "dynamic",
+      keyboardMouseMode: true,
       followCursor: true,
       isOpen: false,
 
@@ -44,21 +49,51 @@ export const useGameSettings = create<GameSettingsState>()(
       toggleBgmMute: () => set((state) => ({ bgmMuted: !state.bgmMuted })),
       toggleSeMute: () => set((state) => ({ seMuted: !state.seMuted })),
       setJoystickType: (type) => set({ joystickType: type }),
-      setFollowCursor: (enabled) => set({ followCursor: enabled }),
-      toggleFollowCursor: () => set((state) => ({ followCursor: !state.followCursor })),
+      setKeyboardMouseMode: (enabled) => set({ keyboardMouseMode: enabled, followCursor: enabled }),
+      toggleKeyboardMouseMode: () =>
+        set((state) => ({
+          keyboardMouseMode: !state.keyboardMouseMode,
+          followCursor: !state.keyboardMouseMode,
+        })),
+      setFollowCursor: (enabled) => set({ keyboardMouseMode: enabled, followCursor: enabled }),
+      toggleFollowCursor: () =>
+        set((state) => ({
+          keyboardMouseMode: !state.keyboardMouseMode,
+          followCursor: !state.keyboardMouseMode,
+        })),
       openSettings: () => set({ isOpen: true }),
       closeSettings: () => set({ isOpen: false }),
       toggleSettings: () => set((state) => ({ isOpen: !state.isOpen })),
     }),
     {
       name: "game-settings-storage",
+      // 旧ストレージデータ（followCursorのみ保存されている場合）のマイグレーション
+      merge: (persistedState: unknown, currentState) => {
+        const persisted = (persistedState ?? {}) as Partial<
+          GameSettingsState & { followCursor?: boolean }
+        >;
+        const kmMode =
+          persisted.keyboardMouseMode !== undefined
+            ? persisted.keyboardMouseMode
+            : persisted.followCursor !== undefined
+              ? persisted.followCursor
+              : currentState.keyboardMouseMode;
+
+        return {
+          ...currentState,
+          ...persisted,
+          keyboardMouseMode: kmMode,
+          followCursor: kmMode,
+        };
+      },
       partialize: (state) => ({
         bgmVolume: state.bgmVolume,
         seVolume: state.seVolume,
         bgmMuted: state.bgmMuted,
         seMuted: state.seMuted,
         joystickType: state.joystickType,
-        followCursor: state.followCursor,
+        keyboardMouseMode: state.keyboardMouseMode,
+        followCursor: state.keyboardMouseMode,
       }),
     },
   ),

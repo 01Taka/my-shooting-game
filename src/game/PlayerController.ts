@@ -1,8 +1,7 @@
 import Phaser from "phaser";
 
 import type { ControllerInputPayload } from "../scenes/ControllerScene";
-import { useGameSettings } from "../stores/useGameSettings";
-import { useInputMode } from "../stores/useInputMode";
+import { getControlMode } from "../stores/useInputMode";
 import type { PlayerConfig } from "./types";
 
 export interface PlayerInputState {
@@ -108,59 +107,75 @@ export class PlayerController {
 
     player.setVelocity(vx, vy);
 
-    const isPcMode = useInputMode.getState().mode === "pc";
-    const isPcCursorFollow = isPcMode && useGameSettings.getState().followCursor;
+    const controlMode = getControlMode();
+    const isKeyboardMouse = controlMode === "keyboardMouse";
 
-    // --- 2. 索敵モード（ロックオンスティック倒し中）の判定 ---
-    // 深さに関わらず、アクティブ（デッドゾーン超過）であれば即座に索敵モード
-    const isAiming = this.virtualInput.lockOn.active;
-    let aimAngle = this.virtualInput.lockOn.angle;
+    // --- 2. 照準角度・索敵モードの判定 ---
+    let isAiming = false;
+    let aimAngle = 0;
 
-    if (isPcCursorFollow) {
+    if (isKeyboardMouse) {
+      // キーボード&マウスモードでは、ロックオン機能は無効、常にカーソルの方向を向く
       const pointer = scene.input.activePointer;
       if (pointer && (pointer.worldX !== 0 || pointer.worldY !== 0)) {
         aimAngle = Math.atan2(pointer.worldY - player.y, pointer.worldX - player.x);
       }
+    } else {
+      // スマホモードまたはPCスマホモード：スティック入力を索敵に使用
+      isAiming = this.virtualInput.lockOn.active;
+      aimAngle = this.virtualInput.lockOn.angle;
     }
 
     // --- 3. 自機の向き（ローテーション）制御 ---
-    if (isAiming) {
-      // ロックオンスティック操作中は、ロック中の敵に関わらずスティックの方向を向く
+    if (isKeyboardMouse) {
+      // キーボード&マウスモード：常にカーソル方向を向く
       player.setRotation(aimAngle + Math.PI / 2);
-    } else if (lockedTarget && lockedTarget.active) {
-      // スティックから指を離している間は、ロックオン対象の方を向く
-      const angleToTarget = Phaser.Math.Angle.Between(
-        player.x,
-        player.y,
-        lockedTarget.x,
-        lockedTarget.y,
-      );
-      player.setRotation(angleToTarget + Math.PI / 2);
-    } else if (isPcCursorFollow) {
-      player.setRotation(aimAngle + Math.PI / 2);
-    } else if (this.virtualInput.move.active) {
-      player.setRotation(this.virtualInput.move.angle + Math.PI / 2);
-    } else if (vx !== 0 || vy !== 0) {
-      const moveAngle = Math.atan2(vy, vx);
-      player.setRotation(moveAngle + Math.PI / 2);
+    } else {
+      // スマホモードまたはPCスマホモード
+      if (isAiming) {
+        // ロックオンスティック操作中は、スティックの方向を向く
+        player.setRotation(aimAngle + Math.PI / 2);
+      } else if (lockedTarget && lockedTarget.active) {
+        // スティックから指を離している間は、ロックオン対象の方を向く
+        const angleToTarget = Phaser.Math.Angle.Between(
+          player.x,
+          player.y,
+          lockedTarget.x,
+          lockedTarget.y,
+        );
+        player.setRotation(angleToTarget + Math.PI / 2);
+      } else if (this.virtualInput.move.active) {
+        player.setRotation(this.virtualInput.move.angle + Math.PI / 2);
+      } else if (vx !== 0 || vy !== 0) {
+        const moveAngle = Math.atan2(vy, vx);
+        player.setRotation(moveAngle + Math.PI / 2);
+      }
     }
 
     // --- 4. 攻撃判定（タップまたは長押し連射） ---
-    const isMobileAttack = this.virtualInput.attack;
-    const isPcAttack =
-      isPcMode &&
-      Boolean(scene.input.activePointer.isDown || (this.cursors && this.cursors.space.isDown));
-
-    if (isMobileAttack || isPcAttack) {
-      const shootAngle =
-        lockedTarget && lockedTarget.active
-          ? Phaser.Math.Angle.Between(player.x, player.y, lockedTarget.x, lockedTarget.y)
-          : player.rotation - Math.PI / 2;
-      onShoot(shootAngle);
+    if (isKeyboardMouse) {
+      // キーボード&マウスモード：左クリック（またはスペースキー）で発射
+      const isShooting = Boolean(
+        scene.input.activePointer.isDown || (this.cursors && this.cursors.space.isDown),
+      );
+      if (isShooting) {
+        // 常にカーソル方向へ発射
+        onShoot(aimAngle);
+      }
+    } else {
+      // スマホモードまたはPCスマホモード：右側攻撃パッドの押下でのみ発射
+      if (this.virtualInput.attack) {
+        const shootAngle =
+          lockedTarget && lockedTarget.active
+            ? Phaser.Math.Angle.Between(player.x, player.y, lockedTarget.x, lockedTarget.y)
+            : player.rotation - Math.PI / 2;
+        onShoot(shootAngle);
+      }
     }
 
-    // --- 5. キーボード（Shiftキー）ブリンク判定 ---
-    if (this.shiftKey && Phaser.Input.Keyboard.JustDown(this.shiftKey)) {
+    // --- 5. ブリンク判定 ---
+    // キーボード&マウスモードのみShiftブリンクが有効。PCスマホモードでは無効化
+    if (isKeyboardMouse && this.shiftKey && Phaser.Input.Keyboard.JustDown(this.shiftKey)) {
       onBlink?.();
     }
 

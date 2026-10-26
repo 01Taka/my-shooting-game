@@ -48,6 +48,8 @@ docs/
 - [08. サウンド管理設計とAutoplay Policy対策](./know-how/08-audio-manager-and-autoplay-policy.md)
 - [09. 視線先行(Look-ahead)カメラと広大ワールドの全方位設計](./know-how/09-lookahead-camera-and-world-bounds.md)
 - [10. シーン終了時のGroupクリアによるchildrenエラー](./know-how/10-scene-shutdown-group-clear-error.md)
+- [11. Phaser Graphics の角丸とグラデーション両立技法](./know-how/11-phaser-ui-gradient-and-rounded-corners.md)
+- [12. シーン停止（Shutdown）時のUIテキスト更新によるdrawImageエラー](./know-how/12-scene-shutdown-canvas-text-drawimage-error.md)
 
 ### 📙 [dev-note/ (設計思想・思考フレームワーク)](./dev-note/README.md)
 
