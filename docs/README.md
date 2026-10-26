@@ -60,3 +60,4 @@ docs/
 - [05. スマホ横画面ゲームにおける解像度・アスペクト比と操作系UX設計](./dev-note/05-mobile-landscape-game-design.md)
 - [06. ツインスティックシューターにおけるスマートロックオン＆タップ射撃設計](./dev-note/06-smart-lock-on-and-tap-shoot.md)
 - [07. マイクロステートマシン×アクションサブルーチンによる敵AI設計思想](./dev-note/07-state-machine-action-subroutine-enemy-ai.md)
+- [08. スマホモードにおける操作体系・UIアーキテクチャ設計仕様](./dev-note/08-mobile-control-system-and-ui-architecture.md)

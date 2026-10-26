@@ -44,6 +44,7 @@ export const useInputMode = create<InputModeState>((set, get) => ({
 
 // グローバルな入力検知リスナー（指タップ / マウスクリック / WASDキー）
 let isListenerInitialized = false;
+let lastTouchTimestamp = 0;
 
 export function setupInputModeListener() {
   if (typeof window === "undefined" || isListenerInitialized) return;
@@ -51,13 +52,28 @@ export function setupInputModeListener() {
 
   const setMode = useInputMode.getState().setMode;
 
+  // タッチ開始時（touchstart）も確実に検知
+  window.addEventListener(
+    "touchstart",
+    () => {
+      lastTouchTimestamp = Date.now();
+      setMode("mobile");
+    },
+    { passive: true },
+  );
+
   // ポインター押下時の判定（touch -> mobile, mouse -> pc）
   window.addEventListener(
     "pointerdown",
     (e: PointerEvent) => {
       if (e.pointerType === "touch") {
+        lastTouchTimestamp = Date.now();
         setMode("mobile");
       } else if (e.pointerType === "mouse") {
+        // タッチ直後の疑似マウスクリック（Ghost click）は無視
+        if (Date.now() - lastTouchTimestamp < 600) {
+          return;
+        }
         setMode("pc");
       }
     },

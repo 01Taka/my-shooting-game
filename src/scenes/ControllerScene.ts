@@ -263,6 +263,14 @@ export class ControllerScene extends Phaser.Scene {
   }
 
   /**
+   * シーンが破棄中またはシャットダウン中かどうかを判定
+   */
+  protected isSceneDestroyedOrShuttingDown(): boolean {
+    if (!this.sys || !this.sys.settings) return true;
+    return this.sys.settings.status >= Phaser.Scenes.SHUTDOWN;
+  }
+
+  /**
    * 画面右下の1/4円攻撃パッドの生成
    */
   protected createAttackPad(width: number, height: number) {
@@ -285,24 +293,26 @@ export class ControllerScene extends Phaser.Scene {
         fontStyle: "bold",
       },
     ).setOrigin(0.5);
+    this.attackPadLabel.setAlpha(0.75);
     this.attackPadContainer.add(this.attackPadLabel);
 
     this.drawAttackPadGraphics(false);
   }
 
   /**
-   * 攻撃パッドの扇形グラフィック描画
+   * 攻撃パッドの扇形グラフィック描画（視界を遮らない高透過率）
    */
   protected drawAttackPadGraphics(isPressed: boolean) {
-    if (!this.sys || !this.sys.isActive() || !this.attackPadBg) return;
+    if (this.isSceneDestroyedOrShuttingDown() || !this.attackPadBg || !this.attackPadBg.scene)
+      return;
     const { width, height } = this.scale;
     this.attackPadBg.clear();
 
-    const fillAlpha = isPressed ? 0.6 : 0.35;
-    const strokeAlpha = isPressed ? 0.95 : 0.7;
+    const fillAlpha = isPressed ? 0.35 : 0.12;
+    const strokeAlpha = isPressed ? 0.75 : 0.4;
 
     this.attackPadBg.fillStyle(ATTACK_PAD_COLOR, fillAlpha);
-    this.attackPadBg.lineStyle(4, ATTACK_PAD_COLOR, strokeAlpha);
+    this.attackPadBg.lineStyle(3, ATTACK_PAD_COLOR, strokeAlpha);
 
     // 右下の角 (width, height) を中心とする 1/4 円（Math.PI 〜 1.5 * Math.PI）
     this.attackPadBg.beginPath();
@@ -313,7 +323,7 @@ export class ControllerScene extends Phaser.Scene {
     this.attackPadBg.strokePath();
 
     // 内側の装飾アークライン
-    this.attackPadBg.lineStyle(2, 0xffffff, isPressed ? 0.8 : 0.4);
+    this.attackPadBg.lineStyle(1.5, 0xffffff, isPressed ? 0.5 : 0.2);
     this.attackPadBg.beginPath();
     this.attackPadBg.arc(
       width,
@@ -323,6 +333,10 @@ export class ControllerScene extends Phaser.Scene {
       Math.PI * 1.5,
     );
     this.attackPadBg.strokePath();
+
+    if (this.attackPadLabel && this.attackPadLabel.scene && this.attackPadLabel.active) {
+      this.attackPadLabel.setAlpha(isPressed ? 1.0 : 0.75);
+    }
   }
 
   /**
@@ -348,26 +362,27 @@ export class ControllerScene extends Phaser.Scene {
         fontStyle: "bold",
       },
     ).setOrigin(0.5);
+    this.blinkPadLabel.setAlpha(0.75);
     this.blinkPadContainer.add(this.blinkPadLabel);
 
     this.drawBlinkPadGraphics(false);
   }
 
   /**
-   * ブリンクパッドの扇形グラフィック描画
+   * ブリンクパッドの扇形グラフィック描画（視界を遮らない高透過率）
    */
   protected drawBlinkPadGraphics(isPressed: boolean) {
-    if (!this.sys || !this.sys.isActive() || !this.blinkPadBg) return;
+    if (this.isSceneDestroyedOrShuttingDown() || !this.blinkPadBg || !this.blinkPadBg.scene) return;
     const { width } = this.scale;
     this.blinkPadBg.clear();
 
     const canBlink = this.isBlinkReady;
     const baseColor = canBlink ? BLINK_PAD_COLOR : BLINK_PAD_DISABLED_COLOR;
-    const fillAlpha = isPressed ? 0.65 : canBlink ? 0.35 : 0.15;
-    const strokeAlpha = isPressed ? 0.95 : canBlink ? 0.75 : 0.3;
+    const fillAlpha = isPressed ? 0.35 : canBlink ? 0.12 : 0.05;
+    const strokeAlpha = isPressed ? 0.75 : canBlink ? 0.4 : 0.18;
 
     this.blinkPadBg.fillStyle(baseColor, fillAlpha);
-    this.blinkPadBg.lineStyle(4, baseColor, strokeAlpha);
+    this.blinkPadBg.lineStyle(3, baseColor, strokeAlpha);
 
     // 右上の角 (width, 0) を中心とする 1/4 円（Math.PI * 0.5 〜 Math.PI）
     this.blinkPadBg.beginPath();
@@ -378,7 +393,7 @@ export class ControllerScene extends Phaser.Scene {
     this.blinkPadBg.strokePath();
 
     // 内側の装飾アークライン
-    this.blinkPadBg.lineStyle(2, 0xffffff, isPressed ? 0.8 : canBlink ? 0.45 : 0.18);
+    this.blinkPadBg.lineStyle(1.5, 0xffffff, isPressed ? 0.5 : canBlink ? 0.2 : 0.1);
     this.blinkPadBg.beginPath();
     this.blinkPadBg.arc(
       width,
@@ -389,15 +404,9 @@ export class ControllerScene extends Phaser.Scene {
     );
     this.blinkPadBg.strokePath();
 
-    if (
-      this.blinkPadLabel &&
-      this.blinkPadLabel.scene &&
-      this.blinkPadLabel.active &&
-      this.sys &&
-      this.sys.isActive()
-    ) {
+    if (this.blinkPadLabel && this.blinkPadLabel.scene && this.blinkPadLabel.active) {
       this.blinkPadLabel.setColor(canBlink ? "#ffffff" : "#94a3b8");
-      this.blinkPadLabel.setAlpha(canBlink ? 1.0 : 0.5);
+      this.blinkPadLabel.setAlpha(canBlink ? (isPressed ? 1.0 : 0.75) : 0.35);
     }
   }
 
@@ -600,7 +609,6 @@ export class ControllerScene extends Phaser.Scene {
   protected handleInputModeChange(newMode: InputMode) {
     if (this.inputMode === newMode) return;
     this.inputMode = newMode;
-    this.resetAllSticks();
     this.applyModeVisuals();
   }
 
@@ -612,10 +620,14 @@ export class ControllerScene extends Phaser.Scene {
     const nativeEvent = pointer.event as PointerEvent | undefined;
     const pointerType = nativeEvent?.pointerType;
 
-    if (pointerType === "touch") {
+    const isTouch = Boolean(pointer.wasTouch || pointerType === "touch");
+    if (isTouch) {
       useInputMode.getState().setMode("mobile");
+      this.inputMode = "mobile";
+      this.applyModeVisuals();
     } else if (pointerType === "mouse") {
       useInputMode.getState().setMode("pc");
+      this.inputMode = "pc";
     }
 
     const controlMode = getControlMode();
@@ -650,20 +662,23 @@ export class ControllerScene extends Phaser.Scene {
       return;
     }
 
-    // 3. 画面左半分: 移動スティック操作（スマホモードのみ。PCでは常に非表示かつWASD移動）
-    if (this.inputMode === "mobile" && pointer.x < width / 2 && this.moveStick.pointerId === null) {
-      this.activateStick(this.moveStick, pointer);
-    } else if (pointer.x >= width / 2) {
-      // 4. 画面右半分:
-      //   - 右下1/4円の内側: 攻撃パッド（タップ/長押し連射）
-      //   - 右下1/4円の外側: ロックオンスティック
-      if (distFromBottomRight <= this.attackPadRadius) {
-        this.attackPointerIds.add(pointer.id);
-        this.drawAttackPadGraphics(true);
-        this.notifyGameScene();
-      } else if (this.lockOnStick.pointerId === null) {
-        this.activateStick(this.lockOnStick, pointer);
+    // 3. 画面左半分: 移動スティック操作（移動スティックが表示されている場合のみ起動）
+    if (pointer.x < width / 2) {
+      if (this.moveStick.container.visible && this.moveStick.pointerId === null) {
+        this.activateStick(this.moveStick, pointer);
       }
+      return;
+    }
+
+    // 4. 画面右半分:
+    //   - 右下1/4円の内側: 攻撃パッド（タップ/長押し連射）
+    //   - 右下1/4円の外側: ロックオンスティック
+    if (distFromBottomRight <= this.attackPadRadius) {
+      this.attackPointerIds.add(pointer.id);
+      this.drawAttackPadGraphics(true);
+      this.notifyGameScene();
+    } else if (this.lockOnStick.pointerId === null) {
+      this.activateStick(this.lockOnStick, pointer);
     }
   }
 
@@ -924,7 +939,7 @@ export class ControllerScene extends Phaser.Scene {
    * 全スティックのリセット
    */
   protected resetAllSticks() {
-    if (!this.sys || !this.sys.isActive()) return;
+    if (this.isSceneDestroyedOrShuttingDown()) return;
 
     if (this.weaponStick && this.weaponStick.pointerId !== null) {
       this.releaseWeaponStick();
