@@ -3,6 +3,8 @@
 シューティングゲームにおいて、「接近」「距離維持（カイティング）」「予兆付き連続射撃」「近接急襲」など多様な**雑魚敵AI**を量産・拡張するためのアーキテクチャ設計思想と思考フレームワークの記録です。
 
 > **スコープ**: 本設計は雑魚敵向けです。ボスは共通基盤（`EnemyBase`・`defineAction`）だけを共有し、ボス専用のステートマシンを別に書く方針とします（詳細は第9章）。
+>
+> **関連ドキュメント**: 行動阻害デバフ（スタン・スロウ／凍結）および耐性・アイスメーターの仕様は **`09-crowd-control-stun-and-slow.md`** に分離しています。本ドキュメントでは、それらを受け入れるステートマシン側の接続点（`timeScale` と動的スタン時間）のみを扱います。
 
 ---
 
@@ -26,34 +28,37 @@
 **「状態内で実行される一連のシーケンス行動（サブルーチン）を単一のアクション関数にカプセル化し、状態間の遷移はテーブル側で宣言する」** 設計です。
 
 ```
+
 【毎フレーム実行 (updateEnemy)】
-  │
-  ├── 0. 基盤の更新 (tickBase)
-  │      └─ 凍結→timeScale、クールダウン進行、アニメ速度の追従
-  │         ※ 凍結中 (timeScale = 0) はここで打ち切り。stateData は保持される
-  │
-  ├── 1. 割り込み判定
-  │      ├─ 外部要求 (requestState: 被弾スタンなど)
-  │      └─ Watcher (至近距離接近、HP低下など) ──(緊急時)──> transitionTo(強制遷移)
-  │
-  └── 2. 現在のステートのアクション実行 (run.update)
-         │
-         ├── scaledDelta (経過ミリ秒 × timeScale) を受け取り、data.timer でステップ実行
-         │
-         └── 戻り値:
-              ├─ "done"            ──> テーブルの onDone が指す状態へ遷移
-              └─ void / undefined  ──> 同一状態を継続
+│
+├── 0. 基盤の更新 (tickBase)
+│ └─ スロウ/アイスメーター更新→timeScale算出、クールダウン進行、アニメ速度の追従
+│ ※ 凍結中 (timeScale = 0) はここで打ち切り。stateData は保持される
+│
+├── 1. 割り込み判定
+│ ├─ 外部要求 (requestState: 被弾スタンなど)
+│ └─ Watcher (至近距離接近、HP低下など) ──(緊急時)──> transitionTo(強制遷移)
+│
+└── 2. 現在のステートのアクション実行 (run.update)
+│
+├── scaledDelta (経過ミリ秒 × timeScale) を受け取り、data.timer でステップ実行
+│
+└── 戻り値:
+├─ "done" ──> テーブルの onDone が指す状態へ遷移
+│ （配列指定なら、比率に応じて抽選して決定）
+└─ void / undefined ──> 同一状態を継続
+
 ```
 
 ### 責務の分離
 
-| 担当                   | 知っていること             | 知らないこと         |
-| :--------------------- | :------------------------- | :------------------- |
-| **アクション**         | 自分の動作手順、完了したか | 次にどの状態へ行くか |
-| **遷移テーブル**       | 完了後の遷移先（`onDone`） | 動作の中身           |
-| **Watcher / 外部要求** | 割り込み条件               | アクションの内部状態 |
+| 担当                   | 知っていること                         | 知らないこと         |
+| :--------------------- | :------------------------------------- | :------------------- |
+| **アクション**         | 自分の動作手順、完了したか             | 次にどの状態へ行くか |
+| **遷移テーブル**       | 完了後の遷移先・分岐の比率（`onDone`） | 動作の中身           |
+| **Watcher / 外部要求** | 割り込み条件                           | アクションの内部状態 |
 
-アクションが遷移先を知らないため、同じアクションを別の敵・別のテーブルで使い回せます。敵の行動グラフはテーブルを読むだけで把握できます。
+アクションが遷移先を知らないため、同じアクションを別の敵・別のテーブルで使い回せます。敵の行動グラフ（確率分岐を含む）はテーブルを読むだけで把握できます。
 
 ### 敵インスタンスが保持する最小限のコンテキスト
 
@@ -66,6 +71,7 @@
 
 - 毎フレームの戻り値オブジェクトを作らない（`"done"` 文字列か `void`）ため、フレーム単位の GC 負荷はありません。
 - `transitionTo` のたびに `stateData` が1つ生成されます（実害は小さい）。
+- 確率分岐の抽選（`pickNext`）は**遷移の瞬間に1回だけ**走り、配列も新規生成しません（テーブルの配列を読むだけ）。
 - アクションテーブルは**状態を持たない**（可変データはすべて `stateData` 側）ので、敵の種類ごとに1つ作って**全インスタンスで共有**します。スポーンごとに `defineAction` を呼んでクロージャを作り直してはいけません。
 
 ---
@@ -86,13 +92,15 @@
 
 ## 4. アクション実装の3つの規約
 
-凍結（第8章）やアニメ同期を成立させるため、アクションは以下を守ります。
+スロウ・凍結（`timeScale` による時間伸縮）やアニメ同期を成立させるため、アクションは以下を守ります。
 
 1. **時間はすべて `data.timer += delta` で管理する。** `scene.time.delayedCall` や Tween をアクション内で使わない（`timeScale` が効かなくなる）。
 2. **速度は `enemy.moveAt(angle, speed)` / `enemy.stopMoving()` 経由で設定する。** `body.velocity` を直接書かない。基準速度に `timeScale` を掛けて反映するのは基盤側の責務。
 3. **クールダウンは `enemy.startCooldown(key, ms)` / `enemy.isReady(key)` を使う。** 実時間ではなく `timeScale` 適用後の時間で進行するため、凍結中は進まない。
 
 また、`initData` は**状態に入る瞬間に1回だけ呼ばれる**ため、プレイヤー位置を見た進行方向の決定や、速度・向きの初期設定といった「進入時の副作用」を書く場所（enter フック）を兼ねます。`onReset` は**状態を抜けるとき常に**（正常完了・強制遷移のどちらでも）呼ばれる後始末フックです。
+
+> 確率による行動の選び分けは、アクション内で乱数を振るのではなく**遷移テーブル側（`onDone` の配列）で宣言**します（第6章 6.2）。アクション内の乱数は「移動方向」「移動時間」のような**動作内容のばらつき**にのみ使い、「次に何をするか」のばらつきはテーブルに寄せることで、行動グラフが読み取れる状態を保ちます。
 
 ---
 
@@ -150,10 +158,23 @@ export function defineAction<TData, TArgs = void>(def: {
 
 状態キーを `string` にすると、遷移先のタイポが実行時まで検出されません。**敵ごとに状態名のユニオン型 `K` を定義**し、テーブルを `Record<K, ...>` にすることで、状態の抜け・存在しない状態への遷移をコンパイル時に検出します。
 
+### 6.1 基本の型定義
+
+`onDone` は**単一の状態名**、または**重み付き候補の配列**のどちらでも書けます（`NextSpec<K>`）。
+
 ```typescript
+/** 抽選候補。weight は比率で、省略時は 1 */
+export interface WeightedNext<K extends string> {
+  state: K;
+  weight?: number;
+}
+
+/** 遷移先の指定。単一の状態名 or 重み付き候補の配列 */
+export type NextSpec<K extends string> = K | readonly WeightedNext<K>[];
+
 export interface StateEntry<K extends string> {
   run: BoundAction; // 状態の中身（状態を持たないので共有可能）
-  onDone: K; // run が "done" を返したときの遷移先
+  onDone: NextSpec<K>; // run が "done" を返したときの遷移先（確率分岐も可）
 }
 export type StateTable<K extends string> = Record<K, StateEntry<K>>;
 export type Watcher<K extends string> = (enemy: Enemy<K>, context: GameContext) => K | void;
@@ -164,10 +185,73 @@ type PredatorState = "MOVE" | "TRIPLE_SHOT" | "DASH_CLAW" | "STUN";
 
 const table: StateTable<PredatorState> = {
   MOVE:        { run: ..., onDone: "TRIPLE_SHOT" }, // ← "TRIPLE_SHOTT" と書くとコンパイルエラー
-  TRIPLE_SHOT: { run: ..., onDone: "MOVE" },
+  TRIPLE_SHOT: { run: ..., onDone: [{ state: "MOVE" }, { state: "STUN" }] }, // 配列内のタイポも検出される
   // DASH_CLAW / STUN を書き忘れてもコンパイルエラー
 };
 ```
+
+配列の `state` も `K` で型付けされるため、**確率分岐の中のタイポ・存在しない状態もコンパイル時に検出**されます。
+
+### 6.2 確率分岐（重み付き抽選）
+
+`onDone` に配列を渡すと、**`"done"` を受けて遷移する瞬間に1回だけ**、`weight` の比率で遷移先を抽選します。
+
+```typescript
+// 例：完了後、75% で TRIPLE_SHOT、25% で もう一度 MOVE
+MOVE: {
+  run: roamOrChaseAction({ ... }),
+  onDone: [
+    { state: "TRIPLE_SHOT", weight: 3 },
+    { state: "MOVE" }, // weight 省略 = 1
+  ],
+},
+```
+
+#### 仕様
+
+| 項目             | 仕様                                                                                                                                                                       |
+| :--------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 比率の意味       | **相対的な重み**。合計を1や100にそろえる必要はない（`3 : 1` ＝ 75% : 25%）                                                                                                 |
+| `weight` の省略  | `1` として扱う。全候補を省略すれば**一様ランダム**                                                                                                                         |
+| `weight: 0`      | 抽選対象外（一時的に分岐を無効化したいときに便利）                                                                                                                         |
+| 不正な `weight`  | 負数・`NaN` は `0` 扱い                                                                                                                                                    |
+| 全候補が重み0/空 | 抽選不能。開発時は例外を投げて気づけるようにする（下記 `pickNext` 参照）                                                                                                   |
+| 単一の状態名     | 抽選せずそのまま返す（従来と完全に同じ動作・追加コストなし）                                                                                                               |
+| 自己遷移         | 候補に現在の状態を含めてよい。`transitionTo` が走るので `onReset` → `initData` が再実行され、状態が**最初からやり直される**（`MOVE` なら進行方向・移動時間が再抽選される） |
+| 乱数源           | `Phaser.Math.RND`（シード指定可能。リプレイやテストで再現性を確保できる）                                                                                                  |
+
+#### 抽選関数 `pickNext`
+
+```typescript
+/** NextSpec から次の状態を1つ決める。単一の状態名なら抽選せずそのまま返す */
+export function pickNext<K extends string>(spec: NextSpec<K>): K {
+  if (typeof spec === "string") return spec;
+
+  let total = 0;
+  for (const c of spec) total += weightOf(c);
+  if (total <= 0) {
+    throw new Error("onDone の候補が空、または重みの合計が 0 です");
+  }
+
+  let r = Phaser.Math.RND.frac() * total; // 0 <= r < total
+  for (const c of spec) {
+    r -= weightOf(c);
+    if (r < 0) return c.state;
+  }
+  return spec[spec.length - 1].state; // 浮動小数点誤差のフォールバック
+}
+
+function weightOf<K extends string>(c: WeightedNext<K>): number {
+  const w = c.weight ?? 1;
+  return w > 0 ? w : 0; // 負数・NaN は 0
+}
+```
+
+#### 設計上の位置づけ
+
+- **抽選はアクションではなくテーブルの責務**: アクションは引き続き「`"done"` を返すだけ」で、遷移先も確率も知りません。同じアクションを「毎回 `MOVE` へ戻す敵」と「たまに別の行動へ分岐する敵」で使い回せます。
+- **Watcher・外部要求（`requestState`）の強制遷移は抽選しない**: 割り込みは常に決定的な単一の状態へ遷移します。確率分岐の対象は「アクションの正常完了」のみです。
+- **抽選結果は遷移時に確定する**: 状態の途中で確率を振り直したり、`stateData` に抽選結果を持ち越したりはしません。凍結中（`timeScale = 0`）は遷移自体が起きないため、凍結をまたいでも抽選は発生しません。
 
 ---
 
@@ -180,8 +264,8 @@ const table: StateTable<PredatorState> = {
    - プレイヤーから一定以上離れていればプレイヤーへ向かって直線移動。
    - 一定距離以内ならランダムな方向へ直線移動。
    - 移動時間は状態進入時に**1〜3秒のランダム**で決定。
-3. **移動完了後（攻撃フェーズ）**: プレイヤーに向かって**3連攻撃**（最初の1発の前に予兆の間がある）を行い、終わったら再び移動に戻る。
-4. **被弾時**: スタンして行動をリセットし、解除後は `MOVE` から再開する。
+3. **移動完了後（攻撃フェーズ）**: **75% の確率**でプレイヤーに向かって**3連攻撃**（最初の1発の前に予兆の間がある）を行い、終わったら再び移動に戻る。**残り25%** は攻撃せずにもう一度移動する（進行方向・移動時間は再抽選）。
+4. **被弾スタン時**: スタン耐性に応じた時間だけ行動を中断・硬直し、解除後は `MOVE` から再開する（スタン耐性100の敵はキャンセルされない）。
 
 単位は `PX_PER_METER` を1か所で定義し、距離・速度は m 単位で記述します。
 
@@ -192,93 +276,35 @@ export const m = (meters: number) => meters * PX_PER_METER;
 
 ---
 
-### ステップ1: 基盤クラス（`EnemyBase`）
+### ステップ1: 基盤クラス（`EnemyBase`）の概要
 
-物理・時間・クールダウン・凍結といった**状態機械に依存しない機能**を持つ基盤です。雑魚の `Enemy<K>` もボスも、これを継承します。アクションが依存するのはこのクラスだけです。
+物理・時間・クールダウン・行動阻害デバフ（スタン・スロウ）といった**状態機械に依存しない機能**を持つ基盤です。雑魚の `Enemy<K>` もボスもこれを継承し、アクションが依存するのもこのクラスだけです。
 
-※ アニメーション（`anims`）を使うため `Image` ではなく `Sprite` を継承します。
+> ※ `EnemyBase` の具体的な実装コードとデバフ計算式は **`08-crowd-control-stun-and-slow.md`** を参照してください。アクションおよびステートマシン側からは、以下のインターフェースを利用します。
 
 ```typescript
-const FREEZE_DURATION_MS = 3000; // 完全凍結の長さ
-const FREEZE_SLOW_MAX = 0.7; // 蓄積1.0直前の最大減速率
-const FREEZE_DECAY_PER_MS = 0.0003; // 凍結蓄積の自然減衰
-
-export class EnemyBase extends Phaser.Physics.Arcade.Sprite {
-  declare body: Phaser.Physics.Arcade.Body;
-
-  /** 1=通常, 0.5=スロウ, 0=凍結 */
+// EnemyBase が提供する主要API（抜粋）
+export abstract class EnemyBase extends Phaser.Physics.Arcade.Sprite {
+  /** 1 = 通常, 0 < timeScale < 1 = スロウ, 0 = 凍結 */
   public timeScale = 1;
-  public freezeBuildup = 0; // 0〜1
-  private freezeRemainingMs = 0;
 
-  private baseVelocity = new Phaser.Math.Vector2();
-  private cooldowns: Record<string, number> = {};
+  /** 直近の applyStun で確定した実効スタン時間（ms）。stunAction が参照する */
+  public pendingStunDurationMs = 0;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, texture: string) {
-    super(scene, x, y, texture);
-    scene.add.existing(this);
-    scene.physics.add.existing(this);
-  }
+  // --- アクション向けAPI ---
+  public moveAt(angle: number, speed: number): void;
+  public stopMoving(): void;
+  public startCooldown(key: string, ms: number): void;
+  public isReady(key: string): boolean;
 
-  // --- 速度API（アクションはこれ経由で動かす） ---
-  public moveAt(angle: number, speed: number): void {
-    this.scene.physics.velocityFromRotation(angle, speed, this.baseVelocity);
-  }
-  public stopMoving(): void {
-    this.baseVelocity.set(0, 0);
-  }
+  // --- 外部（被弾処理など）向けデバフ付与API ---
+  public applyStun(baseDurationMs: number): void;
+  public applySlow(amount: number): void;
 
-  // --- クールダウンAPI ---
-  public startCooldown(key: string, ms: number): void {
-    this.cooldowns[key] = ms;
-  }
-  public isReady(key: string): boolean {
-    return (this.cooldowns[key] ?? 0) <= 0;
-  }
-
-  // --- 凍結API ---
-  public applyFreeze(amount: number): void {
-    if (this.freezeRemainingMs > 0) return; // 凍結中は蓄積しない
-    this.freezeBuildup = Math.min(1, this.freezeBuildup + amount);
-    if (this.freezeBuildup >= 1) this.freezeRemainingMs = FREEZE_DURATION_MS;
-  }
-
-  /** 毎フレーム冒頭に呼ぶ。timeScale適用後の delta を返す */
-  protected tickBase(delta: number): number {
-    this.updateFreeze(delta);
-    const scaledDelta = delta * this.timeScale;
-
-    for (const key in this.cooldowns) {
-      this.cooldowns[key] = Math.max(0, this.cooldowns[key] - scaledDelta);
-    }
-    this.anims.timeScale = this.timeScale;
-    return scaledDelta;
-  }
-
-  /** 基準速度 × timeScale を物理ボディへ反映する */
-  protected applyVelocity(): void {
-    this.body.setVelocity(
-      this.baseVelocity.x * this.timeScale,
-      this.baseVelocity.y * this.timeScale,
-    );
-  }
-
-  private updateFreeze(delta: number): void {
-    if (this.freezeRemainingMs > 0) {
-      this.freezeRemainingMs -= delta; // 凍結の解除タイマーは実時間
-      if (this.freezeRemainingMs <= 0) {
-        this.freezeRemainingMs = 0;
-        this.freezeBuildup = 0; // 解除後は蓄積リセット
-        this.timeScale = 1;
-      } else {
-        this.timeScale = 0;
-      }
-      return;
-    }
-    // 蓄積が自然減衰し、蓄積量に応じてスロウがかかる
-    this.freezeBuildup = Math.max(0, this.freezeBuildup - FREEZE_DECAY_PER_MS * delta);
-    this.timeScale = 1 - this.freezeBuildup * FREEZE_SLOW_MAX;
-  }
+  // --- サブクラス（Enemy<K> / Boss）がオーバーライド・呼び出しするフック ---
+  protected abstract onStunTriggered(): void;
+  protected tickBase(delta: number): number;
+  protected applyVelocity(): void;
 }
 ```
 
@@ -329,7 +355,7 @@ export const roamOrChaseAction = defineAction({
 
 #### ② 3連続射撃アクション (`tripleShotAction`)
 
-足を止めてプレイヤーに向き直り、250ms間隔で3連射してから後隙を経て完了します。**最初の1発も `intervalMs` 待ってから撃つ**ため、この待ち時間が予兆になります（予兆なしにしたい場合は `timer` の初期値を `intervalMs` にする）。
+足を止めてプレイヤーに向き直り、250ms間隔で3連射してから後隙を経て完了します。**最初の1発も `intervalMs` 待ってから撃つ**ため、この待ち時間が予兆になります。
 
 ```typescript
 interface TripleShotArgs {
@@ -424,22 +450,21 @@ export const dashClawAttackAction = defineAction({
 
 #### ④ スタンアクション (`stunAction`)
 
-行動を中断し、一定時間硬直します。`stateData` は破棄されるため、解除後は新しい行動から始まります。
+行動を中断し、`applyStun` で計算された実効スタン時間（`enemy.pendingStunDurationMs`）だけ硬直します。定数の設定値を持たないため、全種類の敵で同じインスタンスを共有できます。
 
 ```typescript
-interface StunArgs {
-  durationMs: number;
-}
-
 export const stunAction = defineAction({
-  initData: (enemy, _context, _args: StunArgs) => {
+  initData: (enemy) => {
     enemy.stopMoving();
     enemy.setTint(0xffff66);
-    return { timer: 0 };
+    return {
+      timer: 0,
+      durationMs: enemy.pendingStunDurationMs, // 耐性計算済みのスタン時間を取得
+    };
   },
-  update: (_enemy, _context, data, args, delta) => {
+  update: (_enemy, _context, data, _args, delta) => {
     data.timer += delta;
-    if (data.timer >= args.durationMs) return "done";
+    if (data.timer >= data.durationMs) return "done";
   },
   onReset: (enemy) => {
     enemy.clearTint();
@@ -450,6 +475,8 @@ export const stunAction = defineAction({
 ---
 
 ### ステップ3: ステートマシン本体（`Enemy<K>`）
+
+`"done"` を受けたときの遷移先は `pickNext(entry.onDone)` で決定します。
 
 ```typescript
 export class Enemy<K extends string> extends EnemyBase {
@@ -465,15 +492,24 @@ export class Enemy<K extends string> extends EnemyBase {
     initialState: K,
     private table: StateTable<K>,
     private watcher?: Watcher<K>,
+    resistances?: ResistanceConfig,
+    private stunStateKey?: K, // スタン状態に対応するキー（例: "STUN"）
   ) {
-    super(scene, x, y, "enemy");
+    super(scene, x, y, "enemy", resistances);
     this.currentState = initialState;
     // 初期状態の init は、context が揃う最初の updateEnemy まで遅延する
   }
 
-  /** 外部イベント（被弾スタンなど）から状態を強制する。次のフレームで反映される */
+  /** 外部イベントから状態を強制する。次のフレームで反映される */
   public requestState(next: K): void {
     this.pendingState = next;
+  }
+
+  /** EnemyBase.applyStun でスタンが成立したときに呼ばれるフック */
+  protected onStunTriggered(): void {
+    if (this.stunStateKey !== undefined) {
+      this.requestState(this.stunStateKey);
+    }
   }
 
   private transitionTo(next: K, context: GameContext): void {
@@ -486,7 +522,7 @@ export class Enemy<K extends string> extends EnemyBase {
   }
 
   public updateEnemy(context: GameContext, delta: number): void {
-    // 0. 基盤の更新（凍結・クールダウン・アニメ速度）
+    // 0. 基盤の更新（スロウ/アイスメーター・クールダウン・アニメ速度）
     const scaledDelta = this.tickBase(delta);
 
     // 凍結中はアクションもWatcherも止める。stateData は保持されるので、
@@ -502,17 +538,24 @@ export class Enemy<K extends string> extends EnemyBase {
       this.stateData = this.table[this.currentState].run.init(this, context);
     }
 
-    // 1. 割り込み（外部要求 → Watcher の順）
-    const forced = this.pendingState ?? this.watcher?.(this, context);
-    this.pendingState = undefined;
-    if (forced && forced !== this.currentState) {
-      this.transitionTo(forced, context);
+    // 1. 割り込み（外部要求 → Watcher の順）。
+    // スタン中の再スタン（時間上書き）も成立させるため、pendingState は同一状態への再遷移も許可する
+    if (this.pendingState !== undefined) {
+      const target = this.pendingState;
+      this.pendingState = undefined;
+      this.transitionTo(target, context);
+    } else {
+      const watched = this.watcher?.(this, context);
+      if (watched && watched !== this.currentState) {
+        this.transitionTo(watched, context);
+      }
     }
 
     // 2. 現在のアクションを実行（遷移したフレームも遅れずに実行される）
     const entry = this.table[this.currentState];
     if (entry.run.update(this, context, this.stateData, scaledDelta) === "done") {
-      this.transitionTo(entry.onDone, context);
+      // 正常完了：onDone が配列なら、ここで比率に応じて遷移先を抽選する
+      this.transitionTo(pickNext(entry.onDone), context);
     }
 
     // 3. 基準速度 × timeScale を反映
@@ -537,7 +580,8 @@ const PREDATOR_TABLE: StateTable<PredatorState> = {
       minDurationMs: 1000,
       maxDurationMs: 3000,
     }),
-    onDone: "TRIPLE_SHOT",
+    // 確率分岐：75% で 3連射、25% でもう一度移動（weight 省略 = 1）
+    onDone: [{ state: "TRIPLE_SHOT", weight: 3 }, { state: "MOVE" }],
   },
   TRIPLE_SHOT: {
     run: tripleShotAction({ totalShots: 3, intervalMs: 250, postDelayMs: 400 }),
@@ -553,7 +597,7 @@ const PREDATOR_TABLE: StateTable<PredatorState> = {
     onDone: "MOVE",
   },
   STUN: {
-    run: stunAction({ durationMs: 800 }),
+    run: stunAction(), // 時間は enemy.pendingStunDurationMs から動的に取る
     onDone: "MOVE",
   },
 };
@@ -568,55 +612,60 @@ const predatorWatcher: Watcher<PredatorState> = (self, context) => {
 };
 
 export function createPredatorEnemy(scene: Phaser.Scene, x: number, y: number) {
-  return new Enemy<PredatorState>(scene, x, y, "MOVE", PREDATOR_TABLE, predatorWatcher);
+  return new Enemy<PredatorState>(
+    scene,
+    x,
+    y,
+    "MOVE",
+    PREDATOR_TABLE,
+    predatorWatcher,
+    { stunResistance: 20, slowResistance: 10 }, // 耐性設定（詳細は 08 参照）
+    "STUN",
+  );
 }
 
 // 被弾時（弾との衝突コールバックなどから）
-// enemy.requestState("STUN");
+// enemy.applyStun(1000); // 耐性20なら 800ms の STUN 状態へ強制遷移
+// enemy.applySlow(30);   // スロウ耐性に応じてアイスメーター加算
 ```
 
 ### 実行時の挙動サイクル
 
 ```
 [通常距離]
-  MOVE (1〜3秒直線移動) ──(done)──> TRIPLE_SHOT (予兆→3連射→硬直) ──(done)──> MOVE (ループ)
+  MOVE (1〜3秒直線移動) ──(done)──┬─ 75% ─> TRIPLE_SHOT (予兆→3連射→硬直) ──(done)──> MOVE
+    ▲                              │
+    └──────────── 25% ─────────────┘   （MOVE を最初からやり直し：方向・時間を再抽選）
     │
     │  (プレイヤーが4m以内に接近 かつ "claw" クールダウン明け)
     ▼
-  Watcherが割り込み検知 ───(強制遷移)───> DASH_CLAW (突進＋爪攻撃)
+  Watcherが割り込み検知 ───(強制遷移：抽選なし)───> DASH_CLAW (突進＋爪攻撃)
                                               │
     ┌──────────(done：onReset でクールダウン1.5秒開始)──┘
     ▼
-  MOVE ──> TRIPLE_SHOT ──> MOVE ...   （クールダウン中は至近距離でも爪は再発動しない）
+  MOVE ──> (75%) TRIPLE_SHOT ──> MOVE ...   （クールダウン中は至近距離でも爪は再発動しない）
     └─ クールダウンが明けて、まだ4m以内なら再び DASH_CLAW
 ```
 
 ---
 
-## 8. 状態異常：スタンと凍結は直交した2つの機構
+## 8. 行動阻害デバフとステートマシンの接続点
 
-|             | スタン                                          | 凍結（スロウ→停止）                      |
-| :---------- | :---------------------------------------------- | :--------------------------------------- |
-| 実現方法    | `requestState("STUN")` による**状態の強制遷移** | `timeScale` による**時間の流れ方の操作** |
-| `stateData` | 破棄（リセット）                                | **保持（続きから）**                     |
-| 解除後      | 新しい行動（`MOVE`）を開始                      | 元の行動を**中断した位置から再開**       |
-| Watcher     | スタン中は発動しない（Watcher側で除外）         | 凍結中は Watcher も停止                  |
+行動阻害デバフは **「スタン」** と **「スロウ（およびアイスメーター100到達時の凍結）」** の2種類のみであり、ステートマシンに対して**直交した2つの機構**として接続されます。詳細な仕様・耐性計算は **`08-crowd-control-stun-and-slow.md`** を参照してください。
 
-### 凍結が「続きから再開」になる仕組み
+|             | スタン                                                  | スロウ（アイスメーター）／ 凍結                 |
+| :---------- | :------------------------------------------------------ | :---------------------------------------------- |
+| 実現方法    | `applyStun(ms)` による **`"STUN"` 状態への強制遷移**    | `applySlow(amount)` による **`timeScale` 操作** |
+| 耐性100の時 | 遷移自体が発生しない（**行動キャンセルも起きない**）    | メーターが溜まらない／即座に減衰する            |
+| `stateData` | 破棄（リセット）                                        | **保持（続きから）**                            |
+| 解除後      | 新しい行動（`STUN` の `onDone`）を開始                  | 元の行動を**中断した位置から再開**              |
+| Watcher     | スタン中は発動しない（Watcher側で除外）                 | 凍結中（`timeScale = 0`）は Watcher も停止      |
+| 遷移の抽選  | 強制遷移なので**抽選なし**（解除後の遷移先は `onDone`） | 遷移自体が起きないので**抽選も発生しない**      |
 
-凍結は状態ではないため、`transitionTo` が起きず `stateData`（`timer`、`shotsFired` など）がそのまま残ります。
+### なぜこの分離がうまく機能するのか
 
-- `timeScale` が 1 未満になると、アクションに渡る `delta` が縮み、**時間が遅く流れる**（スロウ）。
-- `timeScale = 0` の間はアクションを呼ばない（`updateEnemy` が早期 return）。
-- 解除して `timeScale = 1` に戻ると、**3連射の2発目の途中だった、という位置から自動的に再開**する。
-- 基準速度（`baseVelocity`）は凍結中も保持され、`applyVelocity()` が `基準速度 × timeScale` を反映するため、スロウ表現・停止・再開の速度復元がすべて同じ仕組みで済む。
-- アニメーションは `anims.timeScale` を同期しているので、見た目もスロウ・停止に追従する。アニメの尺を待つアクションでも、`scaledDelta` と `anims.timeScale` が揃っているため `data.timer >= animDuration` の判定が破綻しない。
-
-### 凍結を前提に守るべきこと
-
-- アクション内の時間は `data.timer += delta` のみ（第4章）。`delayedCall` や Tween を使うと凍結が効かない。
-- 速度は `moveAt` / `stopMoving` 経由のみ。`body.velocity` の直接書き込みは凍結時に復元できない。
-- 敵が撃った弾は凍結の影響を受けない（通常は期待どおり）。アクション内で生成したチャージ演出などは、必要なら別途 `timeScale` に追従させる。
+- **スタン**: 「行動をキャンセルして硬直させる」ため、現在の `stateData` を破棄して `"STUN"` ステートへ `transitionTo` するステートマシンの仕組みそのもので表現できます。
+- **スロウ／凍結**: 「現在の行動をキャンセルせず、進行速度だけを落とす／一時停止する」ため、状態遷移を起こさず `delta` に `timeScale` を掛けるだけで、溜め攻撃の途中や連射の2発目から自然に再開できます。
 
 ---
 
@@ -624,11 +673,11 @@ export function createPredatorEnemy(scene: Phaser.Scene, x: number, y: number) {
 
 ### 1. アニメーションの尺との一致
 
-Phaser 3 では `enemy.anims.currentAnim?.duration`（ミリ秒）を取得できるため、アニメーション再生完了待ちを `data.timer >= animDuration` で同期できます（`Sprite` 系クラスが必要）。
+Phaser 3 では `enemy.anims.currentAnim?.duration`（ミリ秒）を取得できるため、アニメーション再生完了待ちを `data.timer >= animDuration` で同期できます（`Sprite` 系クラスが必要）。`anims.timeScale` も `this.timeScale` に同期させるため、スロウ中も判定が破綻しません。
 
 ### 2. 強制中断（`onReset`）による不整合防止
 
-被弾スタンなどで状態を奪われた際、`onReset` で `enemy.stop()` を呼ぶことで、「怯んでいるのに攻撃アニメーションが再生され続ける」といった表示バグを防げます。`onReset` は正常完了時にも呼ばれるため、後始末は冪等に書きます。
+被弾スタンなどで状態を奪われた際、`onReset` で後始末を呼ぶことで、「怯んでいるのに攻撃エフェクトや移動速度が残る」といったバグを防げます。`onReset` は正常完了時にも呼ばれるため、後始末は冪等に書きます。
 
 ### 3. 雑魚とボスの関係：共通基盤＋ボス専用ステートマシン
 
@@ -639,8 +688,8 @@ Phaser 3 では `enemy.anims.currentAnim?.duration`（ミリ秒）を取得で�
 - **割り込み後の復帰（スタック）**：現在の `state` と `stateData` を退避する `interruptWith` / `resume`
 - **並列行動**：「移動しながら射撃」を複合アクションとして別途書く
 
-**共有するもの**: `EnemyBase`（物理・凍結・クールダウン）、`defineAction`、`BoundAction`、時間の規約（第4章）。
-`Boss extends EnemyBase` として書けば、雑魚で作った `roamOrChaseAction` などのアクションもそのまま流用でき、凍結もそのまま効きます。
+**共有するもの**: `EnemyBase`（物理・スタン耐性・スロウ耐性・アイスメーター・クールダウン）、`defineAction`、`BoundAction`、`NextSpec` / `pickNext`（確率分岐）、時間の規約（第4章）。
+`Boss extends EnemyBase` として書けば、雑魚で作ったアクションもそのまま流用でき、スタンやスロウ／凍結の耐性システムも共通で動作します（例：ボスは `stunResistance: 100` にして行動キャンセルを無効化し、`slowResistance: 80` で凍結上限を100未満に抑えて完全凍結を防ぐ、といった調整がパラメータだけで可能になります）。
 
 ---
 
@@ -649,16 +698,21 @@ Phaser 3 では `enemy.anims.currentAnim?.duration`（ミリ秒）を取得で�
 ### 本設計が解決しないこと
 
 - **並列行動の合成**: 1つのアクションが1つの行動を占有するため、「移動しながら射撃」は専用アクションを書く必要がある（組み合わせ爆発の再発点）。
-- **割り込み後の復帰**: スタンなどで状態を奪うと `stateData` は破棄される。続きから再開したい場合は凍結（`timeScale`）を使うか、ボス側に `interruptWith` / `resume` を実装する。
-- **複数の完了結果**: `"done"` の1種類のみ。完了結果で遷移先を分けたい場合は、戻り値を `"hit" | "miss"` のようなユニオンに拡張し、`onDone` を `on: { hit: K; miss: K }` に変える。
+- **割り込み後の復帰**: スタンで状態を奪うと `stateData` は破棄される。続きから再開したい場合はスロウ／凍結（`timeScale`）を使うか、ボス側に `interruptWith` / `resume` を実装する。
+- **複数の完了結果**: `"done"` の1種類のみ。完了結果で遷移先を分けたい場合は、戻り値を `"hit" | "miss"` のようなユニオンに拡張し、`onDone` を `on: { hit: NextSpec<K>; miss: NextSpec<K> }` に変える。確率分岐（`NextSpec`）は結果ごとの遷移先にもそのまま使えるため、両者は独立して組み合わせられる。
+- **状況に応じて変わる確率**: `weight` は静的な数値のみ。「HPが低いほど攻撃に寄せる」「直前と同じ行動を避ける」といった動的な比率は扱えない。必要になったら `onDone` に `(enemy, context) => readonly WeightedNext<K>[]` のような関数形を許す拡張を検討する。
 
 ### 設計判断の要約
 
-| 判断                                    | 理由                                                         |
-| :-------------------------------------- | :----------------------------------------------------------- |
-| アクションは `"done"` / `void` のみ返す | 遷移先を知らないので再利用でき、遷移グラフがテーブルで読める |
-| 状態キーを敵ごとのリテラル型に          | 遷移先のタイポ・状態の定義漏れをコンパイル時に検出           |
-| 毎フレーム `delta` 渡し                 | 溜め中の旋回、スロウ・凍結が自然に書ける                     |
-| 時間・速度・クールダウンの規約          | `timeScale` による凍結を、スタックなしで成立させる           |
-| テーブルとWatcherを共有                 | スポーンごとのクロージャ生成を避ける                         |
-| ボスは別ステートマシン                  | 雑魚側の複雑化を防ぎつつ、基盤とアクションは共有できる       |
+| 判断                                    | 理由                                                                  |
+| :-------------------------------------- | :-------------------------------------------------------------------- |
+| アクションは `"done"` / `void` のみ返す | 遷移先を知らないので再利用でき、遷移グラフがテーブルで読める          |
+| 状態キーを敵ごとのリテラル型に          | 遷移先のタイポ・状態の定義漏れをコンパイル時に検出                    |
+| `onDone` は状態名 or 重み付き配列       | 確率分岐もテーブルで宣言でき、配列内のタイポも型で検出できる          |
+| `weight` は相対比率・省略時1            | 合計を気にせず書け、全省略で一様ランダムにできる                      |
+| 抽選は正常完了時のみ                    | Watcher・外部要求は決定的に保ち、凍結中は遷移しないので抽選も起きない |
+| 毎フレーム `delta` 渡し                 | 溜め中の旋回、スロウ・凍結が自然に書ける                              |
+| 時間・速度・クールダウンの規約          | `timeScale` によるスロウ・凍結を、スタックなしで成立させる            |
+| デバフ仕様を `EnemyBase` に隔離         | AIの行動ロジックと、耐性・メーター計算の関心事を完全に分離できる      |
+| テーブルとWatcherを共有                 | スポーンごとのクロージャ生成を避ける                                  |
+| ボスは別ステートマシン                  | 雑魚側の複雑化を防ぎつつ、基盤とアクションは共有できる                |

@@ -61,3 +61,4 @@ docs/
 - [06. ツインスティックシューターにおけるスマートロックオン＆タップ射撃設計](./dev-note/06-smart-lock-on-and-tap-shoot.md)
 - [07. マイクロステートマシン×アクションサブルーチンによる敵AI設計思想](./dev-note/07-state-machine-action-subroutine-enemy-ai.md)
 - [08. スマホモードにおける操作体系・UIアーキテクチャ設計仕様](./dev-note/08-mobile-control-system-and-ui-architecture.md)
+- [09. クラウドコントロール（CC）と状態異常耐性システム設計](./dev-note/09-crowd-control-and-resistance-system.md)
