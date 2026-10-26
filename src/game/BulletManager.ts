@@ -18,6 +18,7 @@ import type { BulletConfig, WeaponDefinition, WeaponType } from "./types";
 export class BulletManager {
   protected config: BulletConfig;
   protected bullets!: Phaser.Physics.Arcade.Group;
+  protected enemyBullets!: Phaser.Physics.Arcade.Group;
   protected lastFired = 0;
   protected currentWeapon: WeaponType = "normal";
 
@@ -32,6 +33,10 @@ export class BulletManager {
     this.bullets = scene.physics.add.group({
       defaultKey: "bullet",
       maxSize: this.config.maxBullets,
+    });
+    this.enemyBullets = scene.physics.add.group({
+      defaultKey: "bullet",
+      maxSize: 50,
     });
   }
 
@@ -64,6 +69,48 @@ export class BulletManager {
   }
 
   /**
+   * 敵弾用の衝突判定グループを取得
+   */
+  getEnemyGroup(): Phaser.Physics.Arcade.Group {
+    return this.enemyBullets;
+  }
+
+  /**
+   * 敵からプレイヤー方向への射撃（AIアクション等から呼び出し可能）
+   */
+  shoot(
+    originX: number,
+    originY: number,
+    angle: number,
+    speed = 520,
+    damage = 15,
+    owner?: unknown,
+  ): Phaser.Physics.Arcade.Image | null {
+    if (!this.enemyBullets) return null;
+
+    // 敵の前方からスポーン（発射直後の自己ヒット防止）
+    const spawnOffsetX = Math.cos(angle) * 32;
+    const spawnOffsetY = Math.sin(angle) * 32;
+
+    const bullet = this.enemyBullets.get(
+      originX + spawnOffsetX,
+      originY + spawnOffsetY,
+    ) as Phaser.Physics.Arcade.Image | null;
+    if (bullet) {
+      bullet.setActive(true);
+      bullet.setVisible(true);
+      bullet.setDepth(DEPTH_BULLET);
+      bullet.setScale(1.1);
+      bullet.setTint(0xf43f5e); // 敵弾の赤色
+      bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+      bullet.setRotation(angle + Math.PI / 2);
+      bullet.setData("damage", damage);
+      bullet.setData("owner", owner);
+    }
+    return bullet;
+  }
+
+  /**
    * 連射レートを考慮して発射可能かどうか判定
    */
   canFire(time: number): boolean {
@@ -81,6 +128,8 @@ export class BulletManager {
     damage: number,
     scale: number,
     tintColor: number,
+    slowAmount?: number,
+    stunDurationMs?: number,
   ): Phaser.Physics.Arcade.Image | null {
     const spawnOffsetX = Math.cos(angle) * BULLET_SPAWN_OFFSET;
     const spawnOffsetY = Math.sin(angle) * BULLET_SPAWN_OFFSET;
@@ -99,6 +148,8 @@ export class BulletManager {
       bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
       bullet.setRotation(angle + Math.PI / 2);
       bullet.setData("damage", damage);
+      bullet.setData("slowAmount", slowAmount ?? 0);
+      bullet.setData("stunDurationMs", stunDurationMs ?? 0);
     }
 
     return bullet;
@@ -125,6 +176,8 @@ export class BulletManager {
         weapon.damage,
         weapon.bulletScale,
         weapon.bulletColor,
+        weapon.slowAmount,
+        weapon.stunDurationMs,
       );
       const b2 = this.spawnBullet(
         playerX,
@@ -134,6 +187,8 @@ export class BulletManager {
         weapon.damage,
         weapon.bulletScale,
         weapon.bulletColor,
+        weapon.slowAmount,
+        weapon.stunDurationMs,
       );
       const b3 = this.spawnBullet(
         playerX,
@@ -143,6 +198,8 @@ export class BulletManager {
         weapon.damage,
         weapon.bulletScale,
         weapon.bulletColor,
+        weapon.slowAmount,
+        weapon.stunDurationMs,
       );
       fired = Boolean(b1 || b2 || b3);
       AudioManager.getInstance().playSE("laser", { detune: 120 });
@@ -156,6 +213,8 @@ export class BulletManager {
         weapon.damage,
         weapon.bulletScale,
         weapon.bulletColor,
+        weapon.slowAmount,
+        weapon.stunDurationMs,
       );
       fired = Boolean(bullet);
       AudioManager.getInstance().playSE("laser", {
@@ -171,6 +230,8 @@ export class BulletManager {
         weapon.damage,
         weapon.bulletScale,
         weapon.bulletColor,
+        weapon.slowAmount,
+        weapon.stunDurationMs,
       );
       fired = Boolean(bullet);
       AudioManager.getInstance().playSE("laser", {
@@ -186,6 +247,8 @@ export class BulletManager {
         weapon.damage,
         weapon.bulletScale,
         weapon.bulletColor,
+        weapon.slowAmount,
+        weapon.stunDurationMs,
       );
       fired = Boolean(bullet);
       AudioManager.getInstance().playSE("laser", {
@@ -220,6 +283,24 @@ export class BulletManager {
         }
       }
     }
+
+    if (this.enemyBullets && this.enemyBullets.children) {
+      const enemyBullets = this.enemyBullets.getChildren() as Phaser.Physics.Arcade.Image[];
+      for (const bullet of enemyBullets) {
+        if (bullet.active) {
+          const dist = Phaser.Math.Distance.Between(bullet.x, bullet.y, playerX, playerY);
+          if (
+            dist > BULLET_MAX_DISTANCE ||
+            bullet.x < -BULLET_BOUNDS_MARGIN ||
+            bullet.x > worldSize + BULLET_BOUNDS_MARGIN ||
+            bullet.y < -BULLET_BOUNDS_MARGIN ||
+            bullet.y > worldSize + BULLET_BOUNDS_MARGIN
+          ) {
+            bullet.destroy();
+          }
+        }
+      }
+    }
   }
 
   /**
@@ -228,6 +309,9 @@ export class BulletManager {
   destroy(): void {
     if (this.bullets && this.bullets.children) {
       this.bullets.clear(true, true);
+    }
+    if (this.enemyBullets && this.enemyBullets.children) {
+      this.enemyBullets.clear(true, true);
     }
   }
 }

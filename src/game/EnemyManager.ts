@@ -19,6 +19,8 @@ import {
   type CharacterDirection,
   type DirectionalMode,
 } from "../utils/directionalSprite";
+import { createPredatorEnemy, Enemy, EnemyBase } from "./ai";
+import type { BulletManager } from "./BulletManager";
 import type { EnemyConfig } from "./types";
 
 /**
@@ -32,6 +34,7 @@ export class EnemyManager {
   protected scene!: Phaser.Scene;
   protected worldSize = WORLD_SIZE;
   protected getPlayerPosition!: () => { x: number; y: number };
+  protected bulletManager?: BulletManager;
 
   constructor(config: EnemyConfig) {
     this.config = config;
@@ -44,10 +47,12 @@ export class EnemyManager {
     scene: Phaser.Scene,
     worldSize: number,
     getPlayerPosition: () => { x: number; y: number },
+    bulletManager?: BulletManager,
   ): void {
     this.scene = scene;
     this.worldSize = worldSize;
     this.getPlayerPosition = getPlayerPosition;
+    this.bulletManager = bulletManager;
 
     this.enemies = scene.physics.add.group();
 
@@ -103,11 +108,16 @@ export class EnemyManager {
     const initialTexture = mode === "horizontal2" ? "enemy_right" : "enemy_front_right";
     const initialDir: CharacterDirection = mode === "horizontal2" ? "right" : "front_right";
 
-    const enemy = this.enemies.create(
+    // マイクロステートマシン × 耐性システム対応の Predator 敵を生成
+    const enemy = createPredatorEnemy(
+      this.scene,
       clampedX,
       clampedY,
+      { stunResistance: 20, slowResistance: 15 },
       initialTexture,
-    ) as Phaser.Physics.Arcade.Image;
+    );
+    this.enemies.add(enemy);
+
     if (enemy) {
       const speed = Phaser.Math.Between(this.config.speedMin, this.config.speedMax);
       enemy.setData("speed", speed);
@@ -133,11 +143,12 @@ export class EnemyManager {
   }
 
   /**
-   * 敵へのダメージ処理（被弾フラッシュ＆HPゼロでの撃破判定）
+   * 敵へのダメージ処理（被弾フラッシュ＆CC状態異常の適用＆HPゼロでの撃破判定）
    */
   damageEnemy(
-    enemy: Phaser.Physics.Arcade.Image,
+    enemy: Phaser.Physics.Arcade.Image | EnemyBase,
     amount: number,
+    cc?: { stunDurationMs?: number; slowAmount?: number },
   ): { isDead: boolean; x: number; y: number } {
     const x = enemy.x;
     const y = enemy.y;
@@ -151,11 +162,23 @@ export class EnemyManager {
       return { isDead: true, x, y };
     }
 
+    // CC状態異常（スタン・スロウ）の適用
+    if (enemy instanceof EnemyBase) {
+      if (cc?.slowAmount && cc.slowAmount > 0) {
+        enemy.applySlow(cc.slowAmount);
+      }
+      if (cc?.stunDurationMs && cc.stunDurationMs > 0) {
+        enemy.applyStun(cc.stunDurationMs);
+      }
+    }
+
     // 被弾フラッシュ演出（赤く点滅）
+    enemy.setData("isFlashing", true);
     enemy.setTint(ENEMY_FLASH_COLOR);
     this.scene.time.delayedCall(ENEMY_FLASH_DURATION_MS, () => {
       if (enemy.active) {
-        enemy.clearTint();
+        enemy.setData("isFlashing", false);
+        this.restoreEnemyVisuals(enemy);
       }
     });
 
@@ -163,15 +186,58 @@ export class EnemyManager {
   }
 
   /**
-   * 毎フレームの敵追従移動・2次元スプライト方向切り替え（斜め4方向または左右2方向）・ホバリング浮遊・影の追従更新
+   * 被弾フラッシュ終了後に、デバフ状態に応じた色調に戻す
    */
-  update(player: Phaser.Physics.Arcade.Image, time = 0): void {
-    const enemies = this.enemies.getChildren() as Phaser.Physics.Arcade.Image[];
+  protected restoreEnemyVisuals(enemy: Phaser.Physics.Arcade.Image | EnemyBase): void {
+    if (enemy instanceof EnemyBase) {
+      if (enemy.timeScale <= 0) {
+        enemy.setTint(0x66ccff); // 凍結（水色）
+      } else if (enemy.iceMeter > 0) {
+        enemy.setTint(0x99ddff); // スロウ（淡い水色）
+      } else if (
+        enemy.pendingStunDurationMs > 0 &&
+        (enemy as Enemy<string>).currentState === "STUN"
+      ) {
+        enemy.setTint(0xffff66); // スタン（黄色）
+      } else {
+        enemy.clearTint();
+      }
+    } else {
+      enemy.clearTint();
+    }
+  }
+
+  /**
+   * 毎フレームの敵更新（AIステートマシン・2次元スプライト向き・ホバリング浮遊・影の追従）
+   */
+  update(player: Phaser.Physics.Arcade.Image, time = 0, delta = 16): void {
+    const enemies = this.enemies.getChildren() as (Phaser.Physics.Arcade.Image | EnemyBase)[];
     for (const enemy of enemies) {
       if (enemy.active) {
-        // プレイヤーに向かって追従移動
-        const speed = (enemy.getData("speed") as number) || ENEMY_DEFAULT_SPEED;
-        this.scene.physics.moveToObject(enemy, player, speed);
+        // AIステートマシンの更新
+        if (enemy instanceof Enemy) {
+          enemy.updateEnemy(
+            {
+              player,
+              bulletManager: this.bulletManager,
+              scene: this.scene,
+            },
+            delta,
+          );
+        } else {
+          // 従来の直線追従移動フォールバック
+          const speed = (enemy.getData("speed") as number) || ENEMY_DEFAULT_SPEED;
+          this.scene.physics.moveToObject(enemy, player, speed);
+        }
+
+        // デバフ状態のビジュアル反映（被弾フラッシュ中でない場合）
+        if (!enemy.getData("isFlashing") && enemy instanceof EnemyBase) {
+          if (enemy.timeScale <= 0) {
+            enemy.setTint(0x66ccff);
+          } else if (enemy.iceMeter > 0) {
+            enemy.setTint(0x99ddff);
+          }
+        }
 
         // 2次元スプライト方式：360度回転させず、汎用ヘルパーで方向スプライトを切り替える
         const angleToPlayer = Phaser.Math.Angle.Between(enemy.x, enemy.y, player.x, player.y);
@@ -184,7 +250,8 @@ export class EnemyManager {
         const updatedDir = applyDirectionalTexture(enemy, "enemy", mode, angleToPlayer, currentDir);
         enemy.setData("direction", updatedDir);
 
-        // 360度回転は行わず、水平移動に応じた極小のティルト（傾き約2度）のみ付与
+        // 水平移動に応じた極小のティルト（傾き約2度）
+        const speed = (enemy.getData("speed") as number) || ENEMY_DEFAULT_SPEED;
         const vx = enemy.body ? enemy.body.velocity.x : 0;
         const subtleTilt = (vx / speed) * 0.04;
         enemy.setRotation(subtleTilt);
@@ -193,16 +260,11 @@ export class EnemyManager {
         const bobPhase = (enemy.getData("bobPhase") as number) || 0;
         const bobOffset = Math.sin(time * 0.005 + bobPhase) * 2.5;
 
-        // スケールは2Dビルボードスプライトとして等倍をベースにしつつ、浮遊感を反映
-        enemy.setScale(1.0, 1.0);
-
         // 地面の影の追従
         const shadow = enemy.getData("shadow") as Phaser.GameObjects.Image | undefined;
         if (shadow && shadow.active) {
-          // 影は地面の接地位置に配置
           shadow.setPosition(enemy.x + SHADOW_OFFSET_X, enemy.y + SHADOW_OFFSET_Y);
           shadow.setRotation(0);
-          // 敵が浮き上がると影はわずかに小さく淡くなり、降りると濃くなる
           const shadowScale = 1.0 - (bobOffset / 2.5) * 0.07;
           shadow.setScale(shadowScale, shadowScale * 0.85);
           shadow.setAlpha(0.44 - (bobOffset / 2.5) * 0.06);

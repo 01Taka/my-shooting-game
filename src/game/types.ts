@@ -24,6 +24,8 @@ export interface WeaponDefinition {
   bulletScale: number;
   themeColor: number;
   spreadAngleRad?: number;
+  slowAmount?: number; // スロウ（アイスメーター）付与量
+  stunDurationMs?: number; // スタン基礎時間 (ms)
 }
 
 export interface BulletConfig {

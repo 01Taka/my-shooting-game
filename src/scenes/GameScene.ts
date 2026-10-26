@@ -172,10 +172,15 @@ export class GameScene extends Phaser.Scene {
 
     // 敵マネージャーの初期化（全周囲360度スポーン ＆ 追従AI）
     this.enemyManager = new EnemyManager(params.enemy);
-    this.enemyManager.init(this, this.worldSize, () => ({
-      x: this.player.x,
-      y: this.player.y,
-    }));
+    this.enemyManager.init(
+      this,
+      this.worldSize,
+      () => ({
+        x: this.player.x,
+        y: this.player.y,
+      }),
+      this.bulletManager,
+    );
 
     // スマートロックオンマネージャーの初期化
     this.lockOnManager = new LockOnManager(params.lockOn);
@@ -216,7 +221,7 @@ export class GameScene extends Phaser.Scene {
   protected setupCollisions() {
     const params = this.getGameParameters();
 
-    // 弾と敵の衝突（HP減算 ＆ 撃破時チェーンロックオン）
+    // 弾と敵の衝突（HP減算 ＆ CC付与 ＆ 撃破時チェーンロックオン）
     this.physics.add.overlap(
       this.bulletManager.getGroup(),
       this.enemyManager.getGroup(),
@@ -224,12 +229,17 @@ export class GameScene extends Phaser.Scene {
         const bullet = bulletObj as Phaser.Physics.Arcade.Image;
         const enemy = enemyObj as Phaser.Physics.Arcade.Image;
         const damage = (bullet.getData("damage") as number | undefined) ?? params.bullet.damage;
+        const slowAmount = bullet.getData("slowAmount") as number | undefined;
+        const stunDurationMs = bullet.getData("stunDurationMs") as number | undefined;
         bullet.destroy();
 
         // 撃破された敵が現在ロックオン対象かどうかを事前に判定
         const isCurrentTarget = this.lockOnManager.getLockedTarget() === enemy;
 
-        const result = this.enemyManager.damageEnemy(enemy, damage);
+        const result = this.enemyManager.damageEnemy(enemy, damage, {
+          slowAmount,
+          stunDurationMs,
+        });
         if (result.isDead) {
           AudioManager.getInstance().playSE("explosion");
           this.addScore(params.enemy.score);
@@ -249,17 +259,65 @@ export class GameScene extends Phaser.Scene {
       this,
     );
 
-    // プレイヤーと敵の衝突
+    // 敵弾とプレイヤーの衝突（被弾ダメージ）
     this.physics.add.overlap(
       this.player,
-      this.enemyManager.getGroup(),
-      (_playerObj, enemyObj) => {
-        enemyObj.destroy();
-        this.damage(params.enemy.damage);
+      this.bulletManager.getEnemyGroup(),
+      (_playerObj, enemyBulletObj) => {
+        const enemyBullet = enemyBulletObj as Phaser.Physics.Arcade.Image;
+        const bulletDmg = (enemyBullet.getData("damage") as number | undefined) ?? 15;
+        enemyBullet.destroy();
+        this.damage(bulletDmg);
       },
       undefined,
       this,
     );
+
+    // 敵弾と敵の衝突（フレンドリーファイア：同士討ち有効）
+    this.physics.add.overlap(
+      this.bulletManager.getEnemyGroup(),
+      this.enemyManager.getGroup(),
+      (bulletObj, enemyObj) => {
+        const bullet = bulletObj as Phaser.Physics.Arcade.Image;
+        const enemy = enemyObj as Phaser.Physics.Arcade.Image;
+
+        // 発射者本人への即時ヒットはスキップ
+        if (bullet.getData("owner") === enemy) return;
+
+        const damage = (bullet.getData("damage") as number | undefined) ?? 15;
+        const slowAmount = bullet.getData("slowAmount") as number | undefined;
+        const stunDurationMs = bullet.getData("stunDurationMs") as number | undefined;
+        bullet.destroy();
+
+        const isCurrentTarget = this.lockOnManager.getLockedTarget() === enemy;
+
+        const result = this.enemyManager.damageEnemy(enemy, damage, {
+          slowAmount,
+          stunDurationMs,
+        });
+        if (result.isDead) {
+          AudioManager.getInstance().playSE("explosion");
+          this.addScore(params.enemy.score);
+
+          if (isCurrentTarget) {
+            this.lockOnManager.onTargetKilled(
+              result.x,
+              result.y,
+              this.enemyManager.getGroup(),
+              this,
+            );
+          }
+        }
+      },
+      undefined,
+      this,
+    );
+
+    // プレイヤーと敵の物理衝突（接触ダメージなし・押し返しのみ）
+    this.physics.add.collider(this.player, this.enemyManager.getGroup());
+
+    // 敵同士の物理衝突（重なり防止・押し返し）
+    this.physics.add.collider(this.enemyManager.getGroup(), this.enemyManager.getGroup());
   }
 
   /**
@@ -523,7 +581,7 @@ export class GameScene extends Phaser.Scene {
 
     // 5. 弾薬・敵のフレーム更新（生存距離・追従AI判定・2.5次元影とホバリング）
     this.bulletManager.update(this.player.x, this.player.y, this.worldSize);
-    this.enemyManager.update(this.player, time);
+    this.enemyManager.update(this.player, time, delta);
 
     // 疑似2.5次元 プレイヤーのホバリング浮遊 ＆ 影の追従・スケール連動
     const playerBob = Math.sin(time * 0.005) * 2.5;

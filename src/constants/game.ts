@@ -69,6 +69,7 @@ export const WEAPON_DEFINITIONS = {
     bulletScale: 0.95,
     themeColor: 0x38bdf8,
     spreadAngleRad: 0.24, // 約14度
+    slowAmount: 30, // 氷結スロウ（約3〜4発で完全凍結）
   },
   normal: {
     type: "normal" as const,
@@ -95,6 +96,7 @@ export const WEAPON_DEFINITIONS = {
     bulletColor: 0xf43f5e,
     bulletScale: 1.6,
     themeColor: 0xf43f5e,
+    stunDurationMs: 900, // 強力な衝撃スタン
   },
   rapid: {
     type: "rapid" as const,

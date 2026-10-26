@@ -11,7 +11,6 @@ import {
   DIRT_PATCH_COUNT,
   DIRT_PEBBLE_COLORS,
   DIRT_PEBBLE_COUNT,
-  ENEMY_TEXTURE_SIZE,
   GROUND_TEXTURE_SIZE,
   PLAYER_TEXTURE_SIZE,
   PRELOAD_BAR_COLOR,
@@ -28,6 +27,7 @@ import {
   SHADOW_COLOR,
 } from "../constants";
 import { EventBus } from "../EventBus";
+import { generatePredatorTextures } from "../game/ai";
 import { addCrispText } from "../utils/text";
 
 export class PreloadScene extends Phaser.Scene {
@@ -297,209 +297,9 @@ export class PreloadScene extends Phaser.Scene {
     bulletGraphics.destroy();
 
     // ----------------------------------------------------
-    // 4. 生物クリーチャー敵グラフィック（有機的フォルム、生きた爬虫類アイ、牙、触手尾）
+    // 4. 生物クリーチャー敵グラフィック（Predator敵モジュールから一括生成）
     // ----------------------------------------------------
-    const ew = ENEMY_TEXTURE_SIZE;
-    const eh = ENEMY_TEXTURE_SIZE;
-
-    // パレット（深紅の有機的クリーチャー）
-    const cBioDark = 0x450a0a; // 深い影・血肉
-    const cBioMain = 0x991b1b; // 肉体メイン
-    const cBioLight = 0xdc2626; // ハイライト肉
-    const cBioBelly = 0xf87171; // 柔らかい腹部
-    const cSclera = 0xfef08a; // 黄色い眼球
-    const cPupil = 0x000000; // 縦スリット瞳孔
-    const cFang = 0xffffff; // 鋭い牙
-
-    // A. 生物敵 右向き (enemy_right) - メイン2枚スプライト
-    const eRightG = this.make.graphics({ x: 0, y: 0 });
-    // しなる尾/触手（後方・左へ伸びる）
-    eRightG.fillStyle(cBioDark, 1);
-    eRightG.fillTriangle(18, 30, 2, 24, 16, 40);
-    eRightG.fillStyle(cBioMain, 1);
-    eRightG.fillTriangle(20, 32, 6, 26, 18, 38);
-
-    // 背中の骨棘（スパイク/角）
-    eRightG.fillStyle(cBioDark, 1);
-    eRightG.fillTriangle(18, 18, 14, 8, 26, 16);
-    eRightG.fillStyle(cSclera, 0.9);
-    eRightG.fillTriangle(19, 17, 16, 10, 25, 16);
-    eRightG.fillStyle(cBioDark, 1);
-    eRightG.fillTriangle(28, 14, 26, 6, 36, 14);
-
-    // 肉体メインボディ（有機的な前傾ティアドロップ形状）
-    eRightG.fillStyle(cBioDark, 1);
-    eRightG.fillEllipse(30, 32, 32, 28);
-    eRightG.fillStyle(cBioMain, 1);
-    eRightG.fillEllipse(31, 30, 30, 26);
-    // 上面筋肉ハイライト
-    eRightG.fillStyle(cBioLight, 0.9);
-    eRightG.fillEllipse(31, 24, 24, 16);
-    // 腹部（下部の淡い肉色）
-    eRightG.fillStyle(cBioBelly, 0.85);
-    eRightG.fillEllipse(32, 38, 20, 10);
-
-    // 獰猛な口と牙（右前方に開く）
-    eRightG.fillStyle(0x1a0505, 1);
-    eRightG.fillTriangle(34, 34, 48, 38, 34, 44);
-    // 白い上牙・下牙
-    eRightG.fillStyle(cFang, 1);
-    eRightG.fillTriangle(41, 35, 43, 39, 44, 35);
-    eRightG.fillTriangle(45, 36, 47, 40, 48, 36);
-    eRightG.fillTriangle(39, 43, 41, 39, 43, 43);
-
-    // 生きた眼球（黄色い白眼 ＋ 縦長スリット瞳孔 ＋ 光沢ハイライト）
-    eRightG.fillStyle(cBioDark, 1);
-    eRightG.fillCircle(38, 23, 9); // まぶた
-    eRightG.fillStyle(cSclera, 1);
-    eRightG.fillCircle(38, 23, 7.5); // 黄色い眼球
-    eRightG.fillStyle(cPupil, 1);
-    eRightG.fillEllipse(39, 23, 3, 7); // 鋭い黒の縦スリット瞳孔
-    eRightG.fillStyle(0xffffff, 0.95);
-    eRightG.fillCircle(37, 21, 2); // 瞳の光彩反射
-
-    eRightG.generateTexture("enemy_right", ew, eh);
-    eRightG.generateTexture("enemy", ew, eh); // デフォルト
-    eRightG.destroy();
-
-    // B. 生物敵 左向き (enemy_left) - メイン2枚スプライト
-    const eLeftG = this.make.graphics({ x: 0, y: 0 });
-    // しなる尾/触手（後方・右へ伸びる）
-    eLeftG.fillStyle(cBioDark, 1);
-    eLeftG.fillTriangle(38, 30, 54, 24, 40, 40);
-    eLeftG.fillStyle(cBioMain, 1);
-    eLeftG.fillTriangle(36, 32, 50, 26, 38, 38);
-
-    // 背中の骨棘
-    eLeftG.fillStyle(cBioDark, 1);
-    eLeftG.fillTriangle(38, 18, 42, 8, 30, 16);
-    eLeftG.fillStyle(cSclera, 0.9);
-    eLeftG.fillTriangle(37, 17, 40, 10, 31, 16);
-    eLeftG.fillStyle(cBioDark, 1);
-    eLeftG.fillTriangle(28, 14, 30, 6, 20, 14);
-
-    // 肉体メインボディ
-    eLeftG.fillStyle(cBioDark, 1);
-    eLeftG.fillEllipse(26, 32, 32, 28);
-    eLeftG.fillStyle(cBioMain, 1);
-    eLeftG.fillEllipse(25, 30, 30, 26);
-    // 上面筋肉ハイライト
-    eLeftG.fillStyle(cBioLight, 0.9);
-    eLeftG.fillEllipse(25, 24, 24, 16);
-    // 腹部
-    eLeftG.fillStyle(cBioBelly, 0.85);
-    eLeftG.fillEllipse(24, 38, 20, 10);
-
-    // 獰猛な口と牙（左前方に開く）
-    eLeftG.fillStyle(0x1a0505, 1);
-    eLeftG.fillTriangle(22, 34, 8, 38, 22, 44);
-    // 白い上牙・下牙
-    eLeftG.fillStyle(cFang, 1);
-    eLeftG.fillTriangle(15, 35, 13, 39, 12, 35);
-    eLeftG.fillTriangle(11, 36, 9, 40, 8, 36);
-    eLeftG.fillTriangle(17, 43, 15, 39, 13, 43);
-
-    // 生きた眼球（黄色い白眼 ＋ 縦長スリット瞳孔）
-    eLeftG.fillStyle(cBioDark, 1);
-    eLeftG.fillCircle(18, 23, 9);
-    eLeftG.fillStyle(cSclera, 1);
-    eLeftG.fillCircle(18, 23, 7.5);
-    eLeftG.fillStyle(cPupil, 1);
-    eLeftG.fillEllipse(17, 23, 3, 7);
-    eLeftG.fillStyle(0xffffff, 0.95);
-    eLeftG.fillCircle(19, 21, 2);
-
-    eLeftG.generateTexture("enemy_left", ew, eh);
-    eLeftG.destroy();
-
-    // C. 斜め4方向用テクスチャ（生物クリーチャーの互換アセット）
-    // 右前 (front_right)
-    const eFrontRightG = this.make.graphics({ x: 0, y: 0 });
-    eFrontRightG.fillStyle(cBioDark, 1);
-    eFrontRightG.fillTriangle(20, 32, 4, 28, 16, 42);
-    eFrontRightG.fillEllipse(29, 32, 32, 28);
-    eFrontRightG.fillStyle(cBioMain, 1);
-    eFrontRightG.fillEllipse(29, 30, 30, 26);
-    eFrontRightG.fillStyle(cBioLight, 0.9);
-    eFrontRightG.fillEllipse(29, 24, 24, 16);
-    eFrontRightG.fillStyle(cBioDark, 1);
-    eFrontRightG.fillTriangle(34, 34, 47, 40, 34, 45);
-    eFrontRightG.fillStyle(cFang, 1);
-    eFrontRightG.fillTriangle(41, 36, 43, 41, 45, 37);
-    eFrontRightG.fillStyle(cBioDark, 1);
-    eFrontRightG.fillCircle(36, 23, 9);
-    eFrontRightG.fillStyle(cSclera, 1);
-    eFrontRightG.fillCircle(36, 23, 7.5);
-    eFrontRightG.fillStyle(cPupil, 1);
-    eFrontRightG.fillEllipse(37, 23, 3.5, 7);
-    eFrontRightG.fillStyle(0xffffff, 0.95);
-    eFrontRightG.fillCircle(35, 21, 2);
-    eFrontRightG.generateTexture("enemy_front_right", ew, eh);
-    eFrontRightG.destroy();
-
-    // 左前 (front_left)
-    const eFrontLeftG = this.make.graphics({ x: 0, y: 0 });
-    eFrontLeftG.fillStyle(cBioDark, 1);
-    eFrontLeftG.fillTriangle(36, 32, 52, 28, 40, 42);
-    eFrontLeftG.fillEllipse(27, 32, 32, 28);
-    eFrontLeftG.fillStyle(cBioMain, 1);
-    eFrontLeftG.fillEllipse(27, 30, 30, 26);
-    eFrontLeftG.fillStyle(cBioLight, 0.9);
-    eFrontLeftG.fillEllipse(27, 24, 24, 16);
-    eFrontLeftG.fillStyle(cBioDark, 1);
-    eFrontLeftG.fillTriangle(22, 34, 9, 40, 22, 45);
-    eFrontLeftG.fillStyle(cFang, 1);
-    eFrontLeftG.fillTriangle(15, 36, 13, 41, 11, 37);
-    eFrontLeftG.fillStyle(cBioDark, 1);
-    eFrontLeftG.fillCircle(20, 23, 9);
-    eFrontLeftG.fillStyle(cSclera, 1);
-    eFrontLeftG.fillCircle(20, 23, 7.5);
-    eFrontLeftG.fillStyle(cPupil, 1);
-    eFrontLeftG.fillEllipse(19, 23, 3.5, 7);
-    eFrontLeftG.fillStyle(0xffffff, 0.95);
-    eFrontLeftG.fillCircle(21, 21, 2);
-    eFrontLeftG.generateTexture("enemy_front_left", ew, eh);
-    eFrontLeftG.destroy();
-
-    // 右後ろ (back_right)
-    const eBackRightG = this.make.graphics({ x: 0, y: 0 });
-    eBackRightG.fillStyle(cBioDark, 1);
-    eBackRightG.fillEllipse(28, 30, 32, 28);
-    eBackRightG.fillTriangle(20, 18, 16, 6, 28, 14);
-    eBackRightG.fillTriangle(30, 16, 32, 4, 38, 16);
-    eBackRightG.fillStyle(cBioMain, 1);
-    eBackRightG.fillEllipse(28, 28, 30, 26);
-    eBackRightG.fillStyle(cBioLight, 0.85);
-    eBackRightG.fillEllipse(30, 24, 24, 16);
-    eBackRightG.generateTexture("enemy_back_right", ew, eh);
-    eBackRightG.destroy();
-
-    // 左後ろ (back_left)
-    const eBackLeftG = this.make.graphics({ x: 0, y: 0 });
-    eBackLeftG.fillStyle(cBioDark, 1);
-    eBackLeftG.fillEllipse(28, 30, 32, 28);
-    eBackLeftG.fillTriangle(36, 18, 40, 6, 28, 14);
-    eBackLeftG.fillTriangle(26, 16, 24, 4, 18, 16);
-    eBackLeftG.fillStyle(cBioMain, 1);
-    eBackLeftG.fillEllipse(28, 28, 30, 26);
-    eBackLeftG.fillStyle(cBioLight, 0.85);
-    eBackLeftG.fillEllipse(26, 24, 24, 16);
-    eBackLeftG.generateTexture("enemy_back_left", ew, eh);
-    eBackLeftG.destroy();
-
-    // ----------------------------------------------------
-    // 5. 敵用影テクスチャ（扁平ソフトドロップシャドウ）
-    // ----------------------------------------------------
-    const enemyShadowGraphics = this.make.graphics({ x: 0, y: 0 });
-    // 外側のソフトフェード
-    enemyShadowGraphics.fillStyle(SHADOW_COLOR, 0.25);
-    enemyShadowGraphics.fillEllipse(ew / 2, eh / 2, ew * 0.82, eh * 0.44);
-    // 内側の濃い影
-    enemyShadowGraphics.fillStyle(SHADOW_COLOR, 0.55);
-    enemyShadowGraphics.fillEllipse(ew / 2, eh / 2, ew * 0.62, eh * 0.3);
-    enemyShadowGraphics.generateTexture("enemy_shadow", ew, eh);
-    enemyShadowGraphics.destroy();
-    enemyShadowGraphics.destroy();
+    generatePredatorTextures(this);
 
     // ----------------------------------------------------
     // 6. プロシージャル土の地面テクスチャ（シームレスタイリング）
