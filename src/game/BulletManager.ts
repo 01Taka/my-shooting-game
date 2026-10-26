@@ -82,9 +82,10 @@ export class BulletManager {
     originX: number,
     originY: number,
     angle: number,
-    speed = 520,
+    speed = 340,
     damage = 15,
     owner?: unknown,
+    scale = 1.1,
   ): Phaser.Physics.Arcade.Image | null {
     if (!this.enemyBullets) return null;
 
@@ -100,7 +101,7 @@ export class BulletManager {
       bullet.setActive(true);
       bullet.setVisible(true);
       bullet.setDepth(DEPTH_BULLET);
-      bullet.setScale(1.1);
+      bullet.setScale(scale);
       bullet.setTint(0xf43f5e); // 敵弾の赤色
       bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
       bullet.setRotation(angle + Math.PI / 2);

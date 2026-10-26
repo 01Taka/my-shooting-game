@@ -87,8 +87,12 @@ export class PlayerController {
 
     // --- 1. 移動入力の計算 ---
     if (this.virtualInput.move.active) {
-      vx = this.virtualInput.move.x * this.config.speed;
-      vy = this.virtualInput.move.y * this.config.speed;
+      // スティックの傾きの深さに依存せず、常に最高速（config.speed）で移動する
+      const moveLen = Math.hypot(this.virtualInput.move.x, this.virtualInput.move.y);
+      if (moveLen > 0) {
+        vx = (this.virtualInput.move.x / moveLen) * this.config.speed;
+        vy = (this.virtualInput.move.y / moveLen) * this.config.speed;
+      }
     } else {
       const isLeft = Boolean(
         (this.cursors && this.cursors.left.isDown) || (this.wasdKeys && this.wasdKeys.A.isDown),

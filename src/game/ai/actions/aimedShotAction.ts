@@ -6,10 +6,12 @@ import { defineAction } from "./utils/defineAction";
 export interface AimedShotArgs {
   /** 前隙（エイム・溜め）時間（ms、デフォルト 1000ms） */
   windupDurationMs?: number;
-  /** 弾速（px/s、デフォルト 520） */
+  /** 弾速（px/s、デフォルト 360） */
   bulletSpeed?: number;
   /** 弾ダメージ（デフォルト 15） */
   damage?: number;
+  /** 弾のスケール倍率（デフォルト 1.1） */
+  bulletScale?: number;
   /** 発射後の後隙時間（ms、デフォルト 200ms） */
   postDelayMs?: number;
   anims?: {
@@ -67,11 +69,12 @@ export const aimedShotAction = defineAction<AimedShotData, AimedShotArgs>({
       if (data.timer >= windup) {
         // 前隙満了 -> 弾丸発射
         data.hasShot = true;
-        const speed = args.bulletSpeed ?? 520;
+        const speed = args.bulletSpeed ?? 360;
         const damage = args.damage ?? 15;
+        const scale = args.bulletScale ?? 1.1;
 
         if (context.bulletManager?.shoot) {
-          context.bulletManager.shoot(enemy.x, enemy.y, data.aimAngle, speed, damage, enemy);
+          context.bulletManager.shoot(enemy.x, enemy.y, data.aimAngle, speed, damage, enemy, scale);
         } else if (context.bulletManager?.fire) {
           context.bulletManager.fire(enemy.x, enemy.y, data.aimAngle);
         }

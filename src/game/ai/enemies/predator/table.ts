@@ -47,7 +47,7 @@ export const PREDATOR_TABLE: StateTable<PredatorState> = {
   },
   DASH_CLAW: {
     run: dashClawAttackAction({
-      dashSpeed: m(7.6),
+      dashSpeed: m(5.2),
       dashDurationMs: 300,
       recoveryDurationMs: 450,
       cooldownMs: 1500,

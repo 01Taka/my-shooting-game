@@ -118,53 +118,23 @@ export class EnemyManager {
     );
     shadow.setDepth(DEPTH_SHADOW);
 
-    const mode: DirectionalMode = this.config.directionalMode ?? "horizontal2";
-    const initialDir: CharacterDirection = mode === "horizontal2" ? "right" : "front_right";
-
     // マイクロステートマシン × 耐性システム対応の敵を均等確率でスポーン
     // Bomber (自爆特攻), BipedalWolf (大一歩旋回制限攻撃), Ranger (狙撃・射線迂回・近接カウンター)
     const roll = Math.random();
     let enemy: EnemyBase;
     if (roll < 0.34) {
-      enemy = createBomberEnemy(
-        this.scene,
-        clampedX,
-        clampedY,
-        { stunResistance: 10, slowResistance: 10 },
-        "bomber_right",
-      );
-      enemy.directionalMode = "horizontal2";
-      enemy.direction = "right";
+      enemy = createBomberEnemy(this.scene, clampedX, clampedY);
     } else if (roll < 0.67) {
-      enemy = createBipedalWolfEnemy(
-        this.scene,
-        clampedX,
-        clampedY,
-        { stunResistance: 30, slowResistance: 25 },
-        "wolf_right",
-      );
-      enemy.directionalMode = "horizontal2";
-      enemy.direction = "right";
+      enemy = createBipedalWolfEnemy(this.scene, clampedX, clampedY);
     } else {
-      enemy = createRangerEnemy(
-        this.scene,
-        clampedX,
-        clampedY,
-        { stunResistance: 15, slowResistance: 20 },
-        "ranger_right",
-      );
-      enemy.directionalMode = "horizontal2";
-      enemy.direction = "right";
+      enemy = createRangerEnemy(this.scene, clampedX, clampedY);
     }
     this.enemies.add(enemy);
 
     if (enemy) {
       const speed = Phaser.Math.Between(this.config.speedMin, this.config.speedMax);
       enemy.setData("speed", speed);
-      enemy.setData("hp", this.config.hp);
       enemy.setData("shadow", shadow);
-      enemy.setData("direction", initialDir);
-      enemy.setData("directionalMode", mode);
       enemy.setData("bobPhase", Math.random() * Math.PI * 2);
       enemy.setDepth(DEPTH_OBJECT);
       enemy.setRotation(0);
@@ -198,9 +168,14 @@ export class EnemyManager {
       return { isDead: false, x, y };
     }
 
-    const currentHp = (enemy.getData("hp") as number | undefined) ?? this.config.hp;
-    const newHp = currentHp - amount;
-    enemy.setData("hp", newHp);
+    let newHp: number;
+    if (enemy instanceof EnemyBase) {
+      newHp = enemy.takeDamage(amount);
+    } else {
+      const currentHp = (enemy.getData("hp") as number | undefined) ?? this.config.hp;
+      newHp = currentHp - amount;
+      enemy.setData("hp", newHp);
+    }
 
     if (newHp <= 0) {
       // 死亡時フック（自爆シーケンス等）が存在し true を返した場合は即時 destroy を委任

@@ -4,12 +4,13 @@ import { describe, expect, it, vi } from "vitest";
 import {
   aimedShotAction,
   createRangerEnemy,
+  decideRangerNext,
   type GameContext,
   m,
+  pickNext,
   RANGER_CLOSE_DIST,
   RANGER_FAR_DIST,
   RANGER_TABLE,
-  rangerWatcher,
   timedDirectionalMoveAction,
 } from "../src/game/ai";
 import { isLineOfSightBlockedByEnemies, isPointBlockingLineSegment } from "../src/utils/math";
@@ -140,11 +141,12 @@ describe("aimedShotAction (前隙1秒の狙撃アクション)", () => {
     expect(mockBulletManager.shoot).not.toHaveBeenCalled();
   });
 
-  it("前隙1000msに達すると射撃し、後隙を経て 'done' を返す", () => {
+  it("前隙1000msに達すると射撃し、拡大弾丸スケールを渡して後隙を経て 'done' を返す", () => {
     const action = aimedShotAction({
       windupDurationMs: 1000,
       postDelayMs: 200,
-      bulletSpeed: 500,
+      bulletSpeed: 360,
+      bulletScale: 2.4, // レンジャーの拡大弾
       damage: 20,
     });
     const mockEnemy = createMockEnemy({ x: 0, y: 0 });
@@ -159,6 +161,16 @@ describe("aimedShotAction (前隙1秒の狙撃アクション)", () => {
     const status1 = action.update(mockEnemy, mockContext, data, 1010);
     expect(status1).toBeUndefined();
     expect(mockBulletManager.shoot).toHaveBeenCalledTimes(1);
+    // 第7引数に拡大スケール 2.4 が渡されていること
+    expect(mockBulletManager.shoot).toHaveBeenCalledWith(
+      0,
+      0,
+      expect.any(Number),
+      360,
+      20,
+      mockEnemy,
+      2.4,
+    );
 
     // さらに 200ms 後隙経過で完了
     const status2 = action.update(mockEnemy, mockContext, data, 200);
@@ -238,19 +250,18 @@ describe("timedDirectionalMoveAction (時間指定の方向性移動アクショ
   });
 });
 
-describe("rangerWatcher & ステート遷移（距離分岐・射線迂回）", () => {
-  it("遠距離 (>= 8.0m): APPROACH へ遷移する", () => {
+describe("decideRangerNext & ステート遷移（距離分岐・射線迂回）", () => {
+  it("遠距離 (>= 11.0m): APPROACH へ遷移する", () => {
     const mockEnemy: any = {
       x: 0,
       y: 0,
-      currentState: "DECIDE",
     };
     const mockContext: GameContext = {
       player: { x: RANGER_FAR_DIST + 50, y: 0 } as any,
       getEnemies: () => [mockEnemy],
     };
 
-    const next = rangerWatcher(mockEnemy, mockContext);
+    const next = pickNext(decideRangerNext, mockContext, mockEnemy);
     expect(next).toBe("APPROACH");
   });
 
@@ -260,14 +271,13 @@ describe("rangerWatcher & ステート遷移（距離分岐・射線迂回）", 
     const mockEnemy: any = {
       x: 0,
       y: 0,
-      currentState: "DECIDE",
     };
     const mockContext: GameContext = {
       player: { x: m(5.0), y: 0 } as any, // 5.0m (中距離)
       getEnemies: () => [mockEnemy], // 障害物なし
     };
 
-    const next = rangerWatcher(mockEnemy, mockContext);
+    const next = pickNext(decideRangerNext, mockContext, mockEnemy);
     expect(next).toBe("SHOOT");
 
     vi.restoreAllMocks();
@@ -279,7 +289,6 @@ describe("rangerWatcher & ステート遷移（距離分岐・射線迂回）", 
     const mockEnemy: any = {
       x: 0,
       y: 0,
-      currentState: "DECIDE",
     };
     const blockingEnemy = { x: m(2.5), y: 0, active: true }; // 直線の真ん中にいる敵
     const mockContext: GameContext = {
@@ -287,17 +296,16 @@ describe("rangerWatcher & ステート遷移（距離分岐・射線迂回）", 
       getEnemies: () => [mockEnemy, blockingEnemy],
     };
 
-    const next = rangerWatcher(mockEnemy, mockContext);
+    const next = pickNext(decideRangerNext, mockContext, mockEnemy);
     expect(next).toBe("FLANK");
 
     vi.restoreAllMocks();
   });
 
-  it("至近距離 (< 3.5m): 1/3 で BACKSTEP, 1/3 で LUNGE, 1/3 で射線判定", () => {
+  it("至近距離 (< 1.5m): 1/3 で BACKSTEP, 1/3 で LUNGE, 1/3 で射線判定", () => {
     const mockEnemy: any = {
       x: 0,
       y: 0,
-      currentState: "DECIDE",
     };
     const mockContext: GameContext = {
       player: { x: RANGER_CLOSE_DIST - 20, y: 0 } as any,
@@ -306,24 +314,23 @@ describe("rangerWatcher & ステート遷移（距離分岐・射線迂回）", 
 
     // roll < 1/3 -> BACKSTEP
     vi.spyOn(Math, "random").mockReturnValue(0.2);
-    expect(rangerWatcher(mockEnemy, mockContext)).toBe("BACKSTEP");
+    expect(pickNext(decideRangerNext, mockContext, mockEnemy)).toBe("BACKSTEP");
 
     // 1/3 <= roll < 2/3 -> LUNGE
     vi.spyOn(Math, "random").mockReturnValue(0.5);
-    expect(rangerWatcher(mockEnemy, mockContext)).toBe("LUNGE");
+    expect(pickNext(decideRangerNext, mockContext, mockEnemy)).toBe("LUNGE");
 
     // roll >= 2/3 -> 射撃（射線クリアなら SHOOT）
     vi.spyOn(Math, "random").mockReturnValue(0.8);
-    expect(rangerWatcher(mockEnemy, mockContext)).toBe("SHOOT");
+    expect(pickNext(decideRangerNext, mockContext, mockEnemy)).toBe("SHOOT");
 
     vi.restoreAllMocks();
   });
 
-  it("CHECK_ATTACK（迂回終了後）: 必ず攻撃を試み、遮蔽されていれば再度 FLANK、クリアなら SHOOT", () => {
+  it("FLANK の onDone: 必ず攻撃を試み、遮蔽されていれば再度 FLANK、クリアなら SHOOT", () => {
     const mockEnemy: any = {
       x: 0,
       y: 0,
-      currentState: "CHECK_ATTACK",
     };
     const blockingEnemy = { x: 50, y: 0, active: true };
     const mockContextWithBlock: GameContext = {
@@ -332,14 +339,14 @@ describe("rangerWatcher & ステート遷移（距離分岐・射線迂回）", 
     };
 
     // まだ障害物がいる場合は再度 FLANK
-    expect(rangerWatcher(mockEnemy, mockContextWithBlock)).toBe("FLANK");
+    expect(pickNext(RANGER_TABLE.FLANK.onDone, mockContextWithBlock, mockEnemy)).toBe("FLANK");
 
     // 迂回して射線が通った場合は SHOOT
     const mockContextClear: GameContext = {
       player: { x: 100, y: 0 } as any,
       getEnemies: () => [mockEnemy],
     };
-    expect(rangerWatcher(mockEnemy, mockContextClear)).toBe("SHOOT");
+    expect(pickNext(RANGER_TABLE.FLANK.onDone, mockContextClear, mockEnemy)).toBe("SHOOT");
   });
 
   it("RangerEnemy 初期化 & StateTable の整合性", () => {
@@ -348,14 +355,21 @@ describe("rangerWatcher & ステート遷移（距離分岐・射線迂回）", 
     expect(ranger).toBeDefined();
     expect(ranger.x).toBe(150);
     expect(ranger.y).toBe(250);
+    expect(ranger.maxHp).toBe(70);
+    expect(ranger.hp).toBe(70);
+    expect(ranger.getData("hp")).toBe(70);
+    expect(ranger.stunResistance).toBe(15);
+    expect(ranger.slowResistance).toBe(20);
+    expect(ranger.directionalMode).toBe("horizontal2");
+    expect(ranger.direction).toBe("right");
 
-    expect(RANGER_TABLE.DECIDE).toBeDefined();
+    expect(ranger.currentState).toBe("APPROACH");
+
     expect(RANGER_TABLE.APPROACH).toBeDefined();
     expect(RANGER_TABLE.BACKSTEP).toBeDefined();
     expect(RANGER_TABLE.LUNGE).toBeDefined();
     expect(RANGER_TABLE.FLANK).toBeDefined();
     expect(RANGER_TABLE.SHOOT).toBeDefined();
-    expect(RANGER_TABLE.CHECK_ATTACK).toBeDefined();
     expect(RANGER_TABLE.STUN).toBeDefined();
   });
 });

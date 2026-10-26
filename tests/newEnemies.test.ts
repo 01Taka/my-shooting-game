@@ -407,7 +407,7 @@ describe("Bomber & BipedalWolf Watchers & State Tables", () => {
     expect(bomber.body.checkCollision.none).toBe(true);
   });
 
-  it("wolfWatcher: プレイヤーが3.0m以内にいてCD外なら LUNGE をトリガーする", () => {
+  it("wolfWatcher: プレイヤーが2.0m以内にいてCD外なら LUNGE をトリガーする", () => {
     const mockEnemy: any = {
       x: 0,
       y: 0,
@@ -415,7 +415,7 @@ describe("Bomber & BipedalWolf Watchers & State Tables", () => {
       isReady: vi.fn(() => true),
     };
     const mockContext: GameContext = {
-      player: { x: m(2.5), y: 0 } as any,
+      player: { x: m(1.8), y: 0 } as any,
       damageZones: {} as any,
     };
 
@@ -451,14 +451,22 @@ describe("Bomber & BipedalWolf Watchers & State Tables", () => {
 
   it("Factory: createBomberEnemy & createBipedalWolfEnemy が正しく初期化される", () => {
     const scene = createMockScene();
-    const bomber = createBomberEnemy(scene, 100, 200, { stunResistance: 15 });
+    const bomber = createBomberEnemy(scene, 100, 200);
     expect(bomber).toBeDefined();
     expect(bomber.x).toBe(100);
     expect(bomber.y).toBe(200);
+    expect(bomber.maxHp).toBe(30);
+    expect(bomber.hp).toBe(30);
+    expect(bomber.stunResistance).toBe(10);
+    expect(bomber.slowResistance).toBe(10);
 
-    const wolf = createBipedalWolfEnemy(scene, 300, 400, { stunResistance: 25 });
+    const wolf = createBipedalWolfEnemy(scene, 300, 400);
     expect(wolf).toBeDefined();
     expect(wolf.x).toBe(300);
     expect(wolf.y).toBe(400);
+    expect(wolf.maxHp).toBe(80);
+    expect(wolf.hp).toBe(80);
+    expect(wolf.stunResistance).toBe(30);
+    expect(wolf.slowResistance).toBe(25);
   });
 });

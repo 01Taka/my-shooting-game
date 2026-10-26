@@ -22,22 +22,22 @@ export type WolfState = "CHASE" | "LUNGE" | "STUN";
 export const WOLF_TABLE: StateTable<WolfState> = {
   CHASE: {
     run: chasePlayerAction({
-      speed: m(3.4), // 安定した追走速度
-      stopDistance: m(3.0), // 3.0m まで近づいたら攻撃モーションへ
+      speed: m(2.4), // 追走速度（120px/s）
+      stopDistance: m(3.0), // 2.0m まで近づいたら攻撃モーションへ
       anim: loopFrames([WOLF_ANIM_KEYS.RUN_0, WOLF_ANIM_KEYS.RUN_1], 160),
     }),
     onDone: "LUNGE",
   },
   LUNGE: {
     run: lungeAttackAction({
-      windupDurationMs: 450, // 450msの溜め
+      windupDurationMs: 200,
       windupTurnRateRadPerSec: Math.PI * 0.75, // 135度/秒のゆっくり旋回（フリック制限）
-      lungeSpeed: m(7.5), // 前進強撃（7.5m/s）
+      lungeSpeed: m(6.5), // 前進突進速度
       lungeDurationMs: 250,
       attackRange: 85,
-      damage: 28,
-      recoveryDurationMs: 400,
-      cooldownMs: 1400,
+      damage: 30,
+      recoveryDurationMs: 200,
+      cooldownMs: 1000,
       anims: {
         windup: loopFrames([WOLF_ANIM_KEYS.WINDUP_0, WOLF_ANIM_KEYS.WINDUP_1], 120),
         lunge: sequenceFrames([WOLF_ANIM_KEYS.SLASH_0, WOLF_ANIM_KEYS.SLASH_1]),
@@ -60,12 +60,12 @@ export const WOLF_TABLE: StateTable<WolfState> = {
 };
 
 /**
- * 常時監視：3.0m以内に入ったら強撃を発動。クールダウン中・スタン中・攻撃中は発動しない
+ * 常時監視：2.0m以内に入ったら強撃を発動。クールダウン中・スタン中・攻撃中は発動しない
  */
 export const wolfWatcher: Watcher<WolfState> = (self, context) => {
   if (self.currentState === "LUNGE" || self.currentState === "STUN") return;
   if (!self.isReady("lunge")) return;
 
   const dist = Phaser.Math.Distance.Between(self.x, self.y, context.player.x, context.player.y);
-  if (dist <= m(3.0)) return "LUNGE";
+  if (dist <= m(2.0)) return "LUNGE";
 };

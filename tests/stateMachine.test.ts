@@ -58,6 +58,21 @@ describe("07 ステートマシン・アクションサブルーチン・AIロ�
       }
     });
 
+    it("コールバック関数の場合は context と enemy を渡して評価すること", () => {
+      const mockContext = { player: { x: 100, y: 0 } } as any;
+      const mockEnemy = { x: 0, y: 0 } as any;
+
+      const callback = (context: any, enemy: any) => {
+        return context.player.x - enemy.x > 50 ? "RUN" : "ATTACK";
+      };
+
+      expect(pickNext(callback, mockContext, mockEnemy)).toBe("RUN");
+
+      // コールバックが重み付き配列を返すケース
+      const callbackWithArray = () => [{ state: "SUCCESS", weight: 1 }];
+      expect(pickNext(callbackWithArray, mockContext, mockEnemy)).toBe("SUCCESS");
+    });
+
     it("候補が空または重み合計が0以下のときは例外を投げること", () => {
       expect(() => pickNext([])).toThrow();
       expect(() => pickNext([{ state: "A", weight: 0 }])).toThrow();

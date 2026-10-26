@@ -31,7 +31,7 @@ export const SHADOW_SCALE_Y = 0.55;
 
 // 自機（プレイヤー）設定
 export const PLAYER_INITIAL_HP = 100;
-export const PLAYER_SPEED = 520;
+export const PLAYER_SPEED = 360;
 export const PLAYER_TEXTURE_SIZE = 64;
 export const PLAYER_COLOR = 0x38bdf8;
 
@@ -43,7 +43,7 @@ export const BLINK_RECOVERY_PER_SECOND = 0.2; // 5秒で全快（2.5秒で1回�
 export const BLINK_COOLDOWN_MS = 150; // 連打誤動作防止の最小間隔
 
 // 弾丸設定
-export const BULLET_SPEED = 1050;
+export const BULLET_SPEED = 720;
 export const BULLET_FIRE_RATE_MS = 140;
 export const BULLET_MAX_COUNT = 100;
 export const BULLET_DAMAGE = 10;
@@ -64,7 +64,7 @@ export const WEAPON_DEFINITIONS = {
     shortName: "3-WAY",
     description: "前方3方向に広がる拡散弾",
     damage: 8,
-    speed: 980,
+    speed: 680,
     fireRateMs: 200,
     bulletColor: 0x38bdf8,
     bulletScale: 0.95,
@@ -79,7 +79,7 @@ export const WEAPON_DEFINITIONS = {
     shortName: "BLAST",
     description: "バランス型の標準ブラスター",
     damage: 10,
-    speed: 1050,
+    speed: 720,
     fireRateMs: 140,
     bulletColor: 0xfacc15,
     bulletScale: 1.0,
@@ -92,7 +92,7 @@ export const WEAPON_DEFINITIONS = {
     shortName: "HEAVY",
     description: "高威力の重量弾",
     damage: 32,
-    speed: 820,
+    speed: 560,
     fireRateMs: 380,
     bulletColor: 0xf43f5e,
     bulletScale: 1.6,
@@ -106,7 +106,7 @@ export const WEAPON_DEFINITIONS = {
     shortName: "RAPID",
     description: "超高速の連射マシンガン",
     damage: 5,
-    speed: 1250,
+    speed: 860,
     fireRateMs: 70,
     bulletColor: 0x4ede82,
     bulletScale: 0.75,
@@ -117,9 +117,9 @@ export type WeaponKey = keyof typeof WEAPON_DEFINITIONS;
 
 // 敵キャラクター設定
 export const ENEMY_SPAWN_INTERVAL_MS = 800;
-export const ENEMY_SPEED_MIN = 180;
-export const ENEMY_SPEED_MAX = 320;
-export const ENEMY_DEFAULT_SPEED = 240;
+export const ENEMY_SPEED_MIN = 120;
+export const ENEMY_SPEED_MAX = 220;
+export const ENEMY_DEFAULT_SPEED = 160;
 export const ENEMY_SCORE = 100;
 export const ENEMY_DAMAGE = 25;
 export const ENEMY_HP = 30;

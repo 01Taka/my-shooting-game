@@ -2,10 +2,27 @@ import Phaser from "phaser";
 
 import { EnemyBase } from "./EnemyBase";
 import type { ResistanceConfig } from "./resistance";
-import type { GameContext, NextSpec, StateTable, Watcher, WeightedNext } from "./types";
+import type {
+  EnemyProfile,
+  GameContext,
+  NextSpec,
+  StateTable,
+  Watcher,
+  WeightedNext,
+} from "./types";
 
-/** NextSpec から次の状態を1つ決める。単一の状態名なら抽選せずそのまま返す */
-export function pickNext<K extends string>(spec: NextSpec<K>): K {
+/** NextSpec から次の状態を1つ決める。単一の状態名なら抽選せずそのまま返し、関数の場合は評価する */
+export function pickNext<K extends string>(
+  spec: NextSpec<K>,
+  context?: GameContext,
+  enemy?: Enemy<K>,
+): K {
+  if (typeof spec === "function") {
+    if (!context || !enemy) {
+      throw new Error("コールバック形式の onDone を評価するには context と enemy が必要です");
+    }
+    return pickNext(spec(context, enemy), context, enemy);
+  }
   if (typeof spec === "string") return spec;
 
   let total = 0;
@@ -49,11 +66,11 @@ export class Enemy<K extends string> extends EnemyBase {
     initialState: K,
     table: StateTable<K>,
     watcher?: Watcher<K>,
-    resistances?: ResistanceConfig,
+    profileOrResistances?: EnemyProfile | ResistanceConfig,
     stunStateKey?: K, // スタン状態に対応するキー（例: "STUN"）
     texture: string = "enemy",
   ) {
-    super(scene, x, y, texture, resistances);
+    super(scene, x, y, texture, profileOrResistances);
     this.currentState = initialState;
     this.table = table;
     this.watcher = watcher;
@@ -124,8 +141,8 @@ export class Enemy<K extends string> extends EnemyBase {
     // 2. 現在のアクションを実行（遷移したフレームも遅れずに実行される）
     const entry = this.table[this.currentState];
     if (entry.run.update(this, context, this.stateData, scaledDelta) === "done") {
-      // 正常完了：onDone が配列なら、ここで比率に応じて遷移先を抽選する
-      this.transitionTo(pickNext(entry.onDone), context);
+      // 正常完了：onDone（コールバック / 重み付き候補 / 単一状態）を解決して次状態へ遷移
+      this.transitionTo(pickNext(entry.onDone, context, this), context);
     }
 
     // 3. 基準速度 × timeScale を反映

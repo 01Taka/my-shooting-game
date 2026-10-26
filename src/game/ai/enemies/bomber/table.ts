@@ -27,7 +27,7 @@ export const BOMBER_CANCEL_DIST = m(2.4); // 120px
 export const BOMBER_TABLE: StateTable<BomberState> = {
   CHASE: {
     run: chasePlayerAction({
-      speed: m(4.8), // 俊敏にプレイヤーへ接近
+      speed: m(3.2), // 低下させた速度でプレイヤーへ接近（160px/s）
       stopDistance: BOMBER_STOP_DIST, // 肉薄するまで停止しない
       anim: loopFrames([BOMBER_ANIM_KEYS.MOVE_0, BOMBER_ANIM_KEYS.MOVE_1], 120),
     }),
@@ -35,10 +35,10 @@ export const BOMBER_TABLE: StateTable<BomberState> = {
   },
   EXPLODE: {
     run: suicideExplodeAction({
-      windupDurationMs: 700, // 700msの予兆（プレイヤーが回避できる猶予）
+      windupDurationMs: 300,
       explosionRadius: 110,
-      damage: 40,
-      knockback: 300,
+      damage: 25,
+      knockback: 500,
       anims: {
         windup: loopFrames([BOMBER_ANIM_KEYS.WINDUP_0, BOMBER_ANIM_KEYS.WINDUP_1], 80),
       },

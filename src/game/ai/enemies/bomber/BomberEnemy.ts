@@ -2,14 +2,23 @@ import type Phaser from "phaser";
 
 import { Enemy } from "../../Enemy";
 import type { ResistanceConfig } from "../../resistance";
+import type { EnemyProfile } from "../../types";
 import { BOMBER_TEXTURE_KEYS, ensureBomberTextures } from "./graphics";
 import { BOMBER_TABLE, type BomberState, bomberWatcher } from "./table";
 
-/** Bomber のデフォルト耐性値（爆発物なのでスタン耐性は低め） */
-export const BOMBER_DEFAULT_RESISTANCES: ResistanceConfig = {
-  stunResistance: 10,
-  slowResistance: 10,
+/** Bomber の共通デフォルトプロファイル（爆発物なので紙装甲＆低耐性） */
+export const BOMBER_DEFAULT_PROFILE: EnemyProfile = {
+  maxHp: 30,
+  resistances: {
+    stunResistance: 10,
+    slowResistance: 10,
+  },
+  directionalMode: "horizontal2",
+  initialDirection: "right",
 };
+
+/** @deprecated 後方互換性用（BOMBER_DEFAULT_PROFILE.resistances を推奨） */
+export const BOMBER_DEFAULT_RESISTANCES: ResistanceConfig = BOMBER_DEFAULT_PROFILE.resistances;
 
 /**
  * Bomber (自爆特攻型エネミー)
@@ -21,11 +30,11 @@ export class BomberEnemy extends Enemy<BomberState> {
     scene: Phaser.Scene,
     x: number,
     y: number,
-    resistances: ResistanceConfig = BOMBER_DEFAULT_RESISTANCES,
+    profileOrResistances: EnemyProfile | ResistanceConfig = BOMBER_DEFAULT_PROFILE,
     texture: string = BOMBER_TEXTURE_KEYS.MAIN,
   ) {
     ensureBomberTextures(scene);
-    super(scene, x, y, "CHASE", BOMBER_TABLE, bomberWatcher, resistances, "STUN", texture);
+    super(scene, x, y, "CHASE", BOMBER_TABLE, bomberWatcher, profileOrResistances, "STUN", texture);
   }
 
   /**
@@ -58,8 +67,8 @@ export function createBomberEnemy(
   scene: Phaser.Scene,
   x: number,
   y: number,
-  resistances: ResistanceConfig = BOMBER_DEFAULT_RESISTANCES,
+  profileOrResistances: EnemyProfile | ResistanceConfig = BOMBER_DEFAULT_PROFILE,
   texture: string = BOMBER_TEXTURE_KEYS.MAIN,
 ): BomberEnemy {
-  return new BomberEnemy(scene, x, y, resistances, texture);
+  return new BomberEnemy(scene, x, y, profileOrResistances, texture);
 }

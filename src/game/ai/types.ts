@@ -1,7 +1,25 @@
+import type { CharacterDirection, DirectionalMode } from "../../utils/directionalSprite";
 import type { DamageZoneManager } from "../damageZone/DamageZoneManager";
 import type { TrapManager } from "../trap/TrapManager";
 import type { Enemy } from "./Enemy";
 import type { EnemyBase } from "./EnemyBase";
+import type { ResistanceConfig } from "./resistance";
+
+/** 敵共通の基本定数・ステータス設定プロファイル型 */
+export interface EnemyProfile {
+  /** 最大HP（初期HP） */
+  maxHp: number;
+  /** 行動阻害耐性設定（スタン・スロウ） */
+  resistances: ResistanceConfig;
+  /** スプライト向きモード (デフォルト: "horizontal2") */
+  directionalMode?: DirectionalMode;
+  /** 初期向き (デフォルト: "right") */
+  initialDirection?: CharacterDirection;
+  /** 基本テクスチャキー（任意） */
+  defaultTexture?: string;
+  /** 撃破スコア（任意） */
+  score?: number;
+}
 
 /** 弾マネージャーのコンテキスト用インターフェース */
 export interface BulletManagerContext {
@@ -21,6 +39,7 @@ export interface GameContext {
       speed?: number,
       damage?: number,
       owner?: unknown,
+      scale?: number,
     ) => void;
     fire?: (x: number, y: number, angle: number) => void;
   };
@@ -48,8 +67,11 @@ export interface WeightedNext<K extends string> {
   weight?: number;
 }
 
-/** 遷移先の指定。単一の状態名 or 重み付き候補の配列 */
-export type NextSpec<K extends string> = K | readonly WeightedNext<K>[];
+/** コンテキストや敵自身を参照して次の遷移先または候補を返すコールバック */
+export type NextCallback<K extends string> = (context: GameContext, enemy: Enemy<K>) => NextSpec<K>;
+
+/** 遷移先の指定。単一の状態名 or 重み付き候補の配列 or コールバック関数 */
+export type NextSpec<K extends string> = K | readonly WeightedNext<K>[] | NextCallback<K>;
 
 /** 単一状態のエントリ */
 export interface StateEntry<K extends string> {

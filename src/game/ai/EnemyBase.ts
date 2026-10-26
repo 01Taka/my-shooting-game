@@ -14,6 +14,7 @@ import {
   resolveSlowProfile,
   type SlowProfile,
 } from "./resistance";
+import type { EnemyProfile } from "./types";
 
 /**
  * 敵基盤クラス (EnemyBase)
@@ -21,6 +22,10 @@ import {
  */
 export abstract class EnemyBase extends Phaser.Physics.Arcade.Sprite {
   declare body: Phaser.Physics.Arcade.Body;
+
+  // --- 基本ステータス ---
+  public maxHp: number;
+  public hp: number;
 
   // --- 耐性ステータス (0〜100) ---
   public readonly stunResistance: number;
@@ -52,20 +57,51 @@ export abstract class EnemyBase extends Phaser.Physics.Arcade.Sprite {
     x: number,
     y: number,
     texture: string = "enemy",
-    resistances: ResistanceConfig = {},
+    profileOrResistances: EnemyProfile | ResistanceConfig = {},
   ) {
     super(scene, x, y, texture);
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
+    // profileOrResistances から耐性とプロファイルパラメータを展開
+    const resistances: ResistanceConfig =
+      "resistances" in profileOrResistances && profileOrResistances.resistances
+        ? profileOrResistances.resistances
+        : (profileOrResistances as ResistanceConfig);
+
     this.stunResistance = Phaser.Math.Clamp(resistances.stunResistance ?? 0, 0, 100);
     this.slowResistance = Phaser.Math.Clamp(resistances.slowResistance ?? 0, 0, 100);
     this.slowProfile = resolveSlowProfile(this.slowResistance);
+
+    const initialMaxHp =
+      "maxHp" in profileOrResistances && typeof profileOrResistances.maxHp === "number"
+        ? profileOrResistances.maxHp
+        : 30;
+    this.maxHp = initialMaxHp;
+    this.hp = initialMaxHp;
+    this.setData("maxHp", initialMaxHp);
+    this.setData("hp", initialMaxHp);
+
+    if ("directionalMode" in profileOrResistances && profileOrResistances.directionalMode) {
+      this.directionalMode = profileOrResistances.directionalMode;
+    }
+    if ("initialDirection" in profileOrResistances && profileOrResistances.initialDirection) {
+      this.direction = profileOrResistances.initialDirection;
+    }
 
     this.defaultBaseTextureKey = texture.replace(
       /_(right|left|front_right|front_left|back_right|back_left)$/,
       "",
     );
+  }
+
+  /**
+   * ダメージを受け、残存HPを返す。内部の hp と setData("hp") の両方を更新する
+   */
+  public takeDamage(amount: number): number {
+    this.hp = Math.max(0, this.hp - amount);
+    this.setData("hp", this.hp);
+    return this.hp;
   }
 
   // =====================================================================
