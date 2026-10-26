@@ -18,6 +18,7 @@
 | [**08. サウンド管理設計とAutoplay Policy対策**](./08-audio-manager-and-autoplay-policy.md)                             | Web Audio の自動再生制限（Autoplay Policy）解除、SE多重発音のクールダウン、プロシージャル合成音フォールバック、React設定連携の汎用設計。                   |
 | [**09. 視線先行(Look-ahead)カメラと広大ワールドの全方位設計**](./09-lookahead-camera-and-world-bounds.md)              | 自機中心のカメラ追従と視線先行オフセット（Lerp補間）、カメラ移動時のマウス座標（worldX/worldY）の罠、全方位敵スポーンと追従移動レシピ。                    |
 | [**10. シーン終了時のGroupクリアによるchildrenエラー**](./10-scene-shutdown-group-clear-error.md)                      | `Scene.stop()` 時に `group.clear()` で `children is undefined` 例外が発生する原因と安全ガード、`once` による多重登録防止法。                               |
+| [**11. Phaser Graphics の角丸とグラデーション両立技法**](./11-phaser-ui-gradient-and-rounded-corners.md)               | `fillRoundedRect` と `fillGradientStyle` の排他制約を解決し、1px走査線補間（Scanline）で完全な角丸と滑らかなリニアグラデーションを両立するUIレシピ。       |
 
 ---
 
@@ -33,3 +34,4 @@
 - **「スマホで音が鳴らない / 連射時に効果音が割れて爆音になる」** ➔ [08. サウンド管理設計とAutoplay Policy対策](./08-audio-manager-and-autoplay-policy.md)
 - **「カメラ追従時にマウスエイムの向きがズレる / 進行方向の視界が狭い」** ➔ [09. 視線先行カメラと広大ワールド設計](./09-lookahead-camera-and-world-bounds.md)
 - **「リザルト画面でリトライやタイトルに戻ると `children is undefined` で落ちる」** ➔ [10. シーン終了時のGroupクリアエラー](./10-scene-shutdown-group-clear-error.md)
+- **「PhaserのGraphicsでゲージにグラデーションをかけると角丸が消える / 2色にパッキリ分かれてしまう」** ➔ [11. Phaser Graphics の角丸とグラデーション両立技法](./11-phaser-ui-gradient-and-rounded-corners.md)

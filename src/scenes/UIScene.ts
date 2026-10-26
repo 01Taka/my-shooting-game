@@ -2,23 +2,7 @@ import Phaser from "phaser";
 
 import { AudioManager } from "../audio/AudioManager";
 import {
-  HUD_HP_BAR_BG_ALPHA,
-  HUD_HP_BAR_BG_COLOR,
-  HUD_HP_BAR_HEIGHT,
-  HUD_HP_BAR_RADIUS,
-  HUD_HP_BAR_WIDTH,
-  HUD_HP_BAR_X,
-  HUD_HP_BAR_Y,
-  HUD_HP_COLOR_HIGH,
-  HUD_HP_COLOR_LOW,
-  HUD_HP_COLOR_MID,
-  HUD_HP_LABEL_X,
-  HUD_HP_LABEL_Y,
-  HUD_HP_RATIO_HIGH,
-  HUD_HP_RATIO_MID,
-  HUD_HP_TEXT_X,
-  HUD_HP_TEXT_Y,
-  HUD_PAUSE_BUTTON_MARGIN_RIGHT,
+  HUD_PAUSE_BUTTON_MARGIN_LEFT,
   HUD_PAUSE_BUTTON_PADDING_X,
   HUD_PAUSE_BUTTON_PADDING_Y,
   HUD_PAUSE_BUTTON_Y,
@@ -41,19 +25,14 @@ import {
   PAUSE_MENU_SETTINGS_COLOR,
   PAUSE_MENU_TITLE_COLOR,
   PAUSE_MENU_TITLE_Y_OFFSET,
-  PLAYER_INITIAL_HP,
 } from "../constants";
 import { EventBus } from "../EventBus";
 import { addCrispText } from "../utils/text";
 
 export class UIScene extends Phaser.Scene {
   protected scoreText!: Phaser.GameObjects.Text;
-  protected hpBarFill!: Phaser.GameObjects.Graphics;
-  protected hpText!: Phaser.GameObjects.Text;
   protected pauseMenuContainer!: Phaser.GameObjects.Container;
   protected isPaused = false;
-  protected hp = PLAYER_INITIAL_HP;
-  protected maxHp = PLAYER_INITIAL_HP;
 
   constructor() {
     super("UIScene");
@@ -64,11 +43,10 @@ export class UIScene extends Phaser.Scene {
   // ==========================================
 
   /**
-   * HUD表示（HPやスコア等）のラベル設定
+   * HUD表示（スコアやボタン等）のラベル設定
    */
   protected getHUDConfig() {
     return {
-      hpLabel: "HP",
       scorePrefix: "SCORE: ",
       pauseButtonText: "II ポーズ",
     };
@@ -109,40 +87,13 @@ export class UIScene extends Phaser.Scene {
   // 共通HUD・ポーズ制御 (1600x900スケール)
   // ==========================================
 
-  init(data: { hp?: number; maxHp?: number; score?: number }) {
-    this.hp = data.hp ?? PLAYER_INITIAL_HP;
-    this.maxHp = data.maxHp ?? PLAYER_INITIAL_HP;
+  init() {
     this.isPaused = false;
   }
 
   create() {
     const { width, height } = this.scale;
     const hudConfig = this.getHUDConfig();
-
-    // --- HPバー表示（左上） ---
-    addCrispText(this, HUD_HP_LABEL_X, HUD_HP_LABEL_Y, hudConfig.hpLabel, {
-      fontSize: "24px",
-      fontFamily: "monospace",
-      color: "#94a3b8",
-    });
-
-    const hpBg = this.add.graphics();
-    hpBg.fillStyle(HUD_HP_BAR_BG_COLOR, HUD_HP_BAR_BG_ALPHA);
-    hpBg.fillRoundedRect(
-      HUD_HP_BAR_X,
-      HUD_HP_BAR_Y,
-      HUD_HP_BAR_WIDTH,
-      HUD_HP_BAR_HEIGHT,
-      HUD_HP_BAR_RADIUS,
-    );
-
-    this.hpBarFill = this.add.graphics();
-    this.hpText = addCrispText(this, HUD_HP_TEXT_X, HUD_HP_TEXT_Y, `${this.hp}/${this.maxHp}`, {
-      fontSize: "20px",
-      fontFamily: "monospace",
-      color: "#e2e8f0",
-    });
-    this.updateHpBar(this.hp);
 
     // --- スコア表示（中央上） ---
     this.scoreText = addCrispText(
@@ -158,10 +109,10 @@ export class UIScene extends Phaser.Scene {
       },
     ).setOrigin(0.5);
 
-    // --- ポーズボタン（右上） ---
+    // --- ポーズボタン（左上） ---
     const pauseBtn = addCrispText(
       this,
-      width - HUD_PAUSE_BUTTON_MARGIN_RIGHT,
+      HUD_PAUSE_BUTTON_MARGIN_LEFT,
       HUD_PAUSE_BUTTON_Y,
       hudConfig.pauseButtonText,
       {
@@ -171,7 +122,7 @@ export class UIScene extends Phaser.Scene {
         color: "#ffffff",
       },
     )
-      .setOrigin(1, 0.5)
+      .setOrigin(0, 0.5)
       .setInteractive({ useHandCursor: true });
 
     pauseBtn.on("pointerdown", () => this.togglePause());
@@ -186,40 +137,11 @@ export class UIScene extends Phaser.Scene {
       );
     };
 
-    const onHpUpdate = (newHp: number) => {
-      this.updateHpBar(newHp);
-    };
-
     EventBus.on("score-updated", onScoreUpdate);
-    EventBus.on("hp-updated", onHpUpdate);
 
     this.events.on("shutdown", () => {
       EventBus.off("score-updated", onScoreUpdate);
-      EventBus.off("hp-updated", onHpUpdate);
     });
-  }
-
-  protected updateHpBar(currentHp: number) {
-    this.hp = currentHp;
-    this.hpBarFill.clear();
-
-    const ratio = Math.max(0, currentHp / this.maxHp);
-    const color =
-      ratio > HUD_HP_RATIO_HIGH
-        ? HUD_HP_COLOR_HIGH
-        : ratio > HUD_HP_RATIO_MID
-          ? HUD_HP_COLOR_MID
-          : HUD_HP_COLOR_LOW;
-
-    this.hpBarFill.fillStyle(color, 1);
-    this.hpBarFill.fillRoundedRect(
-      HUD_HP_BAR_X,
-      HUD_HP_BAR_Y,
-      HUD_HP_BAR_WIDTH * ratio,
-      HUD_HP_BAR_HEIGHT,
-      HUD_HP_BAR_RADIUS,
-    );
-    this.hpText.setText(`${Math.max(0, currentHp)}/${this.maxHp}`);
   }
 
   protected togglePause() {

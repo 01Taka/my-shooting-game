@@ -2,6 +2,45 @@
  * UI・HUD・シーン制御関連の定数定義
  */
 
+// プレイヤー頭上追従HUD（HP / MP / ブリンク）
+export const PLAYER_HUD_OFFSET_Y = -52;
+export const PLAYER_HUD_HP_MP_WIDTH = 100;
+export const PLAYER_HUD_HP_BAR_HEIGHT = 20;
+export const PLAYER_HUD_MP_BAR_HEIGHT = 10;
+export const PLAYER_HUD_BAR_SPACING = 4;
+export const PLAYER_HUD_BAR_RADIUS = 3;
+export const PLAYER_HUD_BLINK_WIDTH = 15;
+export const PLAYER_HUD_BLINK_SPACING_X = 5;
+export const PLAYER_HUD_DEPTH = 25;
+
+export const PLAYER_HUD_BG_COLOR = 0x0f172a;
+export const PLAYER_HUD_BG_ALPHA = 0.35;
+export const PLAYER_HUD_BORDER_COLOR = 0x475569;
+export const PLAYER_HUD_BORDER_ALPHA = 0.55;
+
+// ガラス光沢ハイライト
+export const PLAYER_HUD_GLOSS_COLOR = 0xffffff;
+export const PLAYER_HUD_GLOSS_ALPHA = 0.28;
+
+// HPグラデーション（上部Light / 下部Deep）
+export const PLAYER_HUD_HP_HIGH_TOP = 0x4ede82;
+export const PLAYER_HUD_HP_HIGH_BOTTOM = 0x15803d;
+export const PLAYER_HUD_HP_MID_TOP = 0xfde047;
+export const PLAYER_HUD_HP_MID_BOTTOM = 0xb45309;
+export const PLAYER_HUD_HP_LOW_TOP = 0xf87171;
+export const PLAYER_HUD_HP_LOW_BOTTOM = 0x991b1b;
+
+// MPグラデーション
+export const PLAYER_HUD_MP_TOP = 0x7c6ee6;
+export const PLAYER_HUD_MP_BOTTOM = 0x4338ca;
+
+// ブリンクグラデーション（縦型クリスタル）
+export const PLAYER_HUD_BLINK_TOP = 0xf838c8;
+export const PLAYER_HUD_BLINK_BOTTOM = 0x9d174d;
+export const PLAYER_HUD_BLINK_READY_TOP = 0xffe4fc;
+export const PLAYER_HUD_BLINK_READY_BOTTOM = 0xf43f5e;
+export const PLAYER_HUD_BLINK_BORDER_READY_COLOR = 0xfacc15;
+
 // HUD（ヘッズアップディスプレイ）
 export const HUD_HP_LABEL_X = 30;
 export const HUD_HP_LABEL_Y = 26;
@@ -24,6 +63,7 @@ export const HUD_HP_COLOR_LOW = 0xef4444;
 export const HUD_SCORE_Y = 40;
 export const HUD_SCORE_DIGITS = 5;
 
+export const HUD_PAUSE_BUTTON_MARGIN_LEFT = 30;
 export const HUD_PAUSE_BUTTON_MARGIN_RIGHT = 30;
 export const HUD_PAUSE_BUTTON_Y = 40;
 export const HUD_PAUSE_BUTTON_PADDING_X = 18;
@@ -51,12 +91,20 @@ export const PAUSE_MENU_SETTINGS_COLOR = 0x475569;
 export const PAUSE_MENU_TITLE_COLOR = 0xd97706;
 
 // バーチャルスティック・タッチコントローラー
-export const CONTROLLER_MAX_POINTERS = 3;
+export const CONTROLLER_MAX_POINTERS = 4;
 export const ATTACK_PAD_RADIUS = 240;
 export const ATTACK_PAD_DEPTH = 40;
 export const ATTACK_PAD_LABEL_OFFSET = 90;
 export const ATTACK_PAD_COLOR = 0xf43f5e;
 export const ATTACK_PAD_INNER_RING_RATIO = 0.55;
+
+export const BLINK_PAD_RADIUS = 240;
+export const BLINK_PAD_DEPTH = 40;
+export const BLINK_PAD_LABEL_OFFSET = 90;
+export const BLINK_PAD_COLOR = 0xd946ef;
+export const BLINK_PAD_DISABLED_COLOR = 0x64748b;
+export const BLINK_PAD_INNER_RING_RATIO = 0.55;
+
 
 export const STICK_CONTAINER_DEPTH = 100;
 export const STICK_LABEL_OFFSET_Y = 14;

@@ -19,6 +19,14 @@ export const PLAYER_SPEED = 520;
 export const PLAYER_TEXTURE_SIZE = 64;
 export const PLAYER_COLOR = 0x38bdf8;
 
+// ブリンク（短距離テレポート）設定
+export const BLINK_DISTANCE = 260;
+export const BLINK_METER_MAX = 1.0;
+export const BLINK_COST = 0.5; // 1回あたり1/2消費
+export const BLINK_RECOVERY_PER_SECOND = 0.2; // 5秒で全快（2.5秒で1回分回復）
+export const BLINK_COOLDOWN_MS = 150; // 連打誤動作防止の最小間隔
+
+
 // 弾丸設定
 export const BULLET_SPEED = 1050;
 export const BULLET_FIRE_RATE_MS = 140;

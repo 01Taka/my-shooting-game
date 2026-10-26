@@ -25,10 +25,16 @@ import {
   SYNTH_LASER_FREQ_START,
   SYNTH_LASER_VOLUME_SCALE,
   SYNTH_RAMP_MIN_GAIN,
+  SYNTH_BLINK_DURATION,
+  SYNTH_BLINK_FREQ_END,
+  SYNTH_BLINK_FREQ_PEAK,
+  SYNTH_BLINK_FREQ_START,
+  SYNTH_BLINK_VOLUME_SCALE,
 } from "../constants";
 import { useGameSettings } from "../stores/useGameSettings";
 
-export type SynthSoundType = "laser" | "explosion" | "hit" | "click" | "gameover";
+export type SynthSoundType = "laser" | "explosion" | "hit" | "click" | "gameover" | "blink";
+
 
 export interface SoundPlayOptions {
   volume?: number; // 個別音量倍率 (0.0 - 1.0, デフォルト: 1.0)
@@ -225,7 +231,7 @@ export class AudioManager {
   }
 
   private isSynthSoundType(key: string): key is SynthSoundType {
-    return ["laser", "explosion", "hit", "click", "gameover"].includes(key);
+    return ["laser", "explosion", "hit", "click", "gameover", "blink"].includes(key);
   }
 
   // ==========================================
@@ -365,6 +371,33 @@ export class AudioManager {
           osc.start(now + idx * SYNTH_GAMEOVER_STEP_INTERVAL);
           osc.stop(now + (idx + 1) * SYNTH_GAMEOVER_STEP_INTERVAL);
         });
+        break;
+      }
+
+      case "blink": {
+        // 急上昇して下降する近未来的なワープ・テレポート音
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(SYNTH_BLINK_FREQ_START, now);
+        osc.frequency.linearRampToValueAtTime(
+          SYNTH_BLINK_FREQ_PEAK,
+          now + SYNTH_BLINK_DURATION * 0.4,
+        );
+        osc.frequency.exponentialRampToValueAtTime(
+          SYNTH_BLINK_FREQ_END,
+          now + SYNTH_BLINK_DURATION,
+        );
+
+        gain.gain.setValueAtTime(volume * SYNTH_BLINK_VOLUME_SCALE, now);
+        gain.gain.exponentialRampToValueAtTime(SYNTH_RAMP_MIN_GAIN, now + SYNTH_BLINK_DURATION);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start(now);
+        osc.stop(now + SYNTH_BLINK_DURATION);
         break;
       }
     }

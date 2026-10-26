@@ -37,6 +37,7 @@ import {
   EnemyManager,
   LockOnManager,
   PlayerController,
+  PlayerStatusHUD,
 } from "../game";
 import type { GameParameters } from "../game/types";
 import type { ControllerInputPayload } from "./ControllerScene";
@@ -51,6 +52,7 @@ export class GameScene extends Phaser.Scene {
   protected enemyManager!: EnemyManager;
   protected lockOnManager!: LockOnManager;
   protected playerController!: PlayerController;
+  protected playerStatusHUD!: PlayerStatusHUD;
 
   // ゲーム状態
   protected score = 0;
@@ -145,6 +147,11 @@ export class GameScene extends Phaser.Scene {
     // プレイヤー入力コントローラーの初期化
     this.playerController = new PlayerController(params.player);
     this.playerController.init(this);
+
+    // プレイヤー頭上追従HUD（HP/MP/ブリンク）の初期化
+    this.playerStatusHUD = new PlayerStatusHUD();
+    this.playerStatusHUD.init(this);
+    this.playerStatusHUD.setHp(this.hp, this.maxHp);
   }
 
   /**
@@ -294,6 +301,7 @@ export class GameScene extends Phaser.Scene {
       this.cameraManager?.destroy();
       this.lockOnManager?.destroy();
       this.playerController?.destroy();
+      this.playerStatusHUD?.destroy();
       this.events.off("controller-input");
       this.events.off("controller-lockon-start");
       this.events.off("controller-lockon-tap");
@@ -309,6 +317,7 @@ export class GameScene extends Phaser.Scene {
   protected damage(amount: number) {
     this.hp = Math.max(0, this.hp - amount);
     EventBus.emit("hp-updated", this.hp);
+    this.playerStatusHUD?.setHp(this.hp, this.maxHp);
 
     AudioManager.getInstance().playSE("hit");
 
@@ -370,5 +379,8 @@ export class GameScene extends Phaser.Scene {
     // 5. 弾薬・敵のフレーム更新（生存距離・追従AI判定）
     this.bulletManager.update(this.player.x, this.player.y, this.worldSize);
     this.enemyManager.update(this.player);
+
+    // 6. プレイヤー頭上追従HUDの更新
+    this.playerStatusHUD.update(this.player, delta);
   }
 }

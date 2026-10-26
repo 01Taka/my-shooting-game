@@ -44,3 +44,11 @@ export const SYNTH_CLICK_VOLUME_SCALE = 0.3;
 export const SYNTH_GAMEOVER_FREQS = [330, 294, 262, 196];
 export const SYNTH_GAMEOVER_STEP_INTERVAL = 0.15;
 export const SYNTH_GAMEOVER_VOLUME_SCALE = 0.3;
+
+// ブリンク（テレポート）
+export const SYNTH_BLINK_FREQ_START = 320;
+export const SYNTH_BLINK_FREQ_PEAK = 960;
+export const SYNTH_BLINK_FREQ_END = 480;
+export const SYNTH_BLINK_DURATION = 0.14;
+export const SYNTH_BLINK_VOLUME_SCALE = 0.45;
+
