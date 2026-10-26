@@ -390,7 +390,7 @@ export class GameScene extends Phaser.Scene {
         const nextWeapon = WEAPON_ORDER[nextIndex];
 
         this.bulletManager.setWeapon(nextWeapon);
-        this.weaponSelectHUD.showQuickSwitchFeedback(nextWeapon, this.player.x, this.player.y);
+        this.weaponSelectHUD.showWheelSwitch(nextWeapon, this.player.x, this.player.y);
         AudioManager.getInstance().playSE("click");
       },
     );
@@ -519,16 +519,16 @@ export class GameScene extends Phaser.Scene {
     if (isKeyboardMouse && this.weaponKeys) {
       if (Phaser.Input.Keyboard.JustDown(this.weaponKeys.ONE)) {
         this.bulletManager.setWeapon("spread");
-        this.weaponSelectHUD.showQuickSwitchFeedback("spread", this.player.x, this.player.y);
+        this.weaponSelectHUD.showWheelSwitch("spread", this.player.x, this.player.y);
       } else if (Phaser.Input.Keyboard.JustDown(this.weaponKeys.TWO)) {
         this.bulletManager.setWeapon("normal");
-        this.weaponSelectHUD.showQuickSwitchFeedback("normal", this.player.x, this.player.y);
+        this.weaponSelectHUD.showWheelSwitch("normal", this.player.x, this.player.y);
       } else if (Phaser.Input.Keyboard.JustDown(this.weaponKeys.THREE)) {
         this.bulletManager.setWeapon("heavy");
-        this.weaponSelectHUD.showQuickSwitchFeedback("heavy", this.player.x, this.player.y);
+        this.weaponSelectHUD.showWheelSwitch("heavy", this.player.x, this.player.y);
       } else if (Phaser.Input.Keyboard.JustDown(this.weaponKeys.FOUR)) {
         this.bulletManager.setWeapon("rapid");
-        this.weaponSelectHUD.showQuickSwitchFeedback("rapid", this.player.x, this.player.y);
+        this.weaponSelectHUD.showWheelSwitch("rapid", this.player.x, this.player.y);
       }
     }
   }

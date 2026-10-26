@@ -535,10 +535,14 @@ export class ControllerScene extends Phaser.Scene {
       this.blinkPadContainer.setAlpha(1.0);
       this.drawBlinkPadGraphics(this.blinkPointerIds.size > 0);
 
-      // 3. 移動スティックを表示
-      this.moveStick.container.setVisible(true);
-      this.moveStick.container.setAlpha(0.6);
-      this.drawFullStickGraphics(this.moveStick);
+      // 3. 移動スティックの表示 (スマホモードのみ表示。PCはキーボードWASD移動のため常に隠す)
+      if (this.inputMode === "mobile") {
+        this.moveStick.container.setVisible(true);
+        this.moveStick.container.setAlpha(0.6);
+        this.drawFullStickGraphics(this.moveStick);
+      } else {
+        this.moveStick.container.setVisible(false);
+      }
 
       // 4. ロックオンスティックの表示（Dynamic時は非操作時は非表示、Fixed時は常時半透明表示）
       this.lockOnStick.container.setVisible(true);
@@ -646,8 +650,8 @@ export class ControllerScene extends Phaser.Scene {
       return;
     }
 
-    // 3. 画面左半分: 移動スティック操作
-    if (pointer.x < width / 2 && this.moveStick.pointerId === null) {
+    // 3. 画面左半分: 移動スティック操作（スマホモードのみ。PCでは常に非表示かつWASD移動）
+    if (this.inputMode === "mobile" && pointer.x < width / 2 && this.moveStick.pointerId === null) {
       this.activateStick(this.moveStick, pointer);
     } else if (pointer.x >= width / 2) {
       // 4. 画面右半分:

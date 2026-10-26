@@ -153,6 +153,8 @@ export const WEAPON_HUD_POP_SCALE = 1.42;
 export const WEAPON_HUD_POP_HOLD_MS = 130; // 選択武器のポップ強調維持時間
 export const WEAPON_HUD_FADE_OUT_DURATION_MS = 180; // 選択武器のフェードアウト速度
 export const WEAPON_HUD_UNSELECTED_FADE_OUT_DURATION_MS = 70; // 非選択HUDの高速フェードアウト速度
+export const WEAPON_HUD_WHEEL_IDLE_DELAY_MS = 500; // ホイール回転停止から消去開始までの待機時間
+export const WEAPON_HUD_WHEEL_FADE_OUT_DURATION_MS = 140; // ホイール選択武器のフェードアウト速度
 
 export const AIM_ARROW_TIP_OFFSET = 22;
 export const AIM_ARROW_BASE_OFFSET = 6;

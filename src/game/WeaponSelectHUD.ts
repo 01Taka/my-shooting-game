@@ -12,6 +12,8 @@ import {
   WEAPON_HUD_POP_SCALE,
   WEAPON_HUD_SELECTED_SCALE,
   WEAPON_HUD_UNSELECTED_FADE_OUT_DURATION_MS,
+  WEAPON_HUD_WHEEL_FADE_OUT_DURATION_MS,
+  WEAPON_HUD_WHEEL_IDLE_DELAY_MS,
 } from "../constants";
 import { addCrispText } from "../utils/text";
 import type { WeaponDefinition, WeaponDirection, WeaponType } from "./types";
@@ -40,6 +42,7 @@ export class WeaponSelectHUD {
   protected isClosing = false;
   protected selectedDirection: WeaponDirection | null = null;
   protected currentEquipped: WeaponType = "normal";
+  protected wheelTimer?: Phaser.Time.TimerEvent;
 
   // 方向と相対座標（自機中心から距離 WEAPON_HUD_DISTANCE）
   protected readonly directionOffsets: Record<
@@ -157,6 +160,9 @@ export class WeaponSelectHUD {
    * スティックを触り始めたときにHUDを展開
    */
   open(currentWeapon: WeaponType, playerX: number, playerY: number): void {
+    this.wheelTimer?.remove(false);
+    this.wheelTimer = undefined;
+
     if (this.isClosing) {
       this.scene.tweens.killTweensOf(this.mainContainer);
       for (const item of this.items.values()) {
@@ -388,6 +394,59 @@ export class WeaponSelectHUD {
   }
 
   /**
+   * マウスホイールまたはキーボード操作による武器切り替えHUD表示
+   * - すべての選択肢を同時に表示（選択中の武器をハイライト）
+   * - ホイール停止後、一定時間（500ms）経過したらシンプルに全体を同時にフェードアウト
+   */
+  showWheelSwitch(weapon: WeaponType, playerX: number, playerY: number): void {
+    // 既存の待機タイマーをリセット
+    this.wheelTimer?.remove(false);
+    this.wheelTimer = undefined;
+
+    // 進行中のフェードアウトTweensを強制終了
+    this.scene.tweens.killTweensOf(this.mainContainer);
+
+    const targetDef = WEAPON_DEFINITIONS[weapon];
+    this.currentEquipped = weapon;
+    this.selectedDirection = targetDef.direction;
+    this.isOpen = true;
+    this.isClosing = false;
+
+    this.mainContainer.setPosition(playerX, playerY);
+    this.mainContainer.setVisible(true);
+    this.mainContainer.setAlpha(1);
+    this.mainContainer.setScale(1);
+
+    // すべての選択肢を同時に表示し、選択中の武器をハイライト
+    for (const [dir, item] of this.items.entries()) {
+      item.container.setVisible(true);
+      item.container.setAlpha(1);
+
+      if (dir === targetDef.direction) {
+        item.container.setScale(WEAPON_HUD_SELECTED_SCALE);
+        this.drawItemGraphics(item, true, true);
+      } else {
+        item.container.setScale(WEAPON_HUD_NORMAL_SCALE);
+        this.drawItemGraphics(item, false, false);
+      }
+    }
+
+    // ホイール停止後、シンプルに全体を同時にフェードアウト
+    this.wheelTimer = this.scene.time.delayedCall(WEAPON_HUD_WHEEL_IDLE_DELAY_MS, () => {
+      this.isClosing = true;
+      this.scene.tweens.add({
+        targets: this.mainContainer,
+        alpha: 0,
+        duration: WEAPON_HUD_WHEEL_FADE_OUT_DURATION_MS,
+        ease: "Quad.In",
+        onComplete: () => {
+          this.finishClosing();
+        },
+      });
+    });
+  }
+
+  /**
    * 毎フレームプレイヤー位置へHUDを追従
    */
   updatePosition(playerX: number, playerY: number): void {
@@ -419,6 +478,9 @@ export class WeaponSelectHUD {
    * 破棄処理
    */
   destroy(): void {
+    this.wheelTimer?.remove(false);
+    this.wheelTimer = undefined;
+
     if (this.scene) {
       this.scene.tweens.killTweensOf(this.mainContainer);
       for (const item of this.items.values()) {
