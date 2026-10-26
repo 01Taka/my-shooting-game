@@ -22,8 +22,8 @@ export type WolfState = "CHASE" | "LUNGE" | "STUN";
 export const WOLF_TABLE: StateTable<WolfState> = {
   CHASE: {
     run: chasePlayerAction({
-      speed: m(2.4), // 追走速度（120px/s）
-      stopDistance: m(3.0), // 2.0m まで近づいたら攻撃モーションへ
+      speed: m(2.4), // 追走速度
+      stopDistance: m(3.0), // 停止距離
       anim: loopFrames([WOLF_ANIM_KEYS.RUN_0, WOLF_ANIM_KEYS.RUN_1], 160),
     }),
     onDone: "LUNGE",
@@ -31,7 +31,7 @@ export const WOLF_TABLE: StateTable<WolfState> = {
   LUNGE: {
     run: lungeAttackAction({
       windupDurationMs: 200,
-      windupTurnRateRadPerSec: Math.PI * 0.75, // 135度/秒のゆっくり旋回（フリック制限）
+      windupTurnRateRadPerSec: Math.PI * 0.75, // 溜め中の旋回速度制限
       lungeSpeed: m(6.5), // 前進突進速度
       lungeDurationMs: 250,
       attackRange: 85,
@@ -60,7 +60,7 @@ export const WOLF_TABLE: StateTable<WolfState> = {
 };
 
 /**
- * 常時監視：2.0m以内に入ったら強撃を発動。クールダウン中・スタン中・攻撃中は発動しない
+ * 常時監視：接近時に強撃を発動。クールダウン中・スタン中・攻撃中は発動しない
  */
 export const wolfWatcher: Watcher<WolfState> = (self, context) => {
   if (self.currentState === "LUNGE" || self.currentState === "STUN") return;

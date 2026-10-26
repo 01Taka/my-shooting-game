@@ -86,12 +86,12 @@ export class EnemyManager {
   }
 
   /**
-   * 敵の生成ロジック（プレイヤー視界外360度からスポーン ＆ 疑似2.5次元の影を配置）
+   * 敵の生成ロジック（プレイヤー視界外からスポーン ＆ 疑似2.5次元の影を配置）
    */
   protected spawnEnemy(): void {
     const playerPos = this.getPlayerPosition();
 
-    // プレイヤー中心から全周囲360度の視野外にスポーン
+    // プレイヤー中心から全周囲の視野外にスポーン
     const spawnAngle = Phaser.Math.RND.realInRange(0, Math.PI * 2);
     const spawnDistance = Phaser.Math.Between(ENEMY_SPAWN_DISTANCE_MIN, ENEMY_SPAWN_DISTANCE_MAX);
 
@@ -286,7 +286,7 @@ export class EnemyManager {
           enemy.setData("direction", updatedDir);
         }
 
-        // 水平移動に応じた極小のティルト（傾き約2度）
+        // 水平移動に応じた極小のティルト
         const speed = (enemy.getData("speed") as number) || ENEMY_DEFAULT_SPEED;
         const vx = enemy.body ? enemy.body.velocity.x : 0;
         const subtleTilt = (vx / speed) * 0.04;

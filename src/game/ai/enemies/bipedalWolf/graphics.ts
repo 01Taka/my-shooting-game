@@ -277,14 +277,14 @@ export function generateWolfTextures(scene: Phaser.Scene): void {
     snoutOpen: 1,
   });
 
-  // 攻撃範囲（リーチ85px・扇形70度）を可視化する斬撃エフェクト
+  // 攻撃範囲を可視化する斬撃エフェクト
   generateWolfSlashEffectTextures(scene);
 }
 
 function generateWolfSlashEffectTextures(scene: Phaser.Scene): void {
   const w = 110;
   const h = 130;
-  const oy = h / 2; // y中心 = 65
+  const oy = h / 2; // y中心
 
   // FX 0: 鋭い閃光・爪痕の出現
   const fx0 = scene.make.graphics({ x: 0, y: 0 });
@@ -304,7 +304,7 @@ function generateWolfSlashEffectTextures(scene: Phaser.Scene): void {
   fx0.generateTexture(WOLF_ANIM_KEYS.SLASH_FX_0, w, h);
   fx0.destroy();
 
-  // FX 1: 最大切断アーク（リーチ85pxの最大展開・高輝度）
+  // FX 1: 最大切断アーク（最大展開・高輝度）
   const fx1 = scene.make.graphics({ x: 0, y: 0 });
   fx1.fillStyle(0x38bdf8, 0.35);
   fx1.slice(0, oy, 85, Phaser.Math.DegToRad(-35), Phaser.Math.DegToRad(35), false);

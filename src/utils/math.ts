@@ -130,7 +130,7 @@ export function isPointBlockingLineSegment(
  * @param to 標的の位置（プレイヤー）
  * @param enemies シーン内の全敵リスト
  * @param self 自身（判定除外対象）
- * @param corridorRadius 遮蔽とみなすコリドー幅（デフォルト 32px）
+ * @param corridorRadius 遮蔽とみなすコリドー幅
  */
 export function isLineOfSightBlockedByEnemies(
   from: Point2D,

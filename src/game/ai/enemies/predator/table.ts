@@ -27,7 +27,7 @@ export const PREDATOR_TABLE: StateTable<PredatorState> = {
       maxDurationMs: 3000,
       anim: loopFrames([PREDATOR_ANIM_KEYS.MOVE_0, PREDATOR_ANIM_KEYS.MOVE_1], 180),
     }),
-    // 確率分岐：75% で 3連射、25% でもう一度移動（weight 省略 = 1）
+    // 確率分岐：3連射 または もう一度移動
     onDone: [
       { state: "TRIPLE_SHOT", weight: 3 },
       { state: "MOVE", weight: 1 },

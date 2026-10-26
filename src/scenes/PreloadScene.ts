@@ -49,10 +49,6 @@ export class PreloadScene extends Phaser.Scene {
    * ゲームで使用する個別アセット（画像・音声・テクスチャ等）の読み込み・生成
    */
   protected loadCustomAssets() {
-    // 外部ファイル読み込み例:
-    // this.load.image("background", "assets/bg.png");
-    // this.load.audio("laser", "assets/laser.mp3");
-
     // 動的テクスチャ生成
     this.createDummyAssets();
   }

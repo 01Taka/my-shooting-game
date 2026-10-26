@@ -33,7 +33,7 @@ export class CameraManager {
     // カメラが追従する見えない注視点ターゲット
     this.cameraTarget = scene.add.zone(startX, startY, 1, 1);
 
-    // 自機位置への追従は遅延ゼロ（lerp = 1）で開始
+    // 自機位置への追従を開始
     this.camera.startFollow(this.cameraTarget, false, 1, 1);
   }
 

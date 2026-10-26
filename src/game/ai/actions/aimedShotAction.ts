@@ -4,15 +4,15 @@ import { type ActionAnimResolver } from "./utils/animation";
 import { defineAction } from "./utils/defineAction";
 
 export interface AimedShotArgs {
-  /** 前隙（エイム・溜め）時間（ms、デフォルト 1000ms） */
+  /** 前隙（エイム・溜め）時間（ms） */
   windupDurationMs?: number;
-  /** 弾速（px/s、デフォルト 360） */
+  /** 弾速（px/s） */
   bulletSpeed?: number;
-  /** 弾ダメージ（デフォルト 15） */
+  /** 弾ダメージ */
   damage?: number;
-  /** 弾のスケール倍率（デフォルト 1.1） */
+  /** 弾のスケール倍率 */
   bulletScale?: number;
-  /** 発射後の後隙時間（ms、デフォルト 200ms） */
+  /** 発射後の後隙時間（ms） */
   postDelayMs?: number;
   anims?: {
     windup?: ActionAnimResolver;
@@ -27,7 +27,7 @@ interface AimedShotData {
 }
 
 /**
- * 前隙1秒の単発狙撃アクション
+ * 前隙を伴う単発狙撃アクション
  * 溜め時間中は移動を停止してプレイヤーを狙い、満了時に敵弾を発射。わずかな後隙を経て完了する。
  */
 export const aimedShotAction = defineAction<AimedShotData, AimedShotArgs>({

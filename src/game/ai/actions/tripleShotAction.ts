@@ -4,9 +4,9 @@ import type { ActionAnimResolver } from "./utils/animation";
 import { defineAction } from "./utils/defineAction";
 
 export interface TripleShotArgs {
-  totalShots: number; // 例: 3発
-  intervalMs: number; // 例: 250ms (最初の1発前の予兆も兼ねる)
-  postDelayMs: number; // 撃ち終わりの硬直 例: 400ms
+  totalShots: number; // 発射弾数
+  intervalMs: number; // 発射間隔（ms、初弾前の予兆も兼ねる）
+  postDelayMs: number; // 撃ち終わりの硬直時間（ms）
   anims?: {
     windup?: ActionAnimResolver;
     recovery?: ActionAnimResolver;

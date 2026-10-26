@@ -36,9 +36,9 @@ export class PlayerController {
     attack: false,
   };
 
-  protected currentBank = 0; // 左右バンク（ロール）補間値 (-1.0 ~ 1.0)
+  protected currentBank = 0; // 左右バンク（ロール）補間値
   protected currentDirection?: CharacterDirection = "right";
-  protected lastFacingAngle = 0; // 初期向き（右向き: 0°）
+  protected lastFacingAngle = 0; // 初期向き
 
   constructor(config: PlayerConfig) {
     this.config = config;
@@ -166,7 +166,7 @@ export class PlayerController {
       this.currentDirection,
     );
 
-    // 360度回転は行わず、水平移動時の微小ティルト（約3度）のみ付与
+    // 自由回転は行わず、水平移動時の微小ティルトのみ付与
     const targetBank = Phaser.Math.Clamp(vx / this.config.speed, -1, 1);
     this.currentBank = Phaser.Math.Linear(this.currentBank, targetBank, 0.15);
     const subtleTilt = this.currentBank * 0.05;

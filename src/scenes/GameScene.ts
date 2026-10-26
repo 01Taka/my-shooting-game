@@ -183,7 +183,7 @@ export class GameScene extends Phaser.Scene {
     // トラップマネージャーの初期化（設置型トラップ・毒沼・地雷）
     this.trapManager = new TrapManager(this, this.damageZoneManager);
 
-    // 敵マネージャーの初期化（全周囲360度スポーン ＆ 追従AI）
+    // 敵マネージャーの初期化（全周囲スポーン ＆ 追従AI）
     this.enemyManager = new EnemyManager(params.enemy);
     this.enemyManager.init(
       this,
@@ -411,7 +411,7 @@ export class GameScene extends Phaser.Scene {
       this.lockOnManager.lockNearestEnemy(this.player, this.enemyManager.getGroup(), this);
     });
 
-    // ロックオンスティック解放時の指離し手ブレ補正（タイムバッファ方式 ＆ 160ms未満フリック判定）
+    // ロックオンスティック解放時の指離し手ブレ補正（タイムバッファ方式 ＆ フリック判定）
     this.events.on(
       "controller-lockon-release",
       (releaseTime: number, touchDuration?: number, releaseAngle?: number) => {

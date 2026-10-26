@@ -4,7 +4,7 @@ import type { ShapeContext } from "../types";
 import type { DamageZoneShape } from "./DamageZoneShape";
 
 export interface CircleShapeOptions {
-  /** 1秒あたりの半径拡大速度（px/s、時間経過で広がる衝撃波等に使用） */
+  /** 半径拡大速度（px/s、時間経過で広がる衝撃波等に使用） */
   radiusGrowthPerSec?: number;
   /** 最大半径上限（px） */
   maxRadius?: number;

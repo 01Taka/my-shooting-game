@@ -4,7 +4,7 @@ import type { ShapeContext } from "../types";
 import type { DamageZoneShape } from "./DamageZoneShape";
 
 export interface ConeShapeOptions {
-  /** 扇形の開き角（ラジアン、デフォルト約75度） */
+  /** 扇形の開き角（ラジアン） */
   arcAngleRad?: number;
   /** 時間経過による開き角の拡大速度（rad/s） */
   angleGrowthPerSec?: number;

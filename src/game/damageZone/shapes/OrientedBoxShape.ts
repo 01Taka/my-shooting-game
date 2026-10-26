@@ -4,11 +4,11 @@ import type { ShapeContext } from "../types";
 import type { DamageZoneShape } from "./DamageZoneShape";
 
 export interface OrientedBoxShapeOptions {
-  /** 進行方向（長さ）に対する幅の比率（デフォルト 0.5） */
+  /** 進行方向（長さ）に対する幅の比率 */
   widthRatio?: number;
-  /** 進行方向の長さの比率（デフォルト 1.0） */
+  /** 進行方向の長さの比率 */
   lengthRatio?: number;
-  /** 1秒あたりの長さの伸張速度（px/s、レーザーが伸びる演出等に使用） */
+  /** 長さの伸張速度（px/s、レーザーが伸びる演出等に使用） */
   growthLengthPerSec?: number;
 }
 

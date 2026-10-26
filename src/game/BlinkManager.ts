@@ -46,7 +46,7 @@ export class BlinkManager {
   }
 
   /**
-   * ブリンク発動可能かどうか（メーター1/2以上）
+   * ブリンク発動可能かどうか（必要コスト以上のメーター残量があるか）
    */
   isReady(): boolean {
     return this.meter >= this.config.cost;

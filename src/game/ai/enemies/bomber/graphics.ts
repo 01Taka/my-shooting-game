@@ -112,16 +112,16 @@ export function generateBomberTextures(scene: Phaser.Scene): void {
     legOffset: 2,
   });
 
-  // 攻撃範囲（半径110px）と完全に一致する大爆発エフェクト
+  // 攻撃範囲と一致する大爆発エフェクト
   generateBomberExplosionEffectTextures(scene);
 }
 
 function generateBomberExplosionEffectTextures(scene: Phaser.Scene): void {
   const size = 240;
-  const half = size / 2; // 120
-  const rMax = 110; // 攻撃判定半径 110px と完全に一致
+  const half = size / 2;
+  const rMax = 110; // 攻撃判定半径と一致
 
-  // FX 0: 超高輝度フラッシュ ＋ 半径110pxの衝撃波リング出現
+  // FX 0: 超高輝度フラッシュ ＋ 衝撃波リング出現
   const fx0 = scene.make.graphics({ x: 0, y: 0 });
   // 攻撃範囲全体を覆う発光円
   fx0.fillStyle(0xffffff, 0.95);
@@ -133,9 +133,9 @@ function generateBomberExplosionEffectTextures(scene: Phaser.Scene): void {
   fx0.generateTexture(BOMBER_ANIM_KEYS.EXPLOSION_FX_0, size, size);
   fx0.destroy();
 
-  // FX 1: 最大爆炎球（半径110pxの全域をカバーする炎と衝撃波境界）
+  // FX 1: 最大爆炎球（炎と衝撃波境界）
   const fx1 = scene.make.graphics({ x: 0, y: 0 });
-  // 爆風領域（最外殻 110px）
+  // 爆風領域（最外殻）
   fx1.fillStyle(0xe11d48, 0.45);
   fx1.fillCircle(half, half, rMax);
   // 中間火炎

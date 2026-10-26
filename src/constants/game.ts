@@ -38,8 +38,8 @@ export const PLAYER_COLOR = 0x38bdf8;
 // ブリンク（短距離テレポート）設定
 export const BLINK_DISTANCE = 260;
 export const BLINK_METER_MAX = 1.0;
-export const BLINK_COST = 0.5; // 1回あたり1/2消費
-export const BLINK_RECOVERY_PER_SECOND = 0.2; // 5秒で全快（2.5秒で1回分回復）
+export const BLINK_COST = 0.5; // 1回あたりの消費ゲージ量
+export const BLINK_RECOVERY_PER_SECOND = 0.2; // 1秒あたりの自然回復量
 export const BLINK_COOLDOWN_MS = 150; // 連打誤動作防止の最小間隔
 
 // 弾丸設定
@@ -69,8 +69,8 @@ export const WEAPON_DEFINITIONS = {
     bulletColor: 0x38bdf8,
     bulletScale: 0.95,
     themeColor: 0x38bdf8,
-    spreadAngleRad: 0.24, // 約14度
-    slowAmount: 30, // 氷結スロウ（約3〜4発で完全凍結）
+    spreadAngleRad: 0.24, // 拡散角度（ラジアン）
+    slowAmount: 30, // 氷結スロウ蓄積量
   },
   normal: {
     type: "normal" as const,

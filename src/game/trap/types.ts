@@ -36,10 +36,10 @@ export interface TrapConfig {
   /** 基準サイズ/半径（px） */
   size: number;
 
-  /** 設置から有効化までの準備時間（ms、デフォルト 0） */
+  /** 設置から有効化までの準備時間（ms） */
   armingDurationMs?: number;
 
-  /** トラップ全体の最大持続時間（ms、-1で起爆まで無期限、デフォルト 5000） */
+  /** トラップ全体の最大持続時間（ms、負数で起爆まで無期限） */
   durationMs?: number;
 
   /** 初期表示テクスチャキー */
@@ -59,12 +59,12 @@ export interface TrapConfig {
   // --- 感知起爆型 (Mine) 向け ---
   /** 感知範囲の形状（未指定時は円形 CircleShape(size)） */
   triggerShape?: DamageZoneShape;
-  /** 感知してから実際に爆発するまでの予兆遅延（ms、デフォルト 200） */
+  /** 感知してから実際に爆発するまでの予兆遅延（ms） */
   triggerDelayMs?: number;
   /** 爆発時のダメージ判定形状（未指定時は円形 CircleShape(size * 1.5)） */
   explosionShape?: DamageZoneShape;
   /** 爆発時の効果ペイロード */
   explosionEffect?: HitEffectPayload;
-  /** 爆発演出時間（ms、デフォルト 300） */
+  /** 爆発演出時間（ms） */
   explosionDurationMs?: number;
 }

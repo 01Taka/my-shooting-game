@@ -207,10 +207,10 @@ export class WeaponSelectHUD {
 
     if (!isDeadZone && force >= 0.25) {
       // 角度から4方向（上下左右）を判定
-      // 上 (UP): -3π/4 〜 -π/4 (-135° 〜 -45°)
-      // 右 (RIGHT): -π/4 〜 π/4 (-45° 〜 45°)
-      // 下 (DOWN): π/4 〜 3π/4 (45° 〜 135°)
-      // 左 (LEFT): それ以外 (135° 〜 180° / -180° 〜 -135°)
+      // 上 (UP)
+      // 右 (RIGHT)
+      // 下 (DOWN)
+      // 左 (LEFT)
       const pi = Math.PI;
       if (angle >= -0.75 * pi && angle < -0.25 * pi) {
         targetDir = "up";
@@ -396,7 +396,7 @@ export class WeaponSelectHUD {
   /**
    * マウスホイールまたはキーボード操作による武器切り替えHUD表示
    * - すべての選択肢を同時に表示（選択中の武器をハイライト）
-   * - ホイール停止後、一定時間（500ms）経過したらシンプルに全体を同時にフェードアウト
+   * - ホイール停止後、一定時間経過したらシンプルに全体を同時にフェードアウト
    */
   showWheelSwitch(weapon: WeaponType, playerX: number, playerY: number): void {
     // 既存の待機タイマーをリセット

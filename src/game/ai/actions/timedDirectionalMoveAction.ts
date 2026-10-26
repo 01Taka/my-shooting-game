@@ -10,9 +10,9 @@ export interface TimedDirectionalMoveArgs {
   mode: DirectionalMoveMode;
   /** 移動速度（px/s） */
   speed: number;
-  /** 移動時間（ms、デフォルト 1000ms） */
+  /** 移動時間（ms） */
   durationMs?: number;
-  /** 迂回時の左右指定（省略時は 50% 確率でランダムに 1 (時計回り90°) または -1 (反時計回り90°)） */
+  /** 迂回時の左右指定（1: 時計回り直交, -1: 反時計回り直交、省略時はランダム） */
   flankSide?: 1 | -1;
   anim?: ActionAnimResolver;
 }
@@ -24,7 +24,7 @@ interface TimedDirectionalMoveData {
 
 /**
  * 時間指定の方向性移動アクション（接近・後退・左右迂回）
- * 指定された持続時間（デフォルト1000ms）の間等速で移動し、完了時に "done" を返す
+ * 指定された持続時間の間等速で移動し、完了時に "done" を返す
  */
 export const timedDirectionalMoveAction = defineAction<
   TimedDirectionalMoveData,
@@ -44,7 +44,7 @@ export const timedDirectionalMoveAction = defineAction<
       // プレイヤーから離れる方向
       moveAngle = baseAngle + Math.PI;
     } else if (args.mode === "flank") {
-      // 左右ランダム（または指定側）に 90度 直交移動
+      // 左右ランダム（または指定側）に直交移動
       const side = args.flankSide ?? (Math.random() < 0.5 ? 1 : -1);
       moveAngle = baseAngle + side * (Math.PI / 2);
     }

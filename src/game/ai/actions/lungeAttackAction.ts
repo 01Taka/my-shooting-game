@@ -9,15 +9,15 @@ import { defineAction } from "./utils/defineAction";
 export interface LungeAttackArgs {
   /** 予兆モーション（構え・溜め）時間（ms） */
   windupDurationMs: number;
-  /** モーション中の最大旋回速度（rad/s、省略時 Math.PI * 0.75 ≈ 135度/秒。ゆっくり旋回させる） */
+  /** モーション中の最大旋回速度（rad/s） */
   windupTurnRateRadPerSec?: number;
   /** 大きく一歩前進する突進速度（px/s） */
   lungeSpeed: number;
   /** 一歩前進の持続時間（ms） */
   lungeDurationMs: number;
-  /** 前方攻撃判定のリーチ（px、省略時 85） */
+  /** 前方攻撃判定のリーチ（px） */
   attackRange?: number;
-  /** 踏み込み完了後の斬撃判定・エフェクト持続時間（ms、省略時 200ms） */
+  /** 踏み込み完了後の斬撃判定・エフェクト持続時間（ms） */
   slashDurationMs?: number;
   /** 攻撃ダメージ */
   damage: number;

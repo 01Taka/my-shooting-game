@@ -7,7 +7,7 @@ export interface ChasePlayerArgs {
   speed: number;
   /** この距離（px）以下まで近づいたら完了して次の状態へ遷移する */
   stopDistance: number;
-  /** 最大追従時間（ms）。超過した場合は一旦完了とする（省略時は無制限） */
+  /** 最大追従時間（ms）。超過した場合は完了とする（省略時は無制限） */
   maxDurationMs?: number;
   anim?: ActionAnimResolver;
 }

@@ -38,8 +38,8 @@ export class BomberEnemy extends Enemy<BomberState> {
   }
 
   /**
-   * 撃破（HP <= 0）時に強制自爆シーケンスをトリガーする
-   * 通常と同じ自爆猶予（700msの膨張・点滅予兆）を経て周囲に爆発ダメージを与えて消滅する
+   * 撃破時に強制自爆シーケンスをトリガーする
+   * 自爆猶予（膨張・点滅予兆）を経て周囲に爆発ダメージを与えて消滅する
    */
   public override handleDeath(): boolean {
     if (this.isDying) {

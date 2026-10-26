@@ -14,11 +14,11 @@ import { BOMBER_ANIM_KEYS } from "./graphics";
 export type BomberState = "CHASE" | "EXPLODE" | "STUN";
 
 /** 自爆開始距離（至近距離まで肉薄してカウントダウン開始） */
-export const BOMBER_TRIGGER_DIST = m(1.3); // 65px
+export const BOMBER_TRIGGER_DIST = m(1.3);
 /** 接近停止距離 */
-export const BOMBER_STOP_DIST = m(1.1); // 55px
+export const BOMBER_STOP_DIST = m(1.1);
 /** 自爆キャンセル距離（クリーパー仕様：一定距離離れたら自爆解除） */
-export const BOMBER_CANCEL_DIST = m(2.4); // 120px
+export const BOMBER_CANCEL_DIST = m(2.4);
 
 /**
  * 自爆特攻型（Bomber）の行動テーブル
@@ -27,7 +27,7 @@ export const BOMBER_CANCEL_DIST = m(2.4); // 120px
 export const BOMBER_TABLE: StateTable<BomberState> = {
   CHASE: {
     run: chasePlayerAction({
-      speed: m(3.2), // 低下させた速度でプレイヤーへ接近（160px/s）
+      speed: m(3.2), // プレイヤーへ接近
       stopDistance: BOMBER_STOP_DIST, // 肉薄するまで停止しない
       anim: loopFrames([BOMBER_ANIM_KEYS.MOVE_0, BOMBER_ANIM_KEYS.MOVE_1], 120),
     }),

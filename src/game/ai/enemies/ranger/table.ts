@@ -63,7 +63,7 @@ export const decideRangerNext: NextCallback<RangerState> = (
     ];
   }
 
-  // ③ 至近距離：1秒後ずさり、近接攻撃、射撃（遮蔽時は迂回）からランダム選択
+  // ③ 至近距離：後ずさり、近接攻撃、射撃（遮蔽時は迂回）からランダム選択
   return [
     { state: "BACKSTEP", weight: 1 },
     { state: "LUNGE", weight: 1 },
@@ -96,7 +96,7 @@ export const RANGER_TABLE: StateTable<RangerState> = {
   LUNGE: {
     run: lungeAttackAction({
       windupDurationMs: 450,
-      windupTurnRateRadPerSec: Math.PI * 0.75, // 135度/秒（フリック制限）
+      windupTurnRateRadPerSec: Math.PI * 0.75, // 溜め中の旋回速度制限
       lungeSpeed: m(5.2),
       lungeDurationMs: 250,
       attackRange: 85,
@@ -128,9 +128,9 @@ export const RANGER_TABLE: StateTable<RangerState> = {
   },
   SHOOT: {
     run: aimedShotAction({
-      windupDurationMs: 400, // 前隙1秒の溜め
-      bulletSpeed: 360, // 低下させた弾速
-      bulletScale: 2.4, // レンジャーの大口径狙撃弾（弾サイズ拡大）
+      windupDurationMs: 400, // 溜め時間
+      bulletSpeed: 360,
+      bulletScale: 2.4, // レンジャーの大口径狙撃弾
       damage: 30,
       postDelayMs: 600,
       anims: {

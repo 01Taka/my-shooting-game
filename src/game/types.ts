@@ -41,7 +41,7 @@ export interface EnemyConfig {
   speedMax: number;
   damage: number;
   score: number;
-  hp: number; // 敵の耐久HP（例: 30 = 3発分）
+  hp: number; // 敵の耐久HP
   directionalMode?: DirectionalMode; // "diagonal4" (斜め4方向) または "horizontal2" (左右2方向)
 }
 
@@ -52,10 +52,10 @@ export interface PlayerConfig {
 }
 
 export interface LockOnConfig {
-  sectorAngleDeg: number; // 索敵扇形角度（例: 60度）
-  maxDistance: number; // 最大索敵距離（画面内判定基準、例: 950px）
-  chainRadius: number; // 撃破連鎖半径（例: 480px）
-  breakDistance: number; // ロック解除距離（例: 1300px）
+  sectorAngleDeg: number; // 索敵扇形角度（度）
+  maxDistance: number; // 最大索敵距離（画面内判定基準）
+  chainRadius: number; // 撃破連鎖半径
+  breakDistance: number; // ロック解除距離
 }
 
 export interface BlinkConfig {

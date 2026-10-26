@@ -18,8 +18,8 @@ export interface SlowProfile {
 
 /**
  * スタン耐性(0〜100)から実効スタン時間(ms)を計算する
- * - 耐性 0   -> 100% 適用
- * - 耐性 100 -> 0ms（スタン無効・行動キャンセルなし）
+ * - 耐性 0   -> スタン時間全額適用
+ * - 耐性 100 -> スタン無効（行動キャンセルなし）
  */
 export function calcEffectiveStunDuration(baseDurationMs: number, stunResistance: number): number {
   const r = Phaser.Math.Clamp(stunResistance, 0, 100);
@@ -29,7 +29,6 @@ export function calcEffectiveStunDuration(baseDurationMs: number, stunResistance
 
 /**
  * スロウ耐性(0〜100)からパラメータを一意に決定する
- * ※ 具体的な係数・計算式は仮置き（バランス調整時にここだけを変更する）
  */
 export function resolveSlowProfile(slowResistance: number): SlowProfile {
   const r = Phaser.Math.Clamp(slowResistance, 0, 100);
@@ -39,19 +38,19 @@ export function resolveSlowProfile(slowResistance: number): SlowProfile {
     // 凍結ボーダー：slowResistance に関わらず常に 100
     freezeThreshold: 100,
 
-    // メーター減少速度（例: 耐性0で 毎秒15減少、耐性100で 毎秒60減少）
+    // メーター減少速度
     decayPerSec: Phaser.Math.Linear(15, 60, ratio),
 
-    // メーター上限（例: 耐性0で 上限150[凍結あり]、耐性80以上で 100未満[完全凍結しない]）
+    // メーター上限
     maxIceMeter: Phaser.Math.Linear(150, 50, ratio),
   };
 }
 
 /**
  * アイスメーター蓄積率から timeScale (0.0 〜 1.0) を算出する
- * - 0% 以下      : 1.0 (通常速度 100%)
- * - 100% 以上    : 0.0 (凍結・完全停止)
- * - 0% 〜 100%   : 溜まるほど滑らかに減速 (1 - ratio)
+ * - 未蓄積    : 通常速度 (1.0)
+ * - 閾値到達時: 凍結・完全停止 (0.0)
+ * - 蓄積中    : 溜まるほど滑らかに減速 (1 - ratio)
  */
 export function meterToTimeScale(iceMeter: number, freezeThreshold: number): number {
   if (iceMeter <= 0) return 1.0;

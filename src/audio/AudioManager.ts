@@ -36,8 +36,8 @@ import { useGameSettings } from "../stores/useGameSettings";
 export type SynthSoundType = "laser" | "explosion" | "hit" | "click" | "gameover" | "blink";
 
 export interface SoundPlayOptions {
-  volume?: number; // 個別音量倍率 (0.0 - 1.0, デフォルト: 1.0)
-  detune?: number; // ピッチの揺らぎ (-1200 - 1200, デフォルト: 0)
+  volume?: number; // 個別音量倍率
+  detune?: number; // ピッチの揺らぎ（セント単位）
   rate?: number; // 再生速度
 }
 

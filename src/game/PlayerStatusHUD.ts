@@ -84,7 +84,7 @@ export class PlayerStatusHUD {
     blink: { current: 2, max: 2 },
   };
 
-  // ブリンクの分割数（ストック数、デフォルト2段）
+  // ブリンクの分割数（ストック数）
   private blinkSegments = 2;
 
   // 描画補間用比率（0.0 〜 1.0）
@@ -280,7 +280,7 @@ export class PlayerStatusHUD {
       const topColor = isFullyCharged ? PLAYER_HUD_BLINK_READY_TOP : PLAYER_HUD_BLINK_TOP;
       const bottomColor = isFullyCharged ? PLAYER_HUD_BLINK_READY_BOTTOM : PLAYER_HUD_BLINK_BOTTOM;
 
-      // 1px走査線で「滑らかな縦グラデーション」と「上下角丸」を完全両立
+      // 走査線描画で「滑らかな縦グラデーション」と「上下角丸」を両立
       for (let py = 0; py < fillHeight; py++) {
         const globalPy = blinkHeight - 2 - fillHeight + py;
         const t = blinkHeight - 2 > 1 ? globalPy / (blinkHeight - 3) : 0;
@@ -358,12 +358,12 @@ export class PlayerStatusHUD {
       const fillH = height - 2;
       const isFull = ratio >= 0.99;
 
-      // 2. 1px走査線で「完全な角丸」と「滑らかなリニアグラデーション」を両立
+      // 2. 走査線描画で「完全な角丸」と「滑らかなリニアグラデーション」を両立
       for (let py = 0; py < fillH; py++) {
         const t = fillH > 1 ? py / (fillH - 1) : 0;
         const color = interpolateColor(topColor, bottomColor, t);
 
-        // 上下端の角丸インセット（radius = 3px相当）
+        // 上下端の角丸インセット
         let leftInset = 0;
         if (py === 0 || py === fillH - 1) leftInset = 2;
         else if (py === 1 || py === fillH - 2) leftInset = 1;
