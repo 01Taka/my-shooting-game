@@ -45,6 +45,7 @@ import {
   BlinkManager,
   BulletManager,
   CameraManager,
+  DamageZoneManager,
   EnemyManager,
   LockOnManager,
   PlayerController,
@@ -65,6 +66,7 @@ export class GameScene extends Phaser.Scene {
   // 分割された責任マネージャー群
   protected cameraManager!: CameraManager;
   protected bulletManager!: BulletManager;
+  protected damageZoneManager!: DamageZoneManager;
   protected enemyManager!: EnemyManager;
   protected lockOnManager!: LockOnManager;
   protected playerController!: PlayerController;
@@ -170,6 +172,10 @@ export class GameScene extends Phaser.Scene {
     this.bulletManager = new BulletManager(params.bullet);
     this.bulletManager.init(this);
 
+    // ダメージゾーンマネージャーの初期化（近接攻撃・範囲ダメージ判定）
+    this.damageZoneManager = new DamageZoneManager(this, true);
+    this.damageZoneManager.init(this);
+
     // 敵マネージャーの初期化（全周囲360度スポーン ＆ 追従AI）
     this.enemyManager = new EnemyManager(params.enemy);
     this.enemyManager.init(
@@ -180,6 +186,7 @@ export class GameScene extends Phaser.Scene {
         y: this.player.y,
       }),
       this.bulletManager,
+      this.damageZoneManager,
     );
 
     // スマートロックオンマネージャーの初期化
@@ -475,6 +482,7 @@ export class GameScene extends Phaser.Scene {
       this.playerShadow?.destroy();
       this.enemyManager?.destroy();
       this.bulletManager?.destroy();
+      this.damageZoneManager?.destroy();
       this.cameraManager?.destroy();
       this.lockOnManager?.destroy();
       this.playerController?.destroy();
@@ -582,6 +590,35 @@ export class GameScene extends Phaser.Scene {
     // 5. 弾薬・敵のフレーム更新（生存距離・追従AI判定・2.5次元影とホバリング）
     this.bulletManager.update(this.player.x, this.player.y, this.worldSize);
     this.enemyManager.update(this.player, time, delta);
+
+    // 5.5 ダメージゾーンの更新（近接攻撃判定・スロウ・被弾ダメージ処理）
+    const params = this.getGameParameters();
+    this.damageZoneManager.update(
+      delta,
+      {
+        player: this.player,
+        enemies: this.enemyManager.getGroup().getChildren() as Phaser.Physics.Arcade.Image[],
+        onDamagePlayer: (amount) => this.damage(amount),
+        onDamageEnemy: (enemyObj, amount, cc) => {
+          const enemy = enemyObj as Phaser.Physics.Arcade.Image;
+          const isCurrentTarget = this.lockOnManager.getLockedTarget() === enemy;
+          const result = this.enemyManager.damageEnemy(enemy, amount, cc);
+          if (result.isDead) {
+            AudioManager.getInstance().playSE("explosion");
+            this.addScore(params.enemy.score);
+            if (isCurrentTarget) {
+              this.lockOnManager.onTargetKilled(
+                result.x,
+                result.y,
+                this.enemyManager.getGroup(),
+                this,
+              );
+            }
+          }
+        },
+      },
+      time,
+    );
 
     // 疑似2.5次元 プレイヤーのホバリング浮遊 ＆ 影の追従・スケール連動
     const playerBob = Math.sin(time * 0.005) * 2.5;

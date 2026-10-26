@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 
+import { ConeShape } from "../../damageZone/shapes/ConeShape";
 import { defineAction } from "./utils/defineAction";
 
 export interface DashClawArgs {
@@ -32,6 +33,25 @@ export const dashClawAttackAction = defineAction({
       if (data.timer >= args.dashDurationMs) {
         enemy.stopMoving();
         enemy.setTint(0xff0055); // 攻撃演出の赤フラッシュ
+
+        // ダメージゾーンの生成（扇形爪攻撃判定）
+        if (context.damageZoneManager) {
+          context.damageZoneManager.createZone({
+            shape: new ConeShape({ arcAngleRad: (80 * Math.PI) / 180 }),
+            faction: "enemy",
+            x: enemy.x,
+            y: enemy.y,
+            angleRad: angle,
+            size: 90,
+            durationMs: 220,
+            damageIntervalMs: 0,
+            maxHitsPerTarget: 1,
+            effect: {
+              damage: 20,
+              stunDurationMs: 400,
+            },
+          });
+        }
 
         data.step = "RECOVERY";
         data.timer = 0;

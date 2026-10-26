@@ -2,6 +2,7 @@ export * from "./ai";
 export * from "./BlinkManager";
 export * from "./BulletManager";
 export * from "./CameraManager";
+export * from "./damageZone";
 export * from "./EnemyManager";
 export * from "./LockOnManager";
 export * from "./PlayerController";

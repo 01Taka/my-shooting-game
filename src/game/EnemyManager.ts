@@ -21,6 +21,7 @@ import {
 } from "../utils/directionalSprite";
 import { createPredatorEnemy, Enemy, EnemyBase } from "./ai";
 import type { BulletManager } from "./BulletManager";
+import type { DamageZoneManager } from "./damageZone/DamageZoneManager";
 import type { EnemyConfig } from "./types";
 
 /**
@@ -35,6 +36,7 @@ export class EnemyManager {
   protected worldSize = WORLD_SIZE;
   protected getPlayerPosition!: () => { x: number; y: number };
   protected bulletManager?: BulletManager;
+  protected damageZoneManager?: DamageZoneManager;
 
   constructor(config: EnemyConfig) {
     this.config = config;
@@ -48,11 +50,13 @@ export class EnemyManager {
     worldSize: number,
     getPlayerPosition: () => { x: number; y: number },
     bulletManager?: BulletManager,
+    damageZoneManager?: DamageZoneManager,
   ): void {
     this.scene = scene;
     this.worldSize = worldSize;
     this.getPlayerPosition = getPlayerPosition;
     this.bulletManager = bulletManager;
+    this.damageZoneManager = damageZoneManager;
 
     this.enemies = scene.physics.add.group();
 
@@ -220,6 +224,7 @@ export class EnemyManager {
             {
               player,
               bulletManager: this.bulletManager,
+              damageZoneManager: this.damageZoneManager,
               scene: this.scene,
             },
             delta,

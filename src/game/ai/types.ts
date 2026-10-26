@@ -1,3 +1,4 @@
+import type { DamageZoneManager } from "../damageZone/DamageZoneManager";
 import type { Enemy } from "./Enemy";
 import type { EnemyBase } from "./EnemyBase";
 
@@ -22,6 +23,7 @@ export interface GameContext {
     ) => void;
     fire?: (x: number, y: number, angle: number) => void;
   };
+  damageZoneManager?: DamageZoneManager;
   scene?: Phaser.Scene;
   [key: string]: unknown;
 }
