@@ -68,10 +68,8 @@ export type ResourceType = "hp" | "mp" | "blink";
 /**
  * プレイヤー頭上追従ステータスHUD
  * - HPバー（横長・上段）
- * - MPバー（横長・下段）
+ * - MPバー（横長・下段・武器ごとマナ連動＆消費量分割線）
  * - ブリンクバー（右隣・短く太い縦型クリスタル柱）
- *
- * 将来のMP・ブリンク機能追加に備え、すべてのリソースを共通形式（current / max）で操作可能なAPIを提供
  */
 export class PlayerStatusHUD {
   private container!: Phaser.GameObjects.Container;
@@ -86,6 +84,9 @@ export class PlayerStatusHUD {
 
   // ブリンクの分割数（ストック数）
   private blinkSegments = 2;
+
+  // MPの分割数（最大値 / 1発消費量）
+  private mpSegments = 1;
 
   // 描画補間用比率（0.0 〜 1.0）
   private displayRatios: Record<ResourceType, number> = {
@@ -138,9 +139,19 @@ export class PlayerStatusHUD {
 
   /**
    * MPの更新（ショートカットAPI）
+   * @param current 現在のマナ量
+   * @param max 最大マナ量
+   * @param segments 1発あたりの消費量による分割目盛り数
+   * @param snap true の場合、補間アニメーションをスキップして即座に指定値に同期（武器切り替え時用）
    */
-  setMp(current: number, max: number): void {
+  setMp(current: number, max: number, segments?: number, snap = false): void {
     this.setResource("mp", current, max);
+    if (typeof segments === "number" && segments > 0) {
+      this.mpSegments = segments;
+    }
+    if (snap) {
+      this.displayRatios.mp = this.resources.mp.current / this.resources.mp.max;
+    }
   }
 
   /**
@@ -191,9 +202,6 @@ export class PlayerStatusHUD {
   }
 
   /**
-   * HUD全体の描画処理
-   */
-  /**
    * HUD全体の描画処理（立体グラデーション・ガラス光沢・透過背景）
    */
   private draw(): void {
@@ -241,7 +249,7 @@ export class PlayerStatusHUD {
     );
 
     // ──────────────────────────────
-    // 2. MPバー（下段横長バー・マナグラデーション ＋ 光沢）
+    // 2. MPバー（下段横長バー・マナグラデーション ＋ 光沢 ＋ 1発消費スリット線）
     // ──────────────────────────────
     const mpY = startY + hpBarHeight + spacingY;
     const mpRatio = this.displayRatios.mp;
@@ -255,6 +263,7 @@ export class PlayerStatusHUD {
       PLAYER_HUD_MP_TOP,
       PLAYER_HUD_MP_BOTTOM,
       radius,
+      this.mpSegments,
     );
 
     // ──────────────────────────────
@@ -335,7 +344,7 @@ export class PlayerStatusHUD {
   }
 
   /**
-   * 横長バーの滑らかなグラデーション＆角丸両立描画
+   * 横長バーの滑らかなグラデーション＆角丸両立描画（スリット分割線サポート）
    */
   private drawHorizontalBar(
     x: number,
@@ -346,6 +355,7 @@ export class PlayerStatusHUD {
     topColor: number,
     bottomColor: number,
     radius: number,
+    segments?: number,
   ): void {
     const g = this.graphics;
 
@@ -383,6 +393,23 @@ export class PlayerStatusHUD {
       // 3. 上端の繊細なガラス光沢（角丸に沿ったハイライト）
       g.fillStyle(PLAYER_HUD_GLOSS_COLOR, PLAYER_HUD_GLOSS_ALPHA);
       g.fillRect(x + 3, y + 1, Math.max(0, fillW - (isFull ? 6 : 3)), 1);
+    }
+
+    // 3.5 セグメント分割縦線（1発あたりの消費量スリット線）
+    if (segments && segments > 1) {
+      const innerW = width - 2;
+      const innerH = height - 2;
+      const segWidth = innerW / segments;
+
+      // 背景枠と同系色（PLAYER_HUD_BG_COLOR）の半透明な暗色線で区切る
+      g.lineStyle(1, PLAYER_HUD_BG_COLOR, 0.75);
+      for (let i = 1; i < segments; i++) {
+        const slitX = Math.round(x + 1 + i * segWidth);
+        g.beginPath();
+        g.moveTo(slitX, y + 1);
+        g.lineTo(slitX, y + 1 + innerH);
+        g.strokePath();
+      }
     }
 
     // 4. 外枠線（角丸ストロークを前面に重ねて端を美しく整える）

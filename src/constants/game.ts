@@ -71,6 +71,9 @@ export const WEAPON_DEFINITIONS = {
     themeColor: 0x38bdf8,
     spreadAngleRad: 0.24, // 拡散角度（ラジアン）
     slowAmount: 30, // 氷結スロウ蓄積量
+    maxMana: 100,
+    manaCost: 10,
+    manaRecoveryPerSecond: 12,
   },
   normal: {
     type: "normal" as const,
@@ -84,6 +87,9 @@ export const WEAPON_DEFINITIONS = {
     bulletColor: 0xfacc15,
     bulletScale: 1.0,
     themeColor: 0xfacc15,
+    maxMana: 100,
+    manaCost: 5,
+    manaRecoveryPerSecond: 12,
   },
   heavy: {
     type: "heavy" as const,
@@ -98,6 +104,9 @@ export const WEAPON_DEFINITIONS = {
     bulletScale: 1.6,
     themeColor: 0xf43f5e,
     stunDurationMs: 900, // 強力な衝撃スタン
+    maxMana: 100,
+    manaCost: 14.3,
+    manaRecoveryPerSecond: 12,
   },
   rapid: {
     type: "rapid" as const,
@@ -111,6 +120,9 @@ export const WEAPON_DEFINITIONS = {
     bulletColor: 0x4ede82,
     bulletScale: 0.75,
     themeColor: 0x4ede82,
+    maxMana: 100,
+    manaCost: 2.5,
+    manaRecoveryPerSecond: 12,
   },
 };
 export type WeaponKey = keyof typeof WEAPON_DEFINITIONS;

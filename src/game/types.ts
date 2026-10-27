@@ -26,6 +26,9 @@ export interface WeaponDefinition {
   spreadAngleRad?: number;
   slowAmount?: number; // スロウ（アイスメーター）付与量
   stunDurationMs?: number; // スタン基礎時間 (ms)
+  maxMana: number; // 最大マナ値
+  manaCost: number; // 1発あたりの消費マナ量
+  manaRecoveryPerSecond: number; // 1秒あたりの自然回復量
 }
 
 export interface BulletConfig {

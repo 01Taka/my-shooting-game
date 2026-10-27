@@ -215,6 +215,14 @@ export class GameScene extends Phaser.Scene {
     this.blinkManager.init(this);
     this.playerStatusHUD.setBlink(this.blinkManager.getMeter(), params.blink.maxMeter, 2);
 
+    // 初期装備武器（normal）のマナ・分割数をHUDに即時反映
+    this.playerStatusHUD.setMp(
+      this.bulletManager.getMana(),
+      this.bulletManager.getMaxMana(),
+      this.bulletManager.getManaSegments(),
+      true,
+    );
+
     // プレイヤー周囲の武器選択HUD初期化
     this.weaponSelectHUD = new WeaponSelectHUD();
     this.weaponSelectHUD.init(this);
@@ -228,6 +236,19 @@ export class GameScene extends Phaser.Scene {
         FOUR: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.FOUR),
       };
     }
+  }
+
+  /**
+   * 武器を切り替えてHUDのマナ表示を即座に更新
+   */
+  protected switchWeapon(weapon: WeaponType): void {
+    this.bulletManager.setWeapon(weapon);
+    this.playerStatusHUD.setMp(
+      this.bulletManager.getMana(weapon),
+      this.bulletManager.getMaxMana(weapon),
+      this.bulletManager.getManaSegments(weapon),
+      true, // snap = true で即座に対象武器の残量・目盛りに切り替え
+    );
   }
 
   /**
@@ -454,7 +475,7 @@ export class GameScene extends Phaser.Scene {
     this.events.on("weapon-stick-release", () => {
       const selectedWeapon = this.weaponSelectHUD.closeAndSelect();
       if (selectedWeapon) {
-        this.bulletManager.setWeapon(selectedWeapon);
+        this.switchWeapon(selectedWeapon);
       }
     });
 
@@ -479,7 +500,7 @@ export class GameScene extends Phaser.Scene {
         const nextIndex = (currentIndex + step + WEAPON_ORDER.length) % WEAPON_ORDER.length;
         const nextWeapon = WEAPON_ORDER[nextIndex];
 
-        this.bulletManager.setWeapon(nextWeapon);
+        this.switchWeapon(nextWeapon);
         this.weaponSelectHUD.showWheelSwitch(nextWeapon, this.player.x, this.player.y);
         AudioManager.getInstance().playSE("click");
       },
@@ -596,8 +617,8 @@ export class GameScene extends Phaser.Scene {
       inputState.aimAngle,
     );
 
-    // 5. 弾薬・敵のフレーム更新（生存距離・追従AI判定・2.5次元影とホバリング）
-    this.bulletManager.update(this.player.x, this.player.y, this.worldSize);
+    // 5. 弾薬・敵のフレーム更新（生存距離・追従AI判定・2.5次元影とホバリング・常時マナ自然回復）
+    this.bulletManager.update(this.player.x, this.player.y, this.worldSize, delta);
     this.enemyManager.update(this.player, time, delta);
 
     // 5.5 ダメージゾーンの更新（近接攻撃判定・スロウ・被弾ダメージ処理）
@@ -654,6 +675,14 @@ export class GameScene extends Phaser.Scene {
     // 6. ブリンクメーターの更新（時間経過自動回復＆HUD同期）
     this.blinkManager.update(delta, this.playerStatusHUD);
 
+    // 6.5 マナバーの更新（装備中武器の現在マナをHUDに反映）
+    this.playerStatusHUD.setMp(
+      this.bulletManager.getMana(),
+      this.bulletManager.getMaxMana(),
+      this.bulletManager.getManaSegments(),
+      false,
+    );
+
     // 7. プレイヤー頭上追従HUDの更新
     this.playerStatusHUD.update(this.player, delta);
 
@@ -663,16 +692,16 @@ export class GameScene extends Phaser.Scene {
     // 9. PCキーボードショートカット（数字キー1〜4）での武器切り替え（キーボード&マウスモードのみ有効）
     if (isKeyboardMouse && this.weaponKeys) {
       if (Phaser.Input.Keyboard.JustDown(this.weaponKeys.ONE)) {
-        this.bulletManager.setWeapon("spread");
+        this.switchWeapon("spread");
         this.weaponSelectHUD.showWheelSwitch("spread", this.player.x, this.player.y);
       } else if (Phaser.Input.Keyboard.JustDown(this.weaponKeys.TWO)) {
-        this.bulletManager.setWeapon("normal");
+        this.switchWeapon("normal");
         this.weaponSelectHUD.showWheelSwitch("normal", this.player.x, this.player.y);
       } else if (Phaser.Input.Keyboard.JustDown(this.weaponKeys.THREE)) {
-        this.bulletManager.setWeapon("heavy");
+        this.switchWeapon("heavy");
         this.weaponSelectHUD.showWheelSwitch("heavy", this.player.x, this.player.y);
       } else if (Phaser.Input.Keyboard.JustDown(this.weaponKeys.FOUR)) {
-        this.bulletManager.setWeapon("rapid");
+        this.switchWeapon("rapid");
         this.weaponSelectHUD.showWheelSwitch("rapid", this.player.x, this.player.y);
       }
     }

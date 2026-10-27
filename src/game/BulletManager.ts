@@ -13,7 +13,7 @@ import type { BulletConfig, WeaponDefinition, WeaponType } from "./types";
 
 /**
  * 弾薬管理マネージャー
- * 弾丸の生成プール、発射制御、武器別挙動（3-Way、連射、ヘビー等）、自動クリーンアップを担当
+ * 弾丸の生成プール、発射制御、武器別挙動（3-Way、連射、ヘビー等）、武器別マナ管理、自動クリーンアップを担当
  */
 export class BulletManager {
   protected config: BulletConfig;
@@ -22,8 +22,17 @@ export class BulletManager {
   protected lastFired = 0;
   protected currentWeapon: WeaponType = "normal";
 
+  // 武器ごとの独立したマナ残量
+  protected manaMap: Record<WeaponType, number>;
+
   constructor(config: BulletConfig) {
     this.config = config;
+    this.manaMap = {
+      spread: WEAPON_DEFINITIONS.spread.maxMana,
+      normal: WEAPON_DEFINITIONS.normal.maxMana,
+      heavy: WEAPON_DEFINITIONS.heavy.maxMana,
+      rapid: WEAPON_DEFINITIONS.rapid.maxMana,
+    };
   }
 
   /**
@@ -59,6 +68,44 @@ export class BulletManager {
    */
   setWeapon(weapon: WeaponType): void {
     this.currentWeapon = weapon;
+  }
+
+  /**
+   * 指定武器（または現在装備武器）の現在のマナ残量を取得
+   */
+  getMana(type?: WeaponType): number {
+    return this.manaMap[type ?? this.currentWeapon] ?? 0;
+  }
+
+  /**
+   * 指定武器（または現在装備武器）の最大マナ値を取得
+   */
+  getMaxMana(type?: WeaponType): number {
+    return WEAPON_DEFINITIONS[type ?? this.currentWeapon]?.maxMana ?? 100;
+  }
+
+  /**
+   * 指定武器（または現在装備武器）の1発あたり消費マナ量を取得
+   */
+  getManaCost(type?: WeaponType): number {
+    return WEAPON_DEFINITIONS[type ?? this.currentWeapon]?.manaCost ?? 10;
+  }
+
+  /**
+   * 指定武器（または現在装備武器）のマナバー分割数（最大値 / 1発消費量）を取得
+   */
+  getManaSegments(type?: WeaponType): number {
+    const def = WEAPON_DEFINITIONS[type ?? this.currentWeapon];
+    if (!def || def.manaCost <= 0) return 1;
+    return Math.max(1, Math.round(def.maxMana / def.manaCost));
+  }
+
+  /**
+   * 指定武器のマナ残量を直接設定（テスト・初期化用）
+   */
+  setMana(weapon: WeaponType, amount: number): void {
+    const max = this.getMaxMana(weapon);
+    this.manaMap[weapon] = Math.max(0, Math.min(max, amount));
   }
 
   /**
@@ -112,10 +159,13 @@ export class BulletManager {
   }
 
   /**
-   * 連射レートを考慮して発射可能かどうか判定
+   * 連射レートおよびマナ残量を考慮して発射可能かどうか判定
    */
   canFire(time: number): boolean {
-    return time > this.lastFired;
+    const weapon = this.getWeaponDefinition();
+    const currentMana = this.manaMap[this.currentWeapon] ?? 0;
+    const hasEnoughMana = currentMana >= weapon.manaCost;
+    return time > this.lastFired && hasEnoughMana;
   }
 
   /**
@@ -157,7 +207,7 @@ export class BulletManager {
   }
 
   /**
-   * 指定したプレイヤー座標と幾何角度へ弾を発射（武器タイプに応じた弾道・威力・SE）
+   * 指定したプレイヤー座標と幾何角度へ弾を発射（武器タイプに応じた弾道・威力・SE・マナ消費）
    */
   fire(playerX: number, playerY: number, angle: number, time?: number): boolean {
     const currentTime = time ?? performance.now();
@@ -258,6 +308,10 @@ export class BulletManager {
     }
 
     if (fired) {
+      this.manaMap[this.currentWeapon] = Math.max(
+        0,
+        this.manaMap[this.currentWeapon] - weapon.manaCost,
+      );
       this.lastFired = currentTime + weapon.fireRateMs;
       return true;
     }
@@ -266,21 +320,36 @@ export class BulletManager {
   }
 
   /**
-   * 毎フレームの弾薬生存判定（プレイヤーからの距離またはワールド境界外で破棄）
+   * 毎フレームの更新処理
+   * - 全武器のマナ自然回復（非選択武器も常時回復）
+   * - 弾薬の生存判定（プレイヤーからの距離またはワールド境界外で破棄）
    */
-  update(playerX: number, playerY: number, worldSize: number): void {
-    const bullets = this.bullets.getChildren() as Phaser.Physics.Arcade.Image[];
-    for (const bullet of bullets) {
-      if (bullet.active) {
-        const dist = Phaser.Math.Distance.Between(bullet.x, bullet.y, playerX, playerY);
-        if (
-          dist > BULLET_MAX_DISTANCE ||
-          bullet.x < -BULLET_BOUNDS_MARGIN ||
-          bullet.x > worldSize + BULLET_BOUNDS_MARGIN ||
-          bullet.y < -BULLET_BOUNDS_MARGIN ||
-          bullet.y > worldSize + BULLET_BOUNDS_MARGIN
-        ) {
-          bullet.destroy();
+  update(playerX: number, playerY: number, worldSize: number, deltaMs?: number): void {
+    // 1. 全武器の常時マナ自然回復
+    if (typeof deltaMs === "number" && deltaMs > 0) {
+      const dtSeconds = deltaMs / 1000;
+      for (const key of Object.keys(WEAPON_DEFINITIONS) as WeaponType[]) {
+        const def = WEAPON_DEFINITIONS[key];
+        const current = this.manaMap[key] ?? 0;
+        this.manaMap[key] = Math.min(def.maxMana, current + def.manaRecoveryPerSecond * dtSeconds);
+      }
+    }
+
+    // 2. 弾丸の生存距離・境界チェック
+    const bullets = this.bullets?.getChildren() as Phaser.Physics.Arcade.Image[] | undefined;
+    if (bullets) {
+      for (const bullet of bullets) {
+        if (bullet.active) {
+          const dist = Phaser.Math.Distance.Between(bullet.x, bullet.y, playerX, playerY);
+          if (
+            dist > BULLET_MAX_DISTANCE ||
+            bullet.x < -BULLET_BOUNDS_MARGIN ||
+            bullet.x > worldSize + BULLET_BOUNDS_MARGIN ||
+            bullet.y < -BULLET_BOUNDS_MARGIN ||
+            bullet.y > worldSize + BULLET_BOUNDS_MARGIN
+          ) {
+            bullet.destroy();
+          }
         }
       }
     }
